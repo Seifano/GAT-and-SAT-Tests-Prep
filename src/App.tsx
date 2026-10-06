@@ -6,7 +6,8 @@ import {
   Question,
   TestAttempt,
   ActiveSession,
-  AppSettings
+  AppSettings,
+  UserRole
 } from './types';
 import {
   EXAM_CONFIGS,
@@ -26,6 +27,8 @@ import { PracticeSetsView } from './components/PracticeSetsView';
 import { QuestionBrowserView } from './components/QuestionBrowserView';
 import { ExamView } from './components/ExamView';
 import { ResultsView } from './components/ResultsView';
+import { AnalyticsView } from './components/AnalyticsView';
+import { StudentProgressView } from './components/StudentProgressView';
 import { AdminQuestionsView } from './components/AdminQuestionsView';
 import { AdminImportView } from './components/AdminImportView';
 import { AdminAccountsView } from './components/AdminAccountsView';
@@ -44,7 +47,8 @@ import {
   saveQuestionToDb,
   saveQuestionsBatchToDb,
   deleteQuestionFromDb,
-  saveAttemptToDb
+  saveAttemptToDb,
+  fetchAllAttemptsFromDb
 } from './firebase';
 
 const STORAGE_KEY = 'ahs_prepline_v5';
@@ -74,6 +78,20 @@ export default function App() {
         } else {
           parsed.unshift(INITIAL_ACCOUNTS[0]);
         }
+        // Enforce: Abdullah Ali and Houssem Hammami are Teacher accounts (not Admin)
+        parsed.forEach(a => {
+          const isAbdullah =
+            a.username.toLowerCase() === 'abdullah.a' ||
+            a.username.toLowerCase() === 'abdullah' ||
+            a.name.toLowerCase().includes('abdullah ali');
+          const isHoussem =
+            a.username.toLowerCase() === 'houssem.h' ||
+            a.username.toLowerCase() === 'houssem' ||
+            a.name.toLowerCase().includes('houssem hammami');
+          if (isAbdullah || isHoussem) {
+            a.role = 'Teacher';
+          }
+        });
         return parsed;
       }
     } catch (e) {}
@@ -84,20 +102,32 @@ export default function App() {
   const [user, setUser] = useState<UserAccount | null>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_user`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const u = JSON.parse(saved);
+        const isAbdullah =
+          u.username.toLowerCase() === 'abdullah.a' ||
+          u.name.toLowerCase().includes('abdullah ali');
+        const isHoussem =
+          u.username.toLowerCase() === 'houssem.h' ||
+          u.name.toLowerCase().includes('houssem hammami');
+        if (isAbdullah || isHoussem) {
+          u.role = 'Teacher';
+        }
+        return u;
+      }
     } catch (e) {}
     return null;
   });
 
   const [activeExam, setActiveExam] = useState<ExamType>('GAT');
 
-  // Screen defaults to 'login' when user is null
+  // Screen defaults to 'login' when user is null; teachers and admins land on student progress
   const [currentScreen, setCurrentScreen] = useState<string>(() => {
     try {
       const savedUser = localStorage.getItem(`${STORAGE_KEY}_user`);
       if (savedUser) {
         const u = JSON.parse(savedUser);
-        return u.role === 'Admin' ? 'adminQuestions' : 'dashboard';
+        return u.role === 'Admin' || u.role === 'Teacher' ? 'studentProgress' : 'dashboard';
       }
     } catch (e) {}
     return 'login';
@@ -111,24 +141,17 @@ export default function App() {
     return INITIAL_PROFILE;
   });
 
-  const [mastery, setMastery] = useState<Record<ExamType, Record<string, number>>>(() => {
+  // Real test attempts recorded in Firestore
+  const [attempts, setAttempts] = useState<TestAttempt[]>(() => {
     try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_mastery`);
+      const saved = localStorage.getItem(`${STORAGE_KEY}_attempts`);
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    return INITIAL_MASTERY;
+    return [];
   });
 
-  const [history, setHistory] = useState<Record<ExamType, Array<{ score: number; date: string; kind: string }>>>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_history`);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return INITIAL_HISTORY;
-  });
-
-  const [streak, setStreak] = useState<number>(6);
-  const [weekDone, setWeekDone] = useState<boolean[]>([true, true, true, true, true, true, false]);
+  const [streak, setStreak] = useState<number>(0);
+  const [weekDone, setWeekDone] = useState<boolean[]>([false, false, false, false, false, false, false]);
   const [lastAttempt, setLastAttempt] = useState<TestAttempt | null>(null);
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [seen, setSeen] = useState<Record<ExamType, Record<string, boolean>>>({
@@ -158,11 +181,10 @@ export default function App() {
       localStorage.setItem(`${STORAGE_KEY}_accounts`, JSON.stringify(accounts));
       localStorage.setItem(`${STORAGE_KEY}_user`, JSON.stringify(user));
       localStorage.setItem(`${STORAGE_KEY}_profile`, JSON.stringify(profile));
-      localStorage.setItem(`${STORAGE_KEY}_mastery`, JSON.stringify(mastery));
-      localStorage.setItem(`${STORAGE_KEY}_history`, JSON.stringify(history));
+      localStorage.setItem(`${STORAGE_KEY}_attempts`, JSON.stringify(attempts));
       localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(appSettings));
     } catch (e) {}
-  }, [bank, accounts, user, profile, mastery, history, appSettings]);
+  }, [bank, accounts, user, profile, attempts, appSettings]);
 
   // Initial load & connection to Cloud Firestore database
   useEffect(() => {
@@ -172,6 +194,13 @@ export default function App() {
     fetchUsersFromDb().then(dbAccounts => {
       if (dbAccounts && dbAccounts.length) {
         setAccounts(dbAccounts);
+      }
+    });
+
+    // Fetch live test attempts from Firestore
+    fetchAllAttemptsFromDb().then(dbAttempts => {
+      if (dbAttempts && dbAttempts.length) {
+        setAttempts(dbAttempts);
       }
     });
 
@@ -254,9 +283,20 @@ export default function App() {
     }
 
     if (found) {
+      // Enforce Abdullah Ali and Houssem Hammami are Teachers
+      const isAbdullah =
+        found.username.toLowerCase() === 'abdullah.a' ||
+        found.name.toLowerCase().includes('abdullah ali');
+      const isHoussem =
+        found.username.toLowerCase() === 'houssem.h' ||
+        found.name.toLowerCase().includes('houssem hammami');
+      if (isAbdullah || isHoussem) {
+        found.role = 'Teacher';
+      }
+
       setUser(found);
-      if (found.role === 'Admin') {
-        setCurrentScreen('adminQuestions');
+      if (found.role === 'Admin' || found.role === 'Teacher') {
+        setCurrentScreen('studentProgress');
       } else {
         setCurrentScreen('dashboard');
       }
@@ -287,8 +327,8 @@ export default function App() {
       setActiveExam(targetExams[0]);
     }
 
-    if (newAccount.role === 'Admin') {
-      setCurrentScreen('adminQuestions');
+    if (newAccount.role === 'Admin' || newAccount.role === 'Teacher') {
+      setCurrentScreen('studentProgress');
     } else {
       setCurrentScreen('dashboard');
     }
@@ -304,17 +344,33 @@ export default function App() {
   };
 
   const handleSwitchRole = () => {
-    if (user?.role === 'Admin') {
-      const student = accounts.find(a => a.role === 'Student') || INITIAL_ACCOUNTS[1];
+    if (user?.role === 'Admin' || user?.role === 'Teacher') {
+      const student = accounts.find(a => a.role === 'Student') || INITIAL_ACCOUNTS[3];
       setUser(student);
       setCurrentScreen('dashboard');
       showToast(`Switched to Student view (${student.name})`);
     } else {
+      const teacher = accounts.find(a => a.role === 'Teacher');
       const admin = accounts.find(a => a.role === 'Admin') || INITIAL_ACCOUNTS[0];
-      setUser(admin);
-      setCurrentScreen('adminQuestions');
-      showToast(`Switched to Instructor view (${admin.name})`);
+      const targetStaff = teacher || admin;
+      setUser(targetStaff);
+      setCurrentScreen('studentProgress');
+      showToast(`Switched to ${targetStaff.role} view (${targetStaff.name})`);
     }
+  };
+
+  const handleUpdateAccountRole = (username: string, newRole: UserRole) => {
+    setAccounts(prev => {
+      const updated = prev.map(a =>
+        a.username.toLowerCase() === username.toLowerCase() ? { ...a, role: newRole } : a
+      );
+      const target = updated.find(a => a.username.toLowerCase() === username.toLowerCase());
+      if (target) {
+        saveUserToDb(target).catch(console.error);
+      }
+      return updated;
+    });
+    showToast(`Updated @${username} to ${newRole} role.`);
   };
 
   const shuffle = <T,>(arr: T[]): T[] => {
@@ -432,6 +488,26 @@ export default function App() {
     setCurrentScreen('exam');
   };
 
+  const startMissedDrill = (missedQIds: string[]) => {
+    if (!missedQIds.length) return;
+    const timeSeconds = Math.max(180, missedQIds.length * 60);
+
+    setSession({
+      exam: activeExam,
+      kind: 'focus',
+      label: `Retake Missed (${missedQIds.length} Qs)`,
+      qids: missedQIds,
+      answers: {},
+      flagged: {},
+      cur: 0,
+      timeLeft: timeSeconds,
+      total: timeSeconds
+    });
+
+    setCurrentScreen('exam');
+    showToast(`Started review drill with ${missedQIds.length} missed question(s).`);
+  };
+
   const computeResults = (sess: ActiveSession): TestAttempt => {
     const currentQuestions = bank[sess.exam];
     const questionItems = sess.qids
@@ -464,6 +540,7 @@ export default function App() {
 
     return {
       id: `att-${Date.now().toString(36)}`,
+      username: user ? user.username.toLowerCase() : 'student',
       exam: sess.exam,
       kind: sess.kind,
       label: sess.label,
@@ -483,19 +560,6 @@ export default function App() {
     if (!session) return;
     const attempt = computeResults(session);
 
-    const currentMastery = { ...mastery[session.exam] };
-    attempt.bySkill.forEach(bs => {
-      const sessionPct = Math.round((bs.correct / bs.total) * 100);
-      const prior = currentMastery[bs.skill] ?? 50;
-      currentMastery[bs.skill] = Math.round(prior * 0.7 + sessionPct * 0.3);
-    });
-
-    const newHist = { ...history };
-    newHist[session.exam] = [
-      ...newHist[session.exam],
-      { score: attempt.score, date: attempt.date, kind: attempt.label }
-    ];
-
     const newWeek = [...weekDone];
     let newStreak = streak;
     if (!newWeek[6]) {
@@ -508,8 +572,7 @@ export default function App() {
       newSeen[session.exam][id] = true;
     });
 
-    setMastery(prev => ({ ...prev, [session.exam]: currentMastery }));
-    setHistory(newHist);
+    setAttempts(prev => [attempt, ...prev]);
     setWeekDone(newWeek);
     setStreak(newStreak);
     setSeen(newSeen);
@@ -522,6 +585,7 @@ export default function App() {
 
   const handleAutoSubmit = (sess: ActiveSession) => {
     const attempt = computeResults(sess);
+    setAttempts(prev => [attempt, ...prev]);
     saveAttemptToDb(attempt).catch(console.error);
     setLastAttempt(attempt);
     setSession(null);
@@ -595,6 +659,50 @@ export default function App() {
     showToast(`Account @${username} removed from database.`);
   };
 
+  // Authentic test history for the current user and active exam (no fabricated data)
+  const currentStudentAttempts = attempts.filter(
+    a => (a.username || '').toLowerCase() === (user?.username || '').toLowerCase()
+  );
+  const currentExamAttempts = currentStudentAttempts.filter(a => a.exam === activeExam);
+
+  // Real history of test scores
+  const authenticHistory = currentExamAttempts.map(a => ({
+    score: a.score,
+    date: a.date,
+    kind: a.label
+  }));
+
+  // Real skill mastery computed from actual question responses in attempts
+  const authenticMastery = React.useMemo(() => {
+    const res: Record<string, number> = {};
+    const skillStats: Record<string, { correct: number; total: number }> = {};
+
+    currentExamAttempts.forEach(att => {
+      (att.bySkill || []).forEach(bs => {
+        if (!skillStats[bs.skill]) {
+          skillStats[bs.skill] = { correct: 0, total: 0 };
+        }
+        skillStats[bs.skill].correct += bs.correct;
+        skillStats[bs.skill].total += bs.total;
+      });
+    });
+
+    Object.entries(skillStats).forEach(([sk, stat]) => {
+      if (stat.total > 0) {
+        res[sk] = Math.round((stat.correct / stat.total) * 100);
+      }
+    });
+
+    return res;
+  }, [currentExamAttempts]);
+
+  // Compute authentic streak
+  const authenticStreak = React.useMemo(() => {
+    if (currentStudentAttempts.length === 0) return 0;
+    const uniqueDates = new Set(currentStudentAttempts.map(a => a.date));
+    return Math.min(30, uniqueDates.size);
+  }, [currentStudentAttempts]);
+
   return (
     <div className="min-h-screen bg-[#f3f2f2] text-[#201e1d] flex flex-col font-sans">
       {/* Toast Alert */}
@@ -610,7 +718,7 @@ export default function App() {
           currentScreen={currentScreen}
           activeExam={activeExam}
           user={user}
-          streak={streak}
+          streak={authenticStreak}
           onNavigate={screen => setCurrentScreen(screen)}
           onSelectExam={ex => setActiveExam(ex)}
           onSignOut={handleSignOut}
@@ -646,9 +754,9 @@ export default function App() {
           <DashboardView
             activeExam={activeExam}
             profile={profile}
-            mastery={mastery[activeExam]}
-            history={history[activeExam]}
-            streak={streak}
+            mastery={authenticMastery}
+            history={authenticHistory}
+            streak={authenticStreak}
             weekDone={weekDone}
             bank={bank[activeExam]}
             userName={user?.name || 'Student'}
@@ -657,7 +765,21 @@ export default function App() {
             onStartQuick={startQuickWarmup}
             onViewSkills={() => setCurrentScreen('skills')}
             onViewResults={() => setCurrentScreen('results')}
-            hasPastResults={!!lastAttempt}
+            onViewAnalytics={() => setCurrentScreen('analytics')}
+            hasPastResults={currentExamAttempts.length > 0 || !!lastAttempt}
+          />
+        )}
+
+        {currentScreen === 'analytics' && (
+          <AnalyticsView
+            activeExam={activeExam}
+            profile={profile}
+            mastery={authenticMastery}
+            history={authenticHistory}
+            streak={authenticStreak}
+            bank={bank[activeExam]}
+            onStartFocus={skills => startFocusDrill(skills)}
+            onStartMock={() => startMockExam(activeExam)}
           />
         )}
 
@@ -665,8 +787,8 @@ export default function App() {
           <SkillsView
             activeExam={activeExam}
             profile={profile}
-            mastery={mastery[activeExam]}
-            history={history[activeExam]}
+            mastery={authenticMastery}
+            history={authenticHistory}
             bank={bank[activeExam]}
             onStartFocus={skills => startFocusDrill(skills)}
           />
@@ -676,7 +798,7 @@ export default function App() {
           <PracticeSetsView
             activeExam={activeExam}
             bank={bank[activeExam]}
-            mastery={mastery[activeExam]}
+            mastery={authenticMastery}
             onStartMock={() => startMockExam(activeExam)}
             onStartFocus={skills => startFocusDrill(skills)}
             onStartQuick={startQuickWarmup}
@@ -688,6 +810,15 @@ export default function App() {
             activeExam={activeExam}
             bank={bank}
             onSelectExam={ex => setActiveExam(ex)}
+          />
+        )}
+
+        {/* Student Progress (for Teachers and Admins) */}
+        {currentScreen === 'studentProgress' && (
+          <StudentProgressView
+            students={accounts}
+            attempts={attempts}
+            currentUser={user || accounts[0]}
           />
         )}
 
@@ -719,7 +850,7 @@ export default function App() {
             onSubmit={handleFinishExam}
             onExit={() => {
               setSession(null);
-              setCurrentScreen('dashboard');
+              setCurrentScreen(user?.role === 'Student' ? 'dashboard' : 'studentProgress');
             }}
           />
         )}
@@ -737,11 +868,12 @@ export default function App() {
               }
             }}
             onPracticeWeak={skills => startFocusDrill(skills)}
-            onReturnDashboard={() => setCurrentScreen('dashboard')}
+            onReturnDashboard={() => setCurrentScreen(user?.role === 'Student' ? 'dashboard' : 'studentProgress')}
+            onRetakeMissed={startMissedDrill}
           />
         )}
 
-        {/* Admin Views */}
+        {/* Question Management (Full access for Teachers and Admins to add/edit/delete questions) */}
         {currentScreen === 'adminQuestions' && (
           <AdminQuestionsView
             bank={bank}
@@ -751,6 +883,7 @@ export default function App() {
           />
         )}
 
+        {/* Question Importer (Full access for Teachers and Admins) */}
         {currentScreen === 'adminImport' && (
           <AdminImportView
             onImportDrafts={handleImportDrafts}
@@ -758,25 +891,64 @@ export default function App() {
           />
         )}
 
+        {/* Accounts Management (Restricted to Admin only) */}
         {currentScreen === 'adminAccounts' && (
-          <AdminAccountsView
-            accounts={accounts}
-            currentUser={user}
-            onCreateAccounts={handleCreateAccounts}
-            onResetPassword={handleResetPassword}
-            onDeleteAccount={handleDeleteAccount}
-          />
+          user?.role === 'Teacher' ? (
+            <div className="max-w-xl mx-auto my-16 p-8 bg-white border-2 border-[#201e1d] text-center space-y-4">
+              <div className="w-12 h-12 bg-amber-50 border border-amber-300 mx-auto flex items-center justify-center text-amber-700 font-bold text-xl">
+                !
+              </div>
+              <h2 className="text-xl font-black text-[#201e1d]">Admin Privileges Required</h2>
+              <p className="text-xs text-slate-600">
+                Teacher accounts can view student progress and add/remove questions. User account management is reserved for Administrator accounts.
+              </p>
+              <button
+                onClick={() => setCurrentScreen('studentProgress')}
+                className="btn-primary px-5 py-2.5 text-white text-xs font-black cursor-pointer"
+              >
+                Return to Student Progress
+              </button>
+            </div>
+          ) : (
+            <AdminAccountsView
+              accounts={accounts}
+              currentUser={user}
+              onCreateAccounts={handleCreateAccounts}
+              onResetPassword={handleResetPassword}
+              onDeleteAccount={handleDeleteAccount}
+              onUpdateAccountRole={handleUpdateAccountRole}
+            />
+          )
         )}
 
+        {/* Branding & Logo Customization (Restricted to Admin only) */}
         {currentScreen === 'adminBranding' && (
-          <AdminBrandingView
-            settings={appSettings}
-            onSaveSettings={async newSettings => {
-              setAppSettings(newSettings);
-              await saveAppSettingsToDb(newSettings);
-              showToast('Branding and login page settings saved to database!');
-            }}
-          />
+          user?.role === 'Teacher' ? (
+            <div className="max-w-xl mx-auto my-16 p-8 bg-white border-2 border-[#201e1d] text-center space-y-4">
+              <div className="w-12 h-12 bg-amber-50 border border-amber-300 mx-auto flex items-center justify-center text-amber-700 font-bold text-xl">
+                !
+              </div>
+              <h2 className="text-xl font-black text-[#201e1d]">Admin Privileges Required</h2>
+              <p className="text-xs text-slate-600">
+                School branding and login page customization are restricted to Administrator accounts.
+              </p>
+              <button
+                onClick={() => setCurrentScreen('studentProgress')}
+                className="btn-primary px-5 py-2.5 text-white text-xs font-black cursor-pointer"
+              >
+                Return to Student Progress
+              </button>
+            </div>
+          ) : (
+            <AdminBrandingView
+              settings={appSettings}
+              onSaveSettings={async newSettings => {
+                setAppSettings(newSettings);
+                await saveAppSettingsToDb(newSettings);
+                showToast('Branding and login page settings saved to database!');
+              }}
+            />
+          )
         )}
       </div>
     </div>

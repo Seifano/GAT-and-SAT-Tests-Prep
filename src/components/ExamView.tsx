@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveSession, Question } from '../types';
-import { Clock, Flag, X, ArrowLeft, ArrowRight, Bookmark, ZoomIn, ZoomOut } from 'lucide-react';
+import { Clock, Flag, X, ArrowLeft, ArrowRight, Bookmark, BookOpen, Calculator, Strikethrough, Check } from 'lucide-react';
+import { ReferenceSheetModal } from './tools/ReferenceSheetModal';
+import { CalculatorModal } from './tools/CalculatorModal';
 
 interface ExamViewProps {
   session: ActiveSession;
@@ -23,6 +25,9 @@ export const ExamView: React.FC<ExamViewProps> = ({
 }) => {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showNavigator, setShowNavigator] = useState(false);
+  const [showRefSheet, setShowRefSheet] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [eliminatedOptions, setEliminatedOptions] = useState<Record<number, boolean>>({});
   const [passageFontSize, setPassageFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-base');
 
   const currentQId = session.qids[session.cur];
@@ -51,9 +56,23 @@ export const ExamView: React.FC<ExamViewProps> = ({
   const progressPercent = (answeredCount / totalCount) * 100;
   const isBigPrompt = currentQ.skill === 'Analogy' || currentQ.skill === 'Odd One Out';
 
+  // Toggle option strikethrough (eliminator)
+  const toggleEliminate = (e: React.MouseEvent, oIdx: number) => {
+    e.stopPropagation();
+    setEliminatedOptions(prev => ({
+      ...prev,
+      [oIdx]: !prev[oIdx]
+    }));
+  };
+
+  // Reset eliminated options when question changes
+  useEffect(() => {
+    setEliminatedOptions({});
+  }, [session.cur]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showSubmitModal) return;
+      if (showSubmitModal || showCalculator || showRefSheet) return;
       if (e.target && /INPUT|TEXTAREA/.test((e.target as HTMLElement).tagName)) return;
 
       const key = e.key.toLowerCase();
@@ -70,7 +89,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [session.cur, totalCount, onAnswer, onNavigateIndex, onToggleFlag, showSubmitModal]);
+  }, [session.cur, totalCount, onAnswer, onNavigateIndex, onToggleFlag, showSubmitModal, showCalculator, showRefSheet]);
 
   return (
     <div className="min-h-screen bg-[#f3f2f2] flex flex-col font-sans text-[#201e1d]">
@@ -88,21 +107,40 @@ export const ExamView: React.FC<ExamViewProps> = ({
             <div>
               <div className="font-extrabold text-sm text-[#201e1d] flex items-center gap-2">
                 <span>{session.label}</span>
-                <span className="text-xs bg-[#1f3d7a] text-white px-1.5 py-0.2">
+                <span className="text-xs bg-[#1f3d7a] text-white px-1.5 py-0.2 font-mono">
                   {session.exam}
                 </span>
               </div>
               <div className="text-xs text-slate-600">
-                {answeredCount} of {totalCount} answered
+                {answeredCount} of {totalCount} answered · Question {session.cur + 1}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Live Timer */}
+          <div className="flex items-center gap-2.5 sm:gap-4">
+            {/* Built-in Exam Tools */}
+            <button
+              onClick={() => setShowCalculator(true)}
+              title="Open Scientific Calculator"
+              className="px-2.5 py-1 text-xs font-bold border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
+            >
+              <Calculator className="w-3.5 h-3.5 text-[#1f3d7a]" />
+              <span className="hidden sm:inline">Calculator</span>
+            </button>
+
+            <button
+              onClick={() => setShowRefSheet(true)}
+              title="Open Official Math Reference Sheet"
+              className="px-2.5 py-1 text-xs font-bold border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#1f3d7a]" />
+              <span className="hidden sm:inline">Reference</span>
+            </button>
+
+            {/* Live Countdown Timer */}
             <div
-              className={`flex items-center gap-1.5 text-lg font-black font-mono tabular-nums ${
-                isTimeCritical ? 'text-[#e15b47] animate-pulse' : 'text-[#201e1d]'
+              className={`flex items-center gap-1.5 text-base sm:text-lg font-black font-mono tabular-nums px-2 py-0.5 ${
+                isTimeCritical ? 'text-[#e15b47] bg-red-50 border border-red-300 animate-pulse' : 'text-[#201e1d]'
               }`}
             >
               <Clock className="w-4 h-4" />
@@ -118,14 +156,14 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
             <button
               onClick={() => setShowSubmitModal(true)}
-              className="btn-primary px-4 py-2 text-white text-xs font-black cursor-pointer"
+              className="btn-primary px-4 py-2 text-white text-xs font-black cursor-pointer shadow-sm"
             >
               Submit
             </button>
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress Bar */}
         <div className="h-1 w-full bg-slate-300">
           <div
             className="h-full bg-[#1f3d7a] transition-all duration-300"
@@ -176,7 +214,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
           <div>
             {/* Metadata Tags */}
             <div className="flex flex-wrap items-center gap-2 mb-4 text-xs font-bold">
-              <span>Question {session.cur + 1}</span>
+              <span>Question {session.cur + 1} of {totalCount}</span>
               <span className="text-slate-400">·</span>
               <span className="text-slate-600">{currentQ.section}</span>
               <span className="text-slate-400">·</span>
@@ -198,36 +236,56 @@ export const ExamView: React.FC<ExamViewProps> = ({
               {currentQ.prompt}
             </div>
 
-            {/* Options A-D */}
+            {/* Options A-D with Strikethrough Eliminator */}
             <div className="space-y-3 mb-8">
               {currentQ.options.map((opt, oIdx) => {
                 const isSelected = session.answers[session.cur] === oIdx;
+                const isEliminated = !!eliminatedOptions[oIdx];
                 const letter = ['A', 'B', 'C', 'D'][oIdx];
 
                 return (
-                  <button
+                  <div
                     key={oIdx}
-                    type="button"
-                    onClick={() => onAnswer(oIdx)}
-                    className={`w-full text-left p-4 border-2 transition-all flex items-center gap-4 cursor-pointer min-h-[52px] ${
-                      isSelected
+                    onClick={() => {
+                      if (!isEliminated) onAnswer(oIdx);
+                    }}
+                    className={`w-full text-left p-3.5 sm:p-4 border-2 transition-all flex items-center justify-between gap-3 cursor-pointer min-h-[52px] ${
+                      isEliminated
+                        ? 'opacity-40 bg-slate-100 border-slate-200 line-through'
+                        : isSelected
                         ? 'border-[#1f3d7a] bg-[#1f3d7a]/10 text-[#1f3d7a]'
                         : 'border-slate-300 bg-white hover:border-slate-400 text-[#201e1d]'
                     }`}
                   >
-                    <span
-                      className={`w-7 h-7 flex items-center justify-center font-extrabold text-xs shrink-0 border-2 ${
-                        isSelected
-                          ? 'border-[#1f3d7a] bg-[#1f3d7a] text-white'
-                          : 'border-slate-300 bg-transparent text-[#201e1d]'
+                    <div className="flex items-center gap-3 flex-1">
+                      <span
+                        className={`w-7 h-7 flex items-center justify-center font-extrabold text-xs shrink-0 border-2 ${
+                          isSelected
+                            ? 'border-[#1f3d7a] bg-[#1f3d7a] text-white'
+                            : 'border-slate-300 bg-transparent text-[#201e1d]'
+                        }`}
+                      >
+                        {letter}
+                      </span>
+                      <span className={`text-base font-semibold leading-relaxed flex-1 ${isEliminated ? 'line-through text-slate-400' : ''}`}>
+                        {opt}
+                      </span>
+                    </div>
+
+                    {/* Strikethrough Eliminator button */}
+                    <button
+                      type="button"
+                      onClick={(e) => toggleEliminate(e, oIdx)}
+                      title={isEliminated ? 'Restore option' : 'Cross out / eliminate option'}
+                      className={`p-1 text-xs border rounded-none cursor-pointer ${
+                        isEliminated
+                          ? 'bg-slate-300 text-slate-800 border-slate-400'
+                          : 'text-slate-400 hover:text-black hover:bg-slate-100 border-transparent'
                       }`}
                     >
-                      {letter}
-                    </span>
-                    <span className="text-base font-semibold leading-relaxed flex-1">
-                      {opt}
-                    </span>
-                  </button>
+                      <Strikethrough className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -252,20 +310,20 @@ export const ExamView: React.FC<ExamViewProps> = ({
               }`}
             >
               <Bookmark className={`w-3.5 h-3.5 ${isFlagged ? 'fill-current' : ''}`} />
-              <span>{isFlagged ? 'Flagged' : 'Flag'}</span>
+              <span>{isFlagged ? 'Flagged for Review' : 'Mark for Review'}</span>
             </button>
 
             {session.cur === totalCount - 1 ? (
               <button
                 onClick={() => setShowSubmitModal(true)}
-                className="btn-primary px-5 py-2.5 text-white text-xs font-black cursor-pointer"
+                className="btn-primary px-5 py-2.5 text-white text-xs font-black cursor-pointer shadow-sm"
               >
-                Review &amp; submit
+                Review &amp; Submit
               </button>
             ) : (
               <button
                 onClick={() => onNavigateIndex(session.cur + 1)}
-                className="btn-primary px-5 py-2.5 text-white text-xs font-black flex items-center gap-2 cursor-pointer"
+                className="btn-primary px-5 py-2.5 text-white text-xs font-black flex items-center gap-2 cursor-pointer shadow-sm"
               >
                 <span>Next</span>
                 <ArrowRight className="w-4 h-4" />
@@ -273,20 +331,21 @@ export const ExamView: React.FC<ExamViewProps> = ({
             )}
           </div>
 
-          <div className="text-[11px] text-slate-500 pt-2">
-            Keys: A–D to answer · ← → to navigate · F to flag
+          <div className="text-[11px] text-slate-500 pt-2 flex items-center justify-between">
+            <span>Keys: A–D to select answer · ← → to navigate · F to flag</span>
+            <span>Click strikethrough icon to eliminate wrong choices</span>
           </div>
         </div>
 
         {/* Question Grid Navigator */}
         {showNavigator && (
-          <aside className="w-full lg:w-72 bg-white border-2 border-[#201e1d]/30 p-5 shrink-0 space-y-4">
+          <aside className="w-full lg:w-72 bg-white border-2 border-[#201e1d]/30 p-5 shrink-0 space-y-4 shadow-sm">
             <div className="flex items-center justify-between pb-2 border-b-2 border-[#201e1d]/30">
               <span className="font-extrabold text-xs text-[#201e1d] uppercase">
-                Questions
+                Question Navigator
               </span>
-              <span className="text-xs text-slate-500">
-                {answeredCount}/{totalCount}
+              <span className="text-xs text-slate-600 font-bold">
+                {answeredCount}/{totalCount} Completed
               </span>
             </div>
 
@@ -300,7 +359,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                 if (isCurrent) {
                   bgStyle = 'bg-[#201e1d] text-white border-[#201e1d] font-black';
                 } else if (isAnswered) {
-                  bgStyle = 'bg-[#1f3d7a]/15 text-[#1f3d7a] border-[#1f3d7a]/30 font-bold';
+                  bgStyle = 'bg-[#1f3d7a]/15 text-[#1f3d7a] border-[#1f3d7a]/40 font-bold';
                 }
 
                 return (
@@ -336,18 +395,31 @@ export const ExamView: React.FC<ExamViewProps> = ({
         )}
       </main>
 
+      {/* Built-in Reference Sheet Modal */}
+      <ReferenceSheetModal
+        exam={session.exam}
+        isOpen={showRefSheet}
+        onClose={() => setShowRefSheet(false)}
+      />
+
+      {/* Built-in Calculator Modal */}
+      <CalculatorModal
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+      />
+
       {/* Submit Confirmation Modal */}
       {showSubmitModal && (
         <div className="fixed inset-0 z-50 bg-[#201e1d]/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#f3f2f2] max-w-md w-full p-6 border-2 border-[#201e1d] space-y-4">
+          <div className="bg-[#f3f2f2] max-w-md w-full p-6 border-2 border-[#201e1d] space-y-4 shadow-2xl">
             <h3 className="text-xl font-black text-[#201e1d]">
-              Submit this {session.kind === 'mock' ? 'mock exam' : 'focus set'}?
+              Submit this {session.kind === 'mock' ? 'mock exam' : 'practice session'}?
             </h3>
             <p className="text-xs text-slate-700 leading-relaxed">
               {unansweredCount > 0
-                ? `${unansweredCount} question${unansweredCount > 1 ? 's are' : ' is'} unanswered. Unanswered questions count as incorrect, with no extra penalty.`
-                : 'All questions are answered.'}
-              {flaggedCount > 0 && ` ${flaggedCount} flagged for review.`}
+                ? `${unansweredCount} question${unansweredCount > 1 ? 's are' : ' is'} unanswered. In official scoring, unanswered questions count as incorrect.`
+                : 'All questions have been answered.'}
+              {flaggedCount > 0 && ` ${flaggedCount} marked for review.`}
             </p>
 
             <div className="flex justify-end gap-3 pt-3 border-t-2 border-[#201e1d]/30">
@@ -361,9 +433,9 @@ export const ExamView: React.FC<ExamViewProps> = ({
               <button
                 type="button"
                 onClick={onSubmit}
-                className="btn-primary px-5 py-2 text-white text-xs font-black cursor-pointer"
+                className="btn-primary px-5 py-2 text-white text-xs font-black cursor-pointer shadow-sm"
               >
-                Submit and see results
+                Submit and View Diagnostics
               </button>
             </div>
           </div>

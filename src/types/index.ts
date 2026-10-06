@@ -36,11 +36,13 @@ export interface QuestionDraft extends Omit<Question, 'id'> {
   guessed?: boolean;
 }
 
+export type UserRole = 'Student' | 'Teacher' | 'Admin';
+
 export interface UserAccount {
   name: string;
   username: string;
   email?: string;
-  role: 'Student' | 'Admin';
+  role: UserRole;
   password?: string;
   created: string;
 }
@@ -62,6 +64,7 @@ export interface SkillPerformance {
 
 export interface TestAttempt {
   id: string;
+  username?: string;
   exam: ExamType;
   kind: 'mock' | 'focus' | 'quick';
   label: string;

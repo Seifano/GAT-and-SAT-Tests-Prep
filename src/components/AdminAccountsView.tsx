@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserAccount } from '../types';
+import { UserAccount, UserRole } from '../types';
 import { Search, X, Check, ArrowRight } from 'lucide-react';
 
 interface AdminAccountsViewProps {
@@ -8,6 +8,7 @@ interface AdminAccountsViewProps {
   onCreateAccounts: (accounts: UserAccount[]) => void;
   onResetPassword: (username: string, newPass: string) => void;
   onDeleteAccount: (username: string) => void;
+  onUpdateAccountRole?: (username: string, newRole: UserRole) => void;
 }
 
 export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
@@ -15,7 +16,8 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   currentUser,
   onCreateAccounts,
   onResetPassword,
-  onDeleteAccount
+  onDeleteAccount,
+  onUpdateAccountRole
 }) => {
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,7 +26,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'Student' | 'Admin'>('Student');
+  const [role, setRole] = useState<UserRole>('Student');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
@@ -231,7 +233,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
           <div className="space-y-1">
             <label className="block text-xs font-bold text-[#201e1d]">Role</label>
             <div className="inline-flex border border-[#201e1d]/30 bg-transparent">
-              {(['Student', 'Admin'] as const).map(r => (
+              {(['Student', 'Teacher', 'Admin'] as const).map(r => (
                 <button
                   key={r}
                   type="button"
@@ -450,9 +452,22 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                       <td className="py-3 px-2 text-slate-600 font-mono">@{acc.username}</td>
                       <td className="py-3 px-2 text-slate-500">{acc.email || '—'}</td>
                       <td className="py-3 px-2">
-                        <span className="font-bold text-[11px] text-[#1f3d7a]">
-                          {acc.role}
-                        </span>
+                        {isCurrent ? (
+                          <span className="font-bold text-[11px] text-[#1f3d7a] bg-blue-50 px-2 py-0.5 border border-blue-200">
+                            {acc.role} (Current)
+                          </span>
+                        ) : (
+                          <select
+                            value={acc.role}
+                            onChange={e => onUpdateAccountRole?.(acc.username, e.target.value as UserRole)}
+                            className="bg-white border border-slate-300 text-[11px] font-bold text-[#1f3d7a] px-1.5 py-0.5 cursor-pointer focus:outline-none focus:border-[#1f3d7a]"
+                            title="Change account role"
+                          >
+                            <option value="Student">Student</option>
+                            <option value="Teacher">Teacher</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                        )}
                       </td>
                       <td className="py-3 px-2 text-slate-500">{acc.created || '—'}</td>
                       <td className="py-3 px-2 text-right">

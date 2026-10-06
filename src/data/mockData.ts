@@ -51,6 +51,22 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     created: 'Oct 5'
   },
   {
+    name: 'Abdullah Ali',
+    username: 'abdullah.a',
+    email: 'abdullah.ali@prepline.app',
+    role: 'Teacher',
+    password: 'password123',
+    created: 'Oct 6'
+  },
+  {
+    name: 'Houssem Hammami',
+    username: 'houssem.h',
+    email: 'houssem.hammami@prepline.app',
+    role: 'Teacher',
+    password: 'password123',
+    created: 'Oct 6'
+  },
+  {
     name: 'Sara Al-Qahtani',
     username: 'sara.q',
     email: 'sara@school.edu',
@@ -89,42 +105,13 @@ export const INITIAL_PROFILE: UserProfile = {
 };
 
 export const INITIAL_MASTERY: Record<'GAT' | 'SAT', Record<string, number>> = {
-  GAT: {
-    'Analogy': 58,
-    'Sentence Completion': 76,
-    'Contextual Error': 52,
-    'Odd One Out': 80,
-    'Reading Comprehension': 68,
-    'Arithmetic': 74,
-    'Algebra': 64,
-    'Geometry': 48,
-    'Statistics': 70
-  },
-  SAT: {
-    'Words in Context': 75,
-    'Conventions': 58,
-    'Transitions': 82,
-    'Central Ideas': 70,
-    'Algebra': 78,
-    'Advanced Math': 54,
-    'Data Analysis': 65,
-    'Geometry & Trig': 50
-  }
+  GAT: {},
+  SAT: {}
 };
 
 export const INITIAL_HISTORY: Record<'GAT' | 'SAT', Array<{ score: number; date: string; kind: string }>> = {
-  GAT: [
-    { score: 68, date: 'Sep 5', kind: 'Full mock' },
-    { score: 72, date: 'Sep 12', kind: 'Full mock' },
-    { score: 75, date: 'Sep 19', kind: 'Full mock' },
-    { score: 78, date: 'Sep 26', kind: 'Full mock' }
-  ],
-  SAT: [
-    { score: 1200, date: 'Sep 6', kind: 'Full mock' },
-    { score: 1260, date: 'Sep 13', kind: 'Full mock' },
-    { score: 1310, date: 'Sep 20', kind: 'Full mock' },
-    { score: 1340, date: 'Sep 27', kind: 'Full mock' }
-  ]
+  GAT: [],
+  SAT: []
 };
 
 export const DEFAULT_APP_SETTINGS: import('../types').AppSettings = {

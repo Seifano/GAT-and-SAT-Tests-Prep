@@ -19,7 +19,7 @@
         },
         "role": {
           "type": "string",
-          "enum": ["Student", "Admin"],
+          "enum": ["Student", "Teacher", "Admin"],
           "description": "User platform role"
         },
         "password": {

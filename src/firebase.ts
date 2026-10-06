@@ -54,11 +54,31 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
     const accounts: UserAccount[] = [];
     snapshot.forEach(docSnap => {
       const data = docSnap.data() as UserAccount;
+      let userRole = data.role;
+
+      // Enforce: Abdullah Ali and Houssem Hammami are Teacher accounts (not Admin)
+      const isAbdullah =
+        data.username.toLowerCase() === 'abdullah.a' ||
+        data.username.toLowerCase() === 'abdullah' ||
+        data.name.toLowerCase().includes('abdullah ali');
+      const isHoussem =
+        data.username.toLowerCase() === 'houssem.h' ||
+        data.username.toLowerCase() === 'houssem' ||
+        data.name.toLowerCase().includes('houssem hammami');
+
+      if (isAbdullah || isHoussem) {
+        userRole = 'Teacher';
+        if (data.role !== 'Teacher') {
+          // Sync correction directly to Firestore
+          saveUserToDb({ ...data, role: 'Teacher' }).catch(console.error);
+        }
+      }
+
       accounts.push({
         name: data.name,
         username: data.username,
         email: data.email,
-        role: data.role,
+        role: userRole,
         password: data.password,
         created: data.created || 'Oct 5'
       });
@@ -70,6 +90,30 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
       const adminAcc: UserAccount = INITIAL_ACCOUNTS[0];
       await saveUserToDb(adminAcc);
       accounts.unshift(adminAcc);
+    }
+
+    // Ensure Abdullah Ali Teacher account is present
+    const hasAbdullah = accounts.some(
+      a => a.username.toLowerCase() === 'abdullah.a' || a.name.toLowerCase().includes('abdullah ali')
+    );
+    if (!hasAbdullah) {
+      const abdullahAcc = INITIAL_ACCOUNTS.find(a => a.name.includes('Abdullah Ali'));
+      if (abdullahAcc) {
+        await saveUserToDb(abdullahAcc);
+        accounts.push(abdullahAcc);
+      }
+    }
+
+    // Ensure Houssem Hammami Teacher account is present
+    const hasHoussem = accounts.some(
+      a => a.username.toLowerCase() === 'houssem.h' || a.name.toLowerCase().includes('houssem hammami')
+    );
+    if (!hasHoussem) {
+      const houssemAcc = INITIAL_ACCOUNTS.find(a => a.name.includes('Houssem Hammami'));
+      if (houssemAcc) {
+        await saveUserToDb(houssemAcc);
+        accounts.push(houssemAcc);
+      }
     }
 
     return accounts;
@@ -274,9 +318,38 @@ async function seedQuestions(gat: Question[], sat: Question[]): Promise<void> {
 export async function saveAttemptToDb(attempt: TestAttempt): Promise<void> {
   try {
     const docRef = doc(db, 'attempts', attempt.id);
-    await setDoc(docRef, attempt);
-    console.log(`Saved attempt ${attempt.id} to Firestore.`);
+    await setDoc(docRef, {
+      ...attempt,
+      username: attempt.username || 'unknown'
+    }, { merge: true });
+    console.log(`Saved attempt ${attempt.id} for user ${attempt.username} to Firestore.`);
   } catch (err) {
     console.error('Error saving attempt to Firestore:', err);
+  }
+}
+
+export async function fetchAllAttemptsFromDb(): Promise<TestAttempt[]> {
+  try {
+    const colRef = collection(db, 'attempts');
+    const snapshot = await getDocs(colRef);
+    const attempts: TestAttempt[] = [];
+    snapshot.forEach(docSnap => {
+      attempts.push(docSnap.data() as TestAttempt);
+    });
+    return attempts;
+  } catch (err) {
+    console.error('Failed to fetch attempts from Firestore:', err);
+    return [];
+  }
+}
+
+export async function fetchUserAttemptsFromDb(username: string): Promise<TestAttempt[]> {
+  try {
+    const all = await fetchAllAttemptsFromDb();
+    const clean = username.toLowerCase().trim();
+    return all.filter(a => (a.username || '').toLowerCase().trim() === clean);
+  } catch (err) {
+    console.error(`Failed to fetch attempts for user ${username}:`, err);
+    return [];
   }
 }
