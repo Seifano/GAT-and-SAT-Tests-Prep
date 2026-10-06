@@ -30,6 +30,22 @@ import { AdminQuestionsView } from './components/AdminQuestionsView';
 import { AdminImportView } from './components/AdminImportView';
 import { AdminAccountsView } from './components/AdminAccountsView';
 import { AdminBrandingView } from './components/AdminBrandingView';
+import { doc, getDoc } from 'firebase/firestore';
+import {
+  db,
+  testFirestoreConnection,
+  fetchUsersFromDb,
+  saveUserToDb,
+  saveUsersBatchToDb,
+  deleteUserFromDb,
+  fetchAppSettingsFromDb,
+  saveAppSettingsToDb,
+  fetchQuestionsFromDb,
+  saveQuestionToDb,
+  saveQuestionsBatchToDb,
+  deleteQuestionFromDb,
+  saveAttemptToDb
+} from './firebase';
 
 const STORAGE_KEY = 'ahs_prepline_v5';
 
@@ -148,6 +164,32 @@ export default function App() {
     } catch (e) {}
   }, [bank, accounts, user, profile, mastery, history, appSettings]);
 
+  // Initial load & connection to Cloud Firestore database
+  useEffect(() => {
+    testFirestoreConnection();
+
+    // Fetch live user accounts from Firestore
+    fetchUsersFromDb().then(dbAccounts => {
+      if (dbAccounts && dbAccounts.length) {
+        setAccounts(dbAccounts);
+      }
+    });
+
+    // Fetch live app branding & settings from Firestore
+    fetchAppSettingsFromDb().then(dbSettings => {
+      if (dbSettings) {
+        setAppSettings(dbSettings);
+      }
+    });
+
+    // Fetch live questions from Firestore
+    fetchQuestionsFromDb(initialGATQuestions, initialSATQuestions).then(dbBank => {
+      if (dbBank && (dbBank.GAT.length || dbBank.SAT.length)) {
+        setBank(dbBank);
+      }
+    });
+  }, []);
+
   useEffect(() => {
     if (appSettings.appName) {
       document.title = appSettings.appName;
@@ -172,7 +214,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session, currentScreen]);
 
-  // Sign In handler
+  // Sign In handler (checks memory + queries Firestore database)
   const handleSignIn = async (login: string, pass: string): Promise<boolean> => {
     const clean = login.toLowerCase().trim();
     let found = accounts.find(
@@ -180,6 +222,22 @@ export default function App() {
         (a.username.toLowerCase() === clean || (a.email && a.email.toLowerCase() === clean)) &&
         (a.password === pass || pass === 'HOD123' || (clean === 'admin' && pass === 'HOD123'))
     );
+
+    // If not found in local memory, check live Cloud Firestore database
+    if (!found) {
+      try {
+        const userDocSnap = await getDoc(doc(db, 'users', clean));
+        if (userDocSnap.exists()) {
+          const remoteUser = userDocSnap.data() as UserAccount;
+          if (remoteUser.password === pass || (clean === 'admin' && pass === 'HOD123')) {
+            found = remoteUser;
+            setAccounts(prev => [remoteUser, ...prev.filter(a => a.username.toLowerCase() !== clean)]);
+          }
+        }
+      } catch (err) {
+        console.error('Error verifying user credentials against Firestore:', err);
+      }
+    }
 
     // Fallback guarantee for requested Admin / HOD123 account
     if (!found && clean === 'admin' && (pass === 'HOD123' || pass === 'admin')) {
@@ -191,6 +249,8 @@ export default function App() {
         password: 'HOD123',
         created: 'Oct 5'
       };
+      // Save Admin to database
+      saveUserToDb(found).catch(console.error);
     }
 
     if (found) {
@@ -206,11 +266,18 @@ export default function App() {
     return false;
   };
 
-  // User self-serve account creation
+  // User self-serve account creation with immediate database persistence
   const handleCreateAccount = async (newAccount: UserAccount, targetExams: ExamType[]): Promise<boolean> => {
     const updatedAccounts = [newAccount, ...accounts];
     setAccounts(updatedAccounts);
     setUser(newAccount);
+
+    // Save to Cloud Firestore database immediately so account works everywhere
+    try {
+      await saveUserToDb(newAccount);
+    } catch (err) {
+      console.error('Failed to save new user to database:', err);
+    }
 
     if (targetExams.length > 0) {
       setProfile(prev => ({
@@ -226,7 +293,7 @@ export default function App() {
       setCurrentScreen('dashboard');
     }
 
-    showToast(`Account created! Welcome to Prepline, ${newAccount.name.split(' ')[0]}.`);
+    showToast(`Account created and saved to database! Welcome, ${newAccount.name.split(' ')[0]}.`);
     return true;
   };
 
@@ -447,6 +514,7 @@ export default function App() {
     setStreak(newStreak);
     setSeen(newSeen);
     setLastAttempt(attempt);
+    saveAttemptToDb(attempt).catch(console.error);
     setSession(null);
     setCurrentScreen('results');
     showToast(`Session submitted. Estimated score: ${attempt.score}`);
@@ -454,6 +522,7 @@ export default function App() {
 
   const handleAutoSubmit = (sess: ActiveSession) => {
     const attempt = computeResults(sess);
+    saveAttemptToDb(attempt).catch(console.error);
     setLastAttempt(attempt);
     setSession(null);
     setCurrentScreen('results');
@@ -465,6 +534,7 @@ export default function App() {
       ...prev,
       [q.exam]: [q, ...prev[q.exam]]
     }));
+    saveQuestionToDb(q).catch(console.error);
     showToast(`Added question to ${q.skill}.`);
   };
 
@@ -473,6 +543,7 @@ export default function App() {
       ...prev,
       [q.exam]: prev[q.exam].map(item => (item.id === q.id ? q : item))
     }));
+    saveQuestionToDb(q).catch(console.error);
     showToast(`Updated question in ${q.skill}.`);
   };
 
@@ -481,6 +552,7 @@ export default function App() {
       ...prev,
       [exam]: prev[exam].filter(item => item.id !== id)
     }));
+    deleteQuestionFromDb(id).catch(console.error);
     showToast('Question deleted.');
   };
 
@@ -494,25 +566,33 @@ export default function App() {
       SAT: [...byExam.SAT, ...prev.SAT]
     }));
 
+    saveQuestionsBatchToDb(questions).catch(console.error);
     setCurrentScreen('adminQuestions');
-    showToast(`Imported ${questions.length} questions.`);
+    showToast(`Imported and saved ${questions.length} questions to database.`);
   };
 
   const handleCreateAccounts = (newAccs: UserAccount[]) => {
     setAccounts(prev => [...newAccs, ...prev]);
-    showToast(`Created ${newAccs.length} account(s).`);
+    saveUsersBatchToDb(newAccs).catch(console.error);
+    showToast(`Created and saved ${newAccs.length} account(s) to database.`);
   };
 
   const handleResetPassword = (username: string, newPass: string) => {
-    setAccounts(prev =>
-      prev.map(a => (a.username === username ? { ...a, password: newPass } : a))
-    );
+    setAccounts(prev => {
+      const updated = prev.map(a => (a.username === username ? { ...a, password: newPass } : a));
+      const target = updated.find(a => a.username === username);
+      if (target) {
+        saveUserToDb(target).catch(console.error);
+      }
+      return updated;
+    });
     showToast(`Password updated for @${username}.`);
   };
 
   const handleDeleteAccount = (username: string) => {
     setAccounts(prev => prev.filter(a => a.username !== username));
-    showToast(`Account @${username} removed.`);
+    deleteUserFromDb(username).catch(console.error);
+    showToast(`Account @${username} removed from database.`);
   };
 
   return (
@@ -691,9 +771,10 @@ export default function App() {
         {currentScreen === 'adminBranding' && (
           <AdminBrandingView
             settings={appSettings}
-            onSaveSettings={newSettings => {
+            onSaveSettings={async newSettings => {
               setAppSettings(newSettings);
-              showToast('Branding and login page settings updated!');
+              await saveAppSettingsToDb(newSettings);
+              showToast('Branding and login page settings saved to database!');
             }}
           />
         )}

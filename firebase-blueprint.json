@@ -1,0 +1,173 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "User account credentials and role for exam prep platform access",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name of the user"
+        },
+        "username": {
+          "type": "string",
+          "description": "Unique username in lowercase"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Student", "Admin"],
+          "description": "User platform role"
+        },
+        "password": {
+          "type": "string",
+          "description": "User login password or temporary password"
+        },
+        "created": {
+          "type": "string",
+          "description": "Date account was created"
+        }
+      },
+      "required": ["name", "username", "role", "password"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "Practice or exam question for GAT or SAT",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Question identifier"
+        },
+        "exam": {
+          "type": "string",
+          "enum": ["GAT", "SAT"],
+          "description": "Exam type"
+        },
+        "section": {
+          "type": "string",
+          "description": "Section name"
+        },
+        "skill": {
+          "type": "string",
+          "description": "Assessed skill"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Question prompt text"
+        },
+        "options": {
+          "type": "array",
+          "description": "Answer options list"
+        },
+        "correct": {
+          "type": "number",
+          "description": "0-based index of correct option"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Detailed answer explanation"
+        },
+        "passageId": {
+          "type": "string",
+          "description": "Optional reading passage ID"
+        }
+      },
+      "required": ["id", "exam", "section", "skill", "prompt", "options", "correct", "explanation"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application branding and login page configuration",
+      "type": "object",
+      "properties": {
+        "appName": {
+          "type": "string",
+          "description": "Portal name in navigation and browser title"
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "Logo emblem image URL or data URI"
+        },
+        "loginTitle": {
+          "type": "string",
+          "description": "Title displayed beside logo on login screen"
+        },
+        "loginHeadline": {
+          "type": "string",
+          "description": "Headline banner on login screen"
+        },
+        "loginDescription": {
+          "type": "string",
+          "description": "Description paragraph on login screen"
+        },
+        "loginFootnotes": {
+          "type": "array",
+          "description": "Footnote badges on login screen"
+        }
+      },
+      "required": ["appName", "loginTitle", "loginHeadline"]
+    },
+    "TestAttempt": {
+      "title": "TestAttempt",
+      "description": "Historical test attempt result for analytics and review",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Attempt unique ID"
+        },
+        "username": {
+          "type": "string",
+          "description": "Student username"
+        },
+        "exam": {
+          "type": "string",
+          "enum": ["GAT", "SAT"],
+          "description": "Exam type"
+        },
+        "kind": {
+          "type": "string",
+          "description": "Mock or practice drill"
+        },
+        "score": {
+          "type": "number",
+          "description": "Calculated score"
+        },
+        "correctCount": {
+          "type": "number",
+          "description": "Number of correct answers"
+        },
+        "totalCount": {
+          "type": "number",
+          "description": "Total number of questions"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date or timestamp of attempt"
+        }
+      },
+      "required": ["id", "username", "exam", "score", "correctCount", "totalCount"]
+    }
+  },
+  "firestore": {
+    "/users/{username}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Registered student and admin user accounts"
+    },
+    "/questions/{questionId}": {
+      "schema": { "$ref": "#/entities/Question" },
+      "description": "GAT and SAT question bank entries"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Global application branding settings"
+    },
+    "/attempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/TestAttempt" },
+      "description": "Student mock exam results and attempt records"
+    }
+  }
+}

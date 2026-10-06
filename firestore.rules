@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidUser(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 50 &&
+             data.role in ['Student', 'Admin'] &&
+             data.password is string && data.password.size() >= 4 && data.password.size() <= 100;
+    }
+
+    function isValidQuestion(data) {
+      return data.id is string && data.id.size() > 0 &&
+             data.exam in ['GAT', 'SAT'] &&
+             data.section is string &&
+             data.skill is string &&
+             data.prompt is string &&
+             data.options is list && data.options.size() >= 2 &&
+             data.correct is int && data.correct >= 0 &&
+             data.explanation is string;
+    }
+
+    function isValidSettings(data) {
+      return data.appName is string && data.appName.size() <= 100 &&
+             data.loginTitle is string && data.loginTitle.size() <= 100 &&
+             data.loginHeadline is string && data.loginHeadline.size() <= 200;
+    }
+
+    function isValidAttempt(data) {
+      return data.id is string &&
+             data.username is string &&
+             data.exam in ['GAT', 'SAT'] &&
+             data.score is number &&
+             data.correctCount is int &&
+             data.totalCount is int;
+    }
+
+    // User accounts collection
+    match /users/{username} {
+      allow read: if true;
+      allow create, update: if isValidUser(request.resource.data);
+      allow delete: if true;
+    }
+
+    // Question bank collection
+    match /questions/{questionId} {
+      allow read: if true;
+      allow create, update: if isValidQuestion(request.resource.data);
+      allow delete: if true;
+    }
+
+    // Settings collection
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidSettings(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Attempts collection
+    match /attempts/{attemptId} {
+      allow read: if true;
+      allow create: if isValidAttempt(request.resource.data);
+      allow update, delete: if true;
+    }
+
+    // Test connectivity document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

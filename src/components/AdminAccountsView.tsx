@@ -200,7 +200,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
           {studentCount} student{studentCount === 1 ? '' : 's'} · {adminCount} admin{adminCount === 1 ? '' : 's'}
         </h1>
         <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed">
-          Students can't sign themselves up. Create their accounts here, then hand out the username and temporary password.
+          Manage user accounts connected to the live database. Create credentials for students and instructors individually or in bulk, and new users can access the platform immediately from any device.
         </p>
       </div>
 
