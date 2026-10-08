@@ -1,14 +1,23 @@
 import { QuestionDraft, ExamType } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
 
+const NAFS_SKILLS = EXAM_CONFIGS.NAFS.sections.flatMap(s => s.skills);
 const GAT_SKILLS = EXAM_CONFIGS.GAT.sections.flatMap(s => s.skills);
 const SAT_SKILLS = EXAM_CONFIGS.SAT.sections.flatMap(s => s.skills);
-const ALL_SKILLS = [...GAT_SKILLS, ...SAT_SKILLS];
+const ALL_SKILLS = [...NAFS_SKILLS, ...GAT_SKILLS, ...SAT_SKILLS];
 
 export function classifySkill(exam: ExamType, prompt: string, passage?: string, options?: string[]): { skill: string; guessed: boolean } {
   const p = prompt || '';
   const text = (p + ' ' + (passage || '')).toLowerCase();
   const opts = (options || []).filter(Boolean);
+
+  if (exam === 'NAFS') {
+    if (/most nearly mean|meaning of|vocabulary|defined as|in this context/.test(text)) return { skill: 'Words in Context', guessed: false };
+    if (/evidence|supports|according to|stated in paragraph|why does the text/.test(text)) return { skill: 'Text Analysis & Evidence', guessed: false };
+    if (/purpose|author's attitude|perspective|tone|aim of the passage|theme/.test(text)) return { skill: 'Author\'s Purpose & Perspective', guessed: false };
+    if (/grammar|sentence|punctuation|structure|verb/.test(text)) return { skill: 'Grammar & Structure', guessed: false };
+    return { skill: 'Reading Comprehension', guessed: false };
+  }
 
   if (exam === 'SAT') {
     if (/precise word|logical and precise|most nearly means|context/.test(text)) return { skill: 'Words in Context', guessed: false };
@@ -46,6 +55,7 @@ export function classifySkill(exam: ExamType, prompt: string, passage?: string, 
 
 export function detectExamType(prompt: string, passage?: string): ExamType {
   const text = ((prompt || '') + ' ' + (passage || '')).toLowerCase();
+  if (/nafs|grade 6|grade 9|g6|g9|نافس|national assessment/.test(text)) return 'NAFS';
   if (/which choice|standard english|student'?s notes|most logical and precise/.test(text)) return 'SAT';
   if (/qudurat|gat|tajmeeat|odd one out|analogy/.test(text)) return 'GAT';
   return 'GAT';

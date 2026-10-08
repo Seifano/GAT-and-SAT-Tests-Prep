@@ -172,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Exam Toggle - Modern 3D Segmented Control */}
             <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
-              {(['GAT', 'SAT'] as ExamType[]).map(exam => {
+              {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => {
                 const isActive = activeExam === exam;
                 return (
                   <button
@@ -291,6 +291,29 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="text-amber-800 font-black">{xp || 0} XP</span>
                 </div>
               )}
+            </div>
+
+            {/* Exam Toggle in Mobile Menu */}
+            <div className="flex items-center justify-between p-1.5 bg-slate-100 rounded-xl">
+              <span className="text-[11px] font-bold text-slate-500 uppercase px-2">Track:</span>
+              <div className="inline-flex items-center gap-1">
+                {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => (
+                  <button
+                    key={exam}
+                    onClick={() => {
+                      onSelectExam(exam);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                      activeExam === exam
+                        ? 'bg-white text-[#1e3a8a] shadow-xs ring-1 ring-slate-300 font-black'
+                        : 'text-slate-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {exam}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Admin Switcher for Mobile Drawer */}

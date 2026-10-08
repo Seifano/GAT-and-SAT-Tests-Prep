@@ -26,12 +26,22 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const [openPassageId, setOpenPassageId] = useState<string | null>(null);
 
   const conf = EXAM_CONFIGS[attempt.exam];
-  const target = profile.targets[attempt.exam] || (attempt.exam === 'GAT' ? 88 : 1450);
+  const defaultTarget = attempt.exam === 'NAFS' ? 650 : attempt.exam === 'GAT' ? 88 : 1450;
+  const target = profile.targets[attempt.exam] || defaultTarget;
   const targetDiff = target - attempt.score;
   const isGAT = attempt.exam === 'GAT';
 
   // Compute percentile estimate
   const getPercentile = (s: number) => {
+    if (attempt.exam === 'NAFS') {
+      if (s >= 700) return 98;
+      if (s >= 650) return 92;
+      if (s >= 600) return 85;
+      if (s >= 550) return 74;
+      if (s >= 500) return 60;
+      if (s >= 450) return 45;
+      return 30;
+    }
     if (isGAT) {
       if (s >= 95) return 99;
       if (s >= 90) return 96;

@@ -165,7 +165,7 @@ Explanation: 5x - 7 = 3x + 15 -> 2x = 22 -> x = 11.`;
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-[#201e1d]">Exam</span>
             <div className="inline-flex border border-[#201e1d]/30 bg-transparent">
-              {(['Auto', 'GAT', 'SAT'] as (ExamType | 'Auto')[]).map(t => (
+              {(['Auto', 'NAFS', 'GAT', 'SAT'] as (ExamType | 'Auto')[]).map(t => (
                 <button
                   key={t}
                   onClick={() => setExamPref(t)}

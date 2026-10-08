@@ -1,4 +1,4 @@
-export type ExamType = 'GAT' | 'SAT';
+export type ExamType = 'NAFS' | 'GAT' | 'SAT';
 
 export interface ExamSection {
   name: string;

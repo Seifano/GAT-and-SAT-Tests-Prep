@@ -28,7 +28,7 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
   currentUser
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [examFilter, setExamFilter] = useState<'All' | 'GAT' | 'SAT'>('All');
+  const [examFilter, setExamFilter] = useState<'All' | 'NAFS' | 'GAT' | 'SAT'>('All');
   const [selectedStudent, setSelectedStudent] = useState<UserAccount | null>(null);
 
   // Filter only student accounts
@@ -40,9 +40,11 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
       a => (a.username || '').toLowerCase() === student.username.toLowerCase()
     );
 
+    const nafsAttempts = studentAttempts.filter(a => a.exam === 'NAFS');
     const gatAttempts = studentAttempts.filter(a => a.exam === 'GAT');
     const satAttempts = studentAttempts.filter(a => a.exam === 'SAT');
 
+    const latestNafs = nafsAttempts.length ? nafsAttempts[nafsAttempts.length - 1] : null;
     const latestGat = gatAttempts.length ? gatAttempts[gatAttempts.length - 1] : null;
     const latestSat = satAttempts.length ? satAttempts[satAttempts.length - 1] : null;
 
@@ -75,8 +77,10 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
     return {
       student,
       attemptsCount: studentAttempts.length,
+      nafsAttemptsCount: nafsAttempts.length,
       gatAttemptsCount: gatAttempts.length,
       satAttemptsCount: satAttempts.length,
+      latestNafsScore: latestNafs?.score ?? null,
       latestGatScore: latestGat?.score ?? null,
       latestSatScore: latestSat?.score ?? null,
       weakestSkill,
@@ -96,6 +100,8 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
     const matchExam =
       examFilter === 'All'
         ? true
+        : examFilter === 'NAFS'
+        ? item.nafsAttemptsCount > 0 || item.attemptsCount === 0
         : examFilter === 'GAT'
         ? item.gatAttemptsCount > 0 || item.attemptsCount === 0
         : item.satAttemptsCount > 0 || item.attemptsCount === 0;
@@ -188,7 +194,7 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
         </div>
 
         <div className="inline-flex p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] gap-1">
-          {(['All', 'GAT', 'SAT'] as const).map(tab => (
+          {(['All', 'NAFS', 'GAT', 'SAT'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setExamFilter(tab)}
@@ -212,6 +218,7 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
               <th className="py-3 px-4">Student</th>
               <th className="py-3 px-3">Username</th>
               <th className="py-3 px-3 text-center">Tests Taken</th>
+              <th className="py-3 px-3 text-center">Latest NAFS</th>
               <th className="py-3 px-3 text-center">Latest GAT</th>
               <th className="py-3 px-3 text-center">Latest SAT</th>
               <th className="py-3 px-3">Weakest Skill Area</th>
@@ -222,13 +229,13 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
           <tbody className="divide-y divide-slate-200">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-slate-500">
+                <td colSpan={9} className="py-8 text-center text-slate-500">
                   No students found matching the criteria.
                 </td>
               </tr>
             ) : (
               filtered.map(item => {
-                const { student, attemptsCount, latestGatScore, latestSatScore, weakestSkill, lastActive } = item;
+                const { student, attemptsCount, latestNafsScore, latestGatScore, latestSatScore, weakestSkill, lastActive } = item;
                 return (
                   <tr key={student.username} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-[#201e1d]">
@@ -243,6 +250,13 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
                         <span className="text-[#1f3d7a]">{attemptsCount}</span>
                       ) : (
                         <span className="text-slate-400 font-normal">0 (Pending)</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-3 text-center font-mono font-bold tabular-nums">
+                      {latestNafsScore !== null ? (
+                        <span className="text-emerald-700 font-black">{latestNafsScore}</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
                     <td className="py-3.5 px-3 text-center font-mono font-bold tabular-nums">

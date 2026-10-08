@@ -18,6 +18,7 @@ import {
   DEFAULT_APP_SETTINGS
 } from './data/mockData';
 import { initialGATQuestions, initialSATQuestions } from './data/initialQuestions';
+import { initialNAFSQuestions } from './data/nafsQuestions';
 import { Header } from './components/Header';
 import { AuthScreen } from './components/AuthScreen';
 import { OnboardingModal } from './components/OnboardingModal';
@@ -61,9 +62,17 @@ export default function App() {
   const [bank, setBank] = useState<Record<ExamType, Question[]>>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_bank`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.NAFS && parsed.NAFS.length > 0) return parsed;
+        return {
+          ...parsed,
+          NAFS: initialNAFSQuestions
+        };
+      }
     } catch (e) {}
     return {
+      NAFS: initialNAFSQuestions,
       GAT: initialGATQuestions,
       SAT: initialSATQuestions
     };
@@ -159,6 +168,7 @@ export default function App() {
   const [lastAttempt, setLastAttempt] = useState<TestAttempt | null>(null);
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [seen, setSeen] = useState<Record<ExamType, Record<string, boolean>>>({
+    NAFS: {},
     GAT: {},
     SAT: {}
   });
@@ -216,8 +226,8 @@ export default function App() {
     });
 
     // Fetch live questions from Firestore
-    fetchQuestionsFromDb(initialGATQuestions, initialSATQuestions).then(dbBank => {
-      if (dbBank && (dbBank.GAT.length || dbBank.SAT.length)) {
+    fetchQuestionsFromDb(initialGATQuestions, initialSATQuestions, initialNAFSQuestions).then(dbBank => {
+      if (dbBank && (dbBank.NAFS?.length || dbBank.GAT?.length || dbBank.SAT?.length)) {
         setBank(dbBank);
       }
     });
@@ -567,6 +577,8 @@ export default function App() {
 
     if (sess.exam === 'GAT') {
       score = Math.round(50 + 50 * accuracy);
+    } else if (sess.exam === 'NAFS') {
+      score = Math.round((200 + 600 * accuracy) / 10) * 10;
     } else {
       score = Math.round((400 + 1200 * accuracy) / 10) * 10;
     }
@@ -658,10 +670,15 @@ export default function App() {
 
   const handleImportDrafts = (questions: Question[]) => {
     if (!questions.length) return;
-    const byExam: Record<ExamType, Question[]> = { GAT: [], SAT: [] };
-    questions.forEach(q => byExam[q.exam].push(q));
+    const byExam: Record<ExamType, Question[]> = { NAFS: [], GAT: [], SAT: [] };
+    questions.forEach(q => {
+      if (byExam[q.exam]) {
+        byExam[q.exam].push(q);
+      }
+    });
 
     setBank(prev => ({
+      NAFS: [...byExam.NAFS, ...(prev.NAFS || [])],
       GAT: [...byExam.GAT, ...prev.GAT],
       SAT: [...byExam.SAT, ...prev.SAT]
     }));
@@ -837,6 +854,7 @@ export default function App() {
             onViewAchievements={() => setCurrentScreen('achievements')}
             hasPastResults={currentExamAttempts.length > 0 || !!lastAttempt}
             onUpdateTargetDate={handleUpdateTargetDate}
+            onSelectExam={ex => setActiveExam(ex)}
           />
         )}
 

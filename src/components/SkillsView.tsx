@@ -92,7 +92,9 @@ export const SkillsView: React.FC<SkillsViewProps> = ({
                   {section.skills.map(sk => {
                     const isAssessed = mastery[sk] !== undefined;
                     const pct = isAssessed ? mastery[sk] : 0;
-                    const availableQuestions = bank.filter(q => q.skill === sk).length;
+                    const availableQuestions = bank.filter(q =>
+                      q.skill === sk && (!q.section || q.section === section.name || q.section.toLowerCase().includes(section.name.toLowerCase().slice(0, 7)))
+                    ).length;
                     const isFocus = isAssessed && pct < 60;
                     const isMastered = isAssessed && pct >= 80;
 

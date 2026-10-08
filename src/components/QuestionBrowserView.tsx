@@ -54,14 +54,14 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
 
         {/* Exam Toggle */}
         <div className="inline-flex border border-[#201e1d]/30 bg-transparent shrink-0">
-          {(['GAT', 'SAT'] as ExamType[]).map(e => (
+          {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(e => (
             <button
               key={e}
               onClick={() => {
                 onSelectExam(e);
                 setSkillFilter('All');
               }}
-              className={`px-4 py-1.5 text-xs font-black transition-all cursor-pointer ${
+              className={`px-3 sm:px-4 py-1.5 text-xs font-black transition-all cursor-pointer ${
                 activeExam === e ? 'bg-[#1f3d7a] text-white' : 'text-[#201e1d] hover:bg-slate-200/60'
               }`}
             >

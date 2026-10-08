@@ -30,7 +30,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
-  const [selectedExams, setSelectedExams] = useState<ExamType[]>(['GAT', 'SAT']);
+  const [selectedExams, setSelectedExams] = useState<ExamType[]>(['NAFS', 'GAT', 'SAT']);
   const [newRole, setNewRole] = useState<'Student' | 'Teacher' | 'Admin'>('Student');
 
   const [error, setError] = useState('');
@@ -480,15 +480,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <label className="block font-bold text-slate-700 mb-1">
                   Which exams are you preparing for?
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['GAT', 'SAT'] as ExamType[]).map(e => {
+                <div className="grid grid-cols-3 gap-2">
+                  {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(e => {
                     const sel = selectedExams.includes(e);
                     return (
                       <button
                         key={e}
                         type="button"
                         onClick={() => toggleExam(e)}
-                        className={`py-2 px-3 border-2 font-black flex items-center justify-between cursor-pointer ${
+                        className={`py-2 px-2 sm:px-3 border-2 font-black text-xs flex items-center justify-between cursor-pointer ${
                           sel
                             ? 'border-[#1f3d7a] bg-[#1f3d7a] text-white'
                             : 'border-slate-300 bg-white text-[#201e1d]'

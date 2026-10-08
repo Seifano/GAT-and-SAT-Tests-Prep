@@ -150,7 +150,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
 
       {/* 3D Modern Exam Switcher Tabs */}
       <div className="inline-flex p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] gap-1">
-        {(['GAT', 'SAT'] as ExamType[]).map(exam => {
+        {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => {
           const isSelected = activeExam === exam;
           const count = bank[exam]?.length || 0;
           return (
@@ -341,6 +341,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                     }}
                     className="w-full p-2.5 bg-white border border-slate-300 font-bold"
                   >
+                    <option value="NAFS">NAFS (Grade 6 & Grade 9)</option>
                     <option value="GAT">GAT</option>
                     <option value="SAT">SAT</option>
                   </select>

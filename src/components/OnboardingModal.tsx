@@ -88,8 +88,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ initialProfile
 
         {/* Step 0: Exam Pickers */}
         {step === 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {(['GAT', 'SAT'] as ExamType[]).map(eKey => {
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(eKey => {
               const conf = EXAM_CONFIGS[eKey];
               const sel = profile.exams.includes(eKey);
               return (
@@ -97,14 +97,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ initialProfile
                   key={eKey}
                   type="button"
                   onClick={() => toggleExam(eKey)}
-                  className={`p-6 border-2 text-left cursor-pointer transition-all flex flex-col justify-between min-h-[170px] ${
+                  className={`p-5 sm:p-6 border-2 text-left cursor-pointer transition-all flex flex-col justify-between min-h-[170px] ${
                     sel
                       ? 'border-[#1f3d7a] bg-[#1f3d7a]/5'
                       : 'border-slate-300 bg-white hover:border-slate-400'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-4xl font-black text-[#201e1d] tracking-tight">
+                    <span className="text-3xl sm:text-4xl font-black text-[#201e1d] tracking-tight">
                       {conf.id}
                     </span>
                     <div
@@ -116,7 +116,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ initialProfile
                     </div>
                   </div>
                   <div className="font-bold text-sm text-[#201e1d] mb-1">{conf.full}</div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{conf.desc}</p>
+                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">{conf.desc}</p>
                 </button>
               );
             })}

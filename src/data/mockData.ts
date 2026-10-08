@@ -1,6 +1,25 @@
-import { ExamConfig, UserAccount, UserProfile, TestAttempt } from '../types';
+import { ExamConfig, UserAccount, UserProfile, TestAttempt, ExamType } from '../types';
 
-export const EXAM_CONFIGS: Record<'GAT' | 'SAT', ExamConfig> = {
+export const EXAM_CONFIGS: Record<ExamType, ExamConfig> = {
+  NAFS: {
+    id: 'NAFS',
+    full: 'National Assessment for School Performance (NAFS · نافس)',
+    desc: 'Standardized national assessment for Grade 6 and Grade 9 testing Reading Literacy, Language Comprehension, and Text Analysis.',
+    min: 200,
+    max: 800,
+    step: 10,
+    hint: 'National Benchmark ≈ 500+, Advanced Tier ≈ 650+',
+    sections: [
+      {
+        name: 'Grade 6 (G6)',
+        skills: ['Reading Comprehension', 'Words in Context', 'Text Analysis & Evidence', 'Author\'s Purpose & Perspective', 'Grammar & Structure']
+      },
+      {
+        name: 'Grade 9 (G9)',
+        skills: ['Reading Comprehension', 'Words in Context', 'Text Analysis & Evidence', 'Author\'s Purpose & Perspective', 'Grammar & Structure']
+      }
+    ]
+  },
   GAT: {
     id: 'GAT',
     full: 'General Aptitude Test (Qudurat)',
@@ -93,23 +112,27 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
 ];
 
 export const INITIAL_PROFILE: UserProfile = {
-  exams: ['GAT', 'SAT'],
+  exams: ['NAFS', 'GAT', 'SAT'],
   targets: {
+    NAFS: 650,
     GAT: 90,
     SAT: 1450
   },
   dates: {
+    NAFS: '2026-11-15',
     GAT: '2026-11-20',
     SAT: '2026-12-05'
   }
 };
 
-export const INITIAL_MASTERY: Record<'GAT' | 'SAT', Record<string, number>> = {
+export const INITIAL_MASTERY: Record<ExamType, Record<string, number>> = {
+  NAFS: {},
   GAT: {},
   SAT: {}
 };
 
-export const INITIAL_HISTORY: Record<'GAT' | 'SAT', Array<{ score: number; date: string; kind: string }>> = {
+export const INITIAL_HISTORY: Record<ExamType, Array<{ score: number; date: string; kind: string }>> = {
+  NAFS: [],
   GAT: [],
   SAT: []
 };
@@ -118,12 +141,12 @@ export const DEFAULT_APP_SETTINGS: import('../types').AppSettings = {
   appName: 'AHS Exams Prepline',
   logoUrl: '',
   loginTitle: 'AHS Exams Prepline',
-  loginHeadline: 'GAT and SAT practice, in one place.',
+  loginHeadline: 'NAFS, GAT, and SAT practice, in one place.',
   loginDescription: 'Timed mock exams, an authentic question bank built from recent test reports, and targeted feedback on the skills that move your score.',
   loginFootnotes: [
+    { title: 'NAFS', subtitle: 'G6 & G9 Reading' },
     { title: 'GAT', subtitle: 'Verbal · Quant' },
-    { title: 'SAT', subtitle: 'R&W · Math' },
-    { title: 'Feedback', subtitle: 'By skill' }
+    { title: 'SAT', subtitle: 'R&W · Math' }
   ]
 };
 

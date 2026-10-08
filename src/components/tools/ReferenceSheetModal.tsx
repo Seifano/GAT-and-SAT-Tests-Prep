@@ -24,9 +24,11 @@ export const ReferenceSheetModal: React.FC<ReferenceSheetModalProps> = ({
             <BookOpen className="w-5 h-5 text-[#1f3d7a]" />
             <div>
               <h3 className="text-base font-extrabold text-[#201e1d]">
-                {exam} Official Mathematics Reference Sheet
+                {exam === 'NAFS' ? 'NAFS (G6 & G9) Reading & Language Reference Guide' : `${exam} Official Mathematics Reference Sheet`}
               </h3>
-              <span className="text-[11px] text-slate-500 font-bold">Standard reference formulas available during exam</span>
+              <span className="text-[11px] text-slate-500 font-bold">
+                {exam === 'NAFS' ? 'National standards reference for reading literacy and text analysis' : 'Standard reference formulas available during exam'}
+              </span>
             </div>
           </div>
           <button
@@ -38,7 +40,42 @@ export const ReferenceSheetModal: React.FC<ReferenceSheetModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6 text-xs text-[#201e1d]">
+        {exam === 'NAFS' ? (
+          <div className="p-6 overflow-y-auto space-y-6 text-xs text-[#201e1d]">
+            <div className="space-y-3">
+              <h4 className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] border-b pb-1">
+                Reading Strategies for NAFS (Grade 6 &amp; Grade 9)
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 bg-emerald-50 border border-emerald-200">
+                  <span className="font-extrabold block text-sm text-emerald-900">1. Main Idea &amp; Central Theme</span>
+                  <p className="text-[11px] text-emerald-800 mt-1">Look at the first and final sentences of each paragraph. Identify what the whole text is mostly about, not just a single interesting detail.</p>
+                </div>
+                <div className="p-3 bg-blue-50 border border-blue-200">
+                  <span className="font-extrabold block text-sm text-blue-900">2. Words in Context Clues</span>
+                  <p className="text-[11px] text-blue-800 mt-1">Reread the target sentence and substitute each answer choice into the sentence. The correct choice preserves the author's intended tone and meaning.</p>
+                </div>
+                <div className="p-3 bg-amber-50 border border-amber-200">
+                  <span className="font-extrabold block text-sm text-amber-900">3. Text Evidence &amp; Inferences</span>
+                  <p className="text-[11px] text-amber-800 mt-1">Underline facts directly stated in the text. For inference questions, combine text clues with logical reasoning without assuming outside facts.</p>
+                </div>
+                <div className="p-3 bg-purple-50 border border-purple-200">
+                  <span className="font-extrabold block text-sm text-purple-900">4. Author's Purpose &amp; Tone</span>
+                  <p className="text-[11px] text-purple-800 mt-1">Determine why the author wrote the piece: to inform, explain, persuade, or reflect. Note positive, critical, or objective descriptive words.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200">
+              <strong className="block text-xs font-bold text-[#1f3d7a] mb-1">G6 vs G9 Focus Areas:</strong>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-700">
+                <div><strong>Grade 6 (G6):</strong> Narrative comprehension, basic chronological sequencing, vocabulary definitions, sentence mechanics.</div>
+                <div><strong>Grade 9 (G9):</strong> Multi-paragraph informational texts, nuances of tone, complex evidence synthesis, argument evaluation.</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 overflow-y-auto space-y-6 text-xs text-[#201e1d]">
           {/* Section 1: 2D Geometry & Areas */}
           <div className="space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] border-b pb-1">
@@ -136,6 +173,7 @@ export const ReferenceSheetModal: React.FC<ReferenceSheetModalProps> = ({
             </div>
           </div>
         </div>
+      )}
 
         {/* Footer */}
         <div className="p-4 border-t-2 border-[#201e1d] bg-[#f3f2f2] flex justify-end">

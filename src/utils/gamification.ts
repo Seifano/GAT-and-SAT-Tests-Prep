@@ -50,6 +50,7 @@ export function calculateGamification(
       hasHighAccuracyDrill = true;
     }
 
+    if (att.exam === 'NAFS' && att.score >= 600) hasHighScore = true;
     if (att.exam === 'GAT' && att.score >= 85) hasHighScore = true;
     if (att.exam === 'SAT' && att.score >= 1350) hasHighScore = true;
 

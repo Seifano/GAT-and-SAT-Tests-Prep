@@ -22,13 +22,22 @@ export const ScoreSimulator: React.FC<ScoreSimulatorProps> = ({
   const [section2Gain, setSection2Gain] = useState(2);
 
   // Points per additional question
-  const ptsPerQ = isGAT ? 0.75 : 18;
+  const ptsPerQ = exam === 'GAT' ? 0.75 : exam === 'NAFS' ? 12 : 18;
 
   // Projected score
   const totalGain = Math.round((section1Gain + section2Gain) * ptsPerQ);
   const projectedScore = Math.min(conf.max, currentScore + totalGain);
 
   const getPercentile = (s: number) => {
+    if (exam === 'NAFS') {
+      if (s >= 700) return 98;
+      if (s >= 650) return 92;
+      if (s >= 600) return 85;
+      if (s >= 550) return 74;
+      if (s >= 500) return 60;
+      if (s >= 450) return 45;
+      return 30;
+    }
     if (isGAT) {
       if (s >= 95) return 99;
       if (s >= 90) return 96;

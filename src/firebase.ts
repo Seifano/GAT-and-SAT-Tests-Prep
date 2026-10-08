@@ -232,22 +232,23 @@ export async function saveAppSettingsToDb(settings: AppSettings): Promise<void> 
 
 export async function fetchQuestionsFromDb(
   defaultGAT: Question[],
-  defaultSAT: Question[]
+  defaultSAT: Question[],
+  defaultNAFS: Question[] = []
 ): Promise<Record<ExamType, Question[]>> {
   try {
     const colRef = collection(db, 'questions');
     const snapshot = await getDocs(colRef);
     if (snapshot.empty) {
       // Seed initial questions into database in background
-      seedQuestions(defaultGAT, defaultSAT).catch(console.error);
-      return { GAT: defaultGAT, SAT: defaultSAT };
+      seedQuestions(defaultGAT, defaultSAT, defaultNAFS).catch(console.error);
+      return { NAFS: defaultNAFS, GAT: defaultGAT, SAT: defaultSAT };
     }
-    const result: Record<ExamType, Question[]> = { GAT: [], SAT: [] };
+    const result: Record<ExamType, Question[]> = { NAFS: [], GAT: [], SAT: [] };
     const dbQuestionIds = new Set<string>();
 
     snapshot.forEach(docSnap => {
       const q = docSnap.data() as Question;
-      if (q.exam === 'GAT' || q.exam === 'SAT') {
+      if (q.exam === 'NAFS' || q.exam === 'GAT' || q.exam === 'SAT') {
         result[q.exam].push(q);
         dbQuestionIds.add(q.id);
       }
@@ -255,6 +256,12 @@ export async function fetchQuestionsFromDb(
 
     // Ensure all default questions are present in database
     const missingDefaults: Question[] = [];
+    defaultNAFS.forEach(q => {
+      if (!dbQuestionIds.has(q.id)) {
+        result.NAFS.push(q);
+        missingDefaults.push(q);
+      }
+    });
     defaultGAT.forEach(q => {
       if (!dbQuestionIds.has(q.id)) {
         result.GAT.push(q);
@@ -273,13 +280,14 @@ export async function fetchQuestionsFromDb(
       console.log(`Synced ${missingDefaults.length} initial questions to Firestore database.`);
     }
 
+    if (result.NAFS.length === 0) result.NAFS = defaultNAFS;
     if (result.GAT.length === 0) result.GAT = defaultGAT;
     if (result.SAT.length === 0) result.SAT = defaultSAT;
 
     return result;
   } catch (err) {
     console.error('Failed to fetch questions from Firestore, using local defaults:', err);
-    return { GAT: defaultGAT, SAT: defaultSAT };
+    return { NAFS: defaultNAFS, GAT: defaultGAT, SAT: defaultSAT };
   }
 }
 
@@ -314,9 +322,9 @@ export async function deleteQuestionFromDb(id: string): Promise<void> {
   }
 }
 
-async function seedQuestions(gat: Question[], sat: Question[]): Promise<void> {
+async function seedQuestions(gat: Question[], sat: Question[], nafs: Question[] = []): Promise<void> {
   try {
-    const all = [...gat, ...sat];
+    const all = [...gat, ...sat, ...nafs];
     // Write in chunks of 100 to stay within Firestore batch limits
     for (let i = 0; i < all.length; i += 100) {
       const chunk = all.slice(i, i + 100);
