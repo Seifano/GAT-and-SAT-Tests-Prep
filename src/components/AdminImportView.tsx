@@ -6,7 +6,7 @@ import { EXAM_CONFIGS } from '../data/mockData';
 import { UploadCloud, FileText, Check, Trash2, Edit3, X, Sparkles, Loader2, FileCheck, AlertCircle } from 'lucide-react';
 
 interface AdminImportViewProps {
-  onImportDrafts: (questions: Question[]) => void;
+  onImportDrafts: (questions: Question[]) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -18,6 +18,7 @@ export const AdminImportView: React.FC<AdminImportViewProps> = ({ onImportDrafts
   const [drafts, setDrafts] = useState<QuestionDraft[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [extractionMsg, setExtractionMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingDraftIndex, setEditingDraftIndex] = useState<number | null>(null);
@@ -109,7 +110,7 @@ Explanation: 5x - 7 = 3x + 15 -> 2x = 22 -> x = 11.`;
     );
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     const validDrafts = drafts.filter(
       d => d.include && d.options.every(Boolean) && d.answer >= 0 && d.prompt
     );
@@ -127,7 +128,12 @@ Explanation: 5x - 7 = 3x + 15 -> 2x = 22 -> x = 11.`;
       passage: d.passage
     }));
 
-    onImportDrafts(questionsToAdd);
+    setIsSaving(true);
+    try {
+      await onImportDrafts(questionsToAdd);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const readyCount = drafts.filter(
@@ -339,10 +345,11 @@ Explanation: A palm is a kind of tree.`}
               </button>
               <button
                 onClick={handleConfirmImport}
-                disabled={readyCount === 0}
-                className="btn-primary px-5 py-2 text-white text-xs font-black cursor-pointer disabled:opacity-40"
+                disabled={readyCount === 0 || isSaving}
+                className="btn-primary px-5 py-2 text-white text-xs font-black cursor-pointer disabled:opacity-40 inline-flex items-center gap-2"
               >
-                Add {readyCount} to bank
+                {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isSaving ? 'Saving to Database...' : `Add & Save ${readyCount} to Bank`}</span>
               </button>
             </div>
           </div>

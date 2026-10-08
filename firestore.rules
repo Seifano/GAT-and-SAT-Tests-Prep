@@ -12,13 +12,12 @@ service cloud.firestore {
 
     function isValidQuestion(data) {
       return data.id is string && data.id.size() > 0 &&
-             data.exam in ['GAT', 'SAT'] &&
+             data.exam in ['NAFS', 'GAT', 'SAT'] &&
              data.section is string &&
              data.skill is string &&
              data.prompt is string &&
              data.options is list && data.options.size() >= 2 &&
-             data.correct is int && data.correct >= 0 &&
-             data.explanation is string;
+             ((('answer' in data) && (data.answer is int || data.answer is number) && data.answer >= 0) || (('correct' in data) && (data.correct is int || data.correct is number) && data.correct >= 0));
     }
 
     function isValidSettings(data) {
@@ -30,7 +29,7 @@ service cloud.firestore {
     function isValidAttempt(data) {
       return data.id is string &&
              data.username is string &&
-             data.exam in ['GAT', 'SAT'] &&
+             data.exam in ['NAFS', 'GAT', 'SAT'] &&
              data.score is number;
     }
 

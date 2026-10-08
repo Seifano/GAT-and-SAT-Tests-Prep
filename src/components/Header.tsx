@@ -11,7 +11,8 @@ import {
   TrendingUp,
   Database,
   BarChart2,
-  Trophy
+  Trophy,
+  ArrowLeft
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -23,6 +24,7 @@ interface HeaderProps {
   onSelectExam: (exam: ExamType) => void;
   onSignOut: () => void;
   onSwitchRole: () => void;
+  onGoBackToSelect?: () => void;
   settings?: import('../types').AppSettings;
   xp?: number;
   level?: number;
@@ -37,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectExam,
   onSignOut,
   onSwitchRole,
+  onGoBackToSelect,
   settings,
   xp,
   level
@@ -79,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   // If admin is browsing student screens, give full access to student tabs plus admin return
-  const isViewingStudentSide = ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
+  const isViewingStudentSide = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
   const adminNav = isViewingStudentSide
     ? [
         { id: 'studentProgress', label: '← Admin Console' },
@@ -97,28 +100,36 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-[#f3f2f2]/95 backdrop-blur-md border-b border-gray-200 shadow-xs">
       {/* School Tri-Color Heritage Accent Stripe: Crimson Red · Navy Blue · Green */}
-      <div className="h-1 w-full bg-gradient-to-r from-red-800 via-[#1e3a8a] to-emerald-700" />
+      <div className="h-1.5 w-full bg-gradient-to-r from-red-800 via-[#1e3a8a] to-emerald-700" />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2 sm:gap-3">
-          {/* Brand Wordmark & Emblem */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
+        <div className="flex items-center justify-between min-h-[4.75rem] py-2 gap-3 sm:gap-4">
+          {/* Far Left Brand Wordmark & Enlarged Emblem (Never squeezed or hidden behind tabs) */}
+          <div className="flex items-center shrink-0">
             <button
-              onClick={() => handleNavClick(isAdmin ? (isViewingStudentSide ? 'dashboard' : 'studentProgress') : isTeacher ? 'studentProgress' : 'dashboard')}
-              className="flex items-center gap-2 sm:gap-3 text-left cursor-pointer group transition-transform duration-200 hover:scale-[1.01] min-w-0"
+              onClick={() => {
+                if (isAdmin) {
+                  handleNavClick(isViewingStudentSide ? 'studentProgress' : 'studentProgress');
+                } else if (isTeacher) {
+                  handleNavClick('studentProgress');
+                } else {
+                  handleNavClick(currentScreen === 'studentSelect' ? 'studentSelect' : 'dashboard');
+                }
+              }}
+              className="flex items-center gap-2.5 sm:gap-3.5 text-left cursor-pointer group transition-transform duration-200 hover:scale-[1.01] shrink-0"
               title={settings?.appName || 'AHS Exams Prepline'}
             >
               <img
                 src={settings?.logoUrl || AHS_LOGO_SRC}
-                alt="Logo"
-                className="h-8 sm:h-9 w-auto max-w-[70px] sm:max-w-[90px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
+                alt="AHS School Emblem Logo"
+                className="h-12 sm:h-14 lg:h-16 w-auto max-w-[95px] sm:max-w-[125px] lg:max-w-[150px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105 drop-shadow-xs"
               />
               <div className="min-w-0">
-                <span className="text-sm sm:text-base lg:text-lg font-black tracking-tight text-[#201e1d] block leading-tight truncate max-w-[130px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-xs">
+                <span className="text-base sm:text-lg lg:text-xl font-black tracking-tight text-[#201e1d] block leading-tight">
                   {settings?.appName || 'AHS Exams Prepline'}
                 </span>
-                <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
-                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#1e3a8a] truncate max-w-[110px] sm:max-w-[160px]">
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#1e3a8a]">
                     {isAdmin ? (isViewingStudentSide ? 'Admin (Student Mode)' : 'Admin Console') : isTeacher ? 'Teacher View' : 'Student View'}
                   </span>
                   {/* School Tri-Color Heritage Pill */}
@@ -131,37 +142,53 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
             </button>
-
-            {/* Desktop 3D Navigation Tabs - Neatly spaced for xl+ screens */}
-            <nav className="hidden xl:flex items-center gap-1 ml-1 p-1 bg-slate-200/80 rounded-2xl border border-slate-300/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] shrink-0">
-              {navLinks.map(link => {
-                const isActive = currentScreen === link.id;
-                return (
-                  <button
-                    key={link.id}
-                    onClick={() => handleNavClick(link.id)}
-                    className={`text-[11px] font-black uppercase tracking-wider transition-all duration-150 ease-out cursor-pointer px-2.5 py-1.5 rounded-xl flex items-center gap-1 whitespace-nowrap ${
-                      isActive
-                        ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_3px_6px_-1px_rgba(30,58,138,0.2)] -translate-y-0.5 border border-slate-200/90'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 hover:-translate-y-0.5 active:translate-y-0'
-                    }`}
-                  >
-                    {link.id === 'achievements' && (
-                      <Trophy className={`w-3 h-3 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
-                    )}
-                    <span>{link.label}</span>
-                    {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a8a]" />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
           </div>
 
-          {/* Right Controls: DB sync, Exam Switcher, Streak, Role & Account */}
+          {/* Desktop 3D Navigation Tabs - Centered & Decoupled with Zero Overlap */}
+          {currentScreen !== 'studentSelect' && (
+            <div className="hidden xl:flex items-center justify-center flex-1 min-w-0 px-2">
+              <nav className="flex items-center gap-1 p-1 bg-slate-200/80 rounded-2xl border border-slate-300/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] overflow-x-auto max-w-full">
+                {navLinks.map(link => {
+                  const isActive = currentScreen === link.id;
+                  return (
+                    <button
+                      key={link.id}
+                      onClick={() => handleNavClick(link.id)}
+                      className={`text-[11px] font-black uppercase tracking-wider transition-all duration-150 ease-out cursor-pointer px-2.5 py-1.5 rounded-xl flex items-center gap-1 whitespace-nowrap ${
+                        isActive
+                          ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_3px_6px_-1px_rgba(30,58,138,0.2)] -translate-y-0.5 border border-slate-200/90'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 hover:-translate-y-0.5 active:translate-y-0'
+                      }`}
+                    >
+                      {link.id === 'achievements' && (
+                        <Trophy className={`w-3 h-3 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
+                      )}
+                      <span>{link.label}</span>
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a8a]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+
+          {/* Right Controls: Go Back button, DB sync, Exam Switcher, Streak, Role & Account */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
-            {/* Live Firestore DB Indicator - Modern Subtle Ring & Soft Scale */}
+            {/* Go Back button (for student view when an exam is loaded) */}
+            {onGoBackToSelect && (user?.role === 'Student' || isViewingStudentSide) && currentScreen !== 'studentSelect' && (
+              <button
+                onClick={onGoBackToSelect}
+                title="Return to exam track selection (GAT, SAT, NAFS)"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-800 bg-white hover:bg-slate-50 rounded-xl border border-slate-300/90 shadow-xs hover:border-[#1e3a8a] hover:text-[#1e3a8a] hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer shrink-0"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-[#1e3a8a]" />
+                <span>Go Back</span>
+              </button>
+            )}
+
+            {/* Live Firestore DB Indicator */}
             <div
               title="Connected to Cloud Firestore Database"
               className="hidden 2xl:inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0"
@@ -170,28 +197,30 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Live DB</span>
             </div>
 
-            {/* Exam Toggle - Modern 3D Segmented Control */}
-            <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
-              {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => {
-                const isActive = activeExam === exam;
-                return (
-                  <button
-                    key={exam}
-                    onClick={() => onSelectExam(exam)}
-                    className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
-                      isActive
-                        ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
-                        : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
-                    }`}
-                  >
-                    {exam}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Exam Toggle - Segmented Control (only when in active study screens) */}
+            {currentScreen !== 'studentSelect' && (
+              <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
+                {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => {
+                  const isActive = activeExam === exam;
+                  return (
+                    <button
+                      key={exam}
+                      onClick={() => onSelectExam(exam)}
+                      className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
+                        isActive
+                          ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
+                          : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
+                      }`}
+                    >
+                      {exam}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Streak Counter for Students */}
-            {!isAdmin && !isTeacher && (
+            {!isAdmin && !isTeacher && currentScreen !== 'studentSelect' && (
               <div
                 title="Active Study Streak"
                 className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-gray-800 px-2 py-1 bg-white rounded-lg ring-1 ring-gray-200 shadow-2xs hover:ring-amber-300 transition-all shrink-0"
@@ -202,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* Gamification Level & XP Badge for Students */}
-            {!isAdmin && !isTeacher && (
+            {!isAdmin && !isTeacher && currentScreen !== 'studentSelect' && (
               <div
                 title={`Tier Level ${level || 1} Scholar · ${xp || 0} Total XP Earned`}
                 className="hidden md:inline-flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg ring-1 ring-amber-200 text-[11px] font-bold text-amber-900 shadow-2xs cursor-default shrink-0"
@@ -214,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* Role Display / Switcher (Admin has switch view power, Students and Teachers see verified role badges) */}
+            {/* Role Display / Switcher */}
             {isAdmin ? (
               <button
                 onClick={onSwitchRole}
@@ -273,7 +302,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer with 3D tactile buttons */}
+        {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="xl:hidden py-3 border-t border-slate-200 space-y-2">
             {/* User Status Bar in Mobile Menu */}
@@ -293,28 +322,44 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
+            {/* Go Back button in Mobile Menu */}
+            {onGoBackToSelect && (user?.role === 'Student' || isViewingStudentSide) && currentScreen !== 'studentSelect' && (
+              <button
+                onClick={() => {
+                  onGoBackToSelect();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-center px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#1e3a8a] border border-blue-200 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>← Go Back (Change Exam Track)</span>
+              </button>
+            )}
+
             {/* Exam Toggle in Mobile Menu */}
-            <div className="flex items-center justify-between p-1.5 bg-slate-100 rounded-xl">
-              <span className="text-[11px] font-bold text-slate-500 uppercase px-2">Track:</span>
-              <div className="inline-flex items-center gap-1">
-                {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => (
-                  <button
-                    key={exam}
-                    onClick={() => {
-                      onSelectExam(exam);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
-                      activeExam === exam
-                        ? 'bg-white text-[#1e3a8a] shadow-xs ring-1 ring-slate-300 font-black'
-                        : 'text-slate-600 hover:text-gray-900'
-                    }`}
-                  >
-                    {exam}
-                  </button>
-                ))}
+            {currentScreen !== 'studentSelect' && (
+              <div className="flex items-center justify-between p-1.5 bg-slate-100 rounded-xl">
+                <span className="text-[11px] font-bold text-slate-500 uppercase px-2">Track:</span>
+                <div className="inline-flex items-center gap-1">
+                  {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => (
+                    <button
+                      key={exam}
+                      onClick={() => {
+                        onSelectExam(exam);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                        activeExam === exam
+                          ? 'bg-white text-[#1e3a8a] shadow-xs ring-1 ring-slate-300 font-black'
+                          : 'text-slate-600 hover:text-gray-900'
+                      }`}
+                    >
+                      {exam}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Admin Switcher for Mobile Drawer */}
             {isAdmin && (
@@ -330,31 +375,33 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Navigation Tabs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
-              {navLinks.map(link => {
-                const isActive = currentScreen === link.id;
-                return (
-                  <button
-                    key={link.id}
-                    onClick={() => handleNavClick(link.id)}
-                    className={`flex items-center justify-between w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-                      isActive
-                        ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_3px_6px_rgba(30,58,138,0.15)] -translate-y-0.5 border border-slate-200'
-                        : 'text-slate-700 bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {link.id === 'achievements' && (
-                        <Trophy className={`w-4 h-4 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
-                      )}
-                      <span>{link.label}</span>
-                    </div>
-                    {isActive && <span className="w-2 h-2 rounded-full bg-[#1e3a8a]" />}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Navigation Tabs (only if not on selection screen) */}
+            {currentScreen !== 'studentSelect' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                {navLinks.map(link => {
+                  const isActive = currentScreen === link.id;
+                  return (
+                    <button
+                      key={link.id}
+                      onClick={() => handleNavClick(link.id)}
+                      className={`flex items-center justify-between w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                        isActive
+                          ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_3px_6px_rgba(30,58,138,0.15)] -translate-y-0.5 border border-slate-200'
+                          : 'text-slate-700 bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {link.id === 'achievements' && (
+                          <Trophy className={`w-4 h-4 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
+                        )}
+                        <span>{link.label}</span>
+                      </div>
+                      {isActive && <span className="w-2 h-2 rounded-full bg-[#1e3a8a]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

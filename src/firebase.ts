@@ -291,25 +291,63 @@ export async function fetchQuestionsFromDb(
   }
 }
 
-export async function saveQuestionToDb(q: Question): Promise<void> {
+export function sanitizeQuestionForDb(q: Question): Record<string, any> {
+  const cleaned: Record<string, any> = {
+    id: String(q.id || `q-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`),
+    exam: (q.exam === 'NAFS' || q.exam === 'SAT') ? q.exam : 'GAT',
+    section: String(q.section || 'General'),
+    skill: String(q.skill || 'General'),
+    prompt: String(q.prompt || ''),
+    options: Array.isArray(q.options) && q.options.length >= 2
+      ? q.options.map(o => String(o ?? ''))
+      : ['Option A', 'Option B', 'Option C', 'Option D'],
+    answer: typeof q.answer === 'number' && !isNaN(q.answer) ? Math.max(0, Math.min(3, Math.floor(q.answer))) : 0,
+    explain: String(q.explain || '')
+  };
+  if (q.src && typeof q.src === 'string' && q.src.trim().length > 0) {
+    cleaned.src = q.src.trim();
+  }
+  if (q.passage && typeof q.passage === 'string' && q.passage.trim().length > 0) {
+    cleaned.passage = q.passage.trim();
+  }
+  return cleaned;
+}
+
+export async function saveQuestionToDb(q: Question): Promise<boolean> {
   try {
-    const docRef = doc(db, 'questions', q.id);
-    await setDoc(docRef, q, { merge: true });
+    const cleaned = sanitizeQuestionForDb(q);
+    const docRef = doc(db, 'questions', cleaned.id);
+    await setDoc(docRef, cleaned, { merge: true });
+    return true;
   } catch (err) {
     console.error(`Error saving question ${q.id} to Firestore:`, err);
+    return false;
   }
 }
 
-export async function saveQuestionsBatchToDb(questions: Question[]): Promise<void> {
+export async function saveQuestionsBatchToDb(questions: Question[]): Promise<boolean> {
+  if (!questions.length) return true;
   try {
-    const batch = writeBatch(db);
-    questions.forEach(q => {
-      const docRef = doc(db, 'questions', q.id);
-      batch.set(docRef, q, { merge: true });
-    });
-    await batch.commit();
+    for (let i = 0; i < questions.length; i += 100) {
+      const chunk = questions.slice(i, i + 100);
+      const batch = writeBatch(db);
+      chunk.forEach(q => {
+        const cleaned = sanitizeQuestionForDb(q);
+        const docRef = doc(db, 'questions', cleaned.id);
+        batch.set(docRef, cleaned, { merge: true });
+      });
+      await batch.commit();
+    }
+    console.log(`Saved batch of ${questions.length} questions to Firestore database.`);
+    return true;
   } catch (err) {
-    console.error('Error batch saving questions to Firestore:', err);
+    console.error('Error batch saving questions to Firestore, attempting individual writes:', err);
+    let successCount = 0;
+    for (const q of questions) {
+      const ok = await saveQuestionToDb(q);
+      if (ok) successCount++;
+    }
+    return successCount > 0;
   }
 }
 
@@ -330,8 +368,9 @@ async function seedQuestions(gat: Question[], sat: Question[], nafs: Question[] 
       const chunk = all.slice(i, i + 100);
       const batch = writeBatch(db);
       chunk.forEach(q => {
-        const docRef = doc(db, 'questions', q.id);
-        batch.set(docRef, q);
+        const cleaned = sanitizeQuestionForDb(q);
+        const docRef = doc(db, 'questions', cleaned.id);
+        batch.set(docRef, cleaned);
       });
       await batch.commit();
     }

@@ -35,6 +35,8 @@ import { AdminQuestionsView } from './components/AdminQuestionsView';
 import { AdminImportView } from './components/AdminImportView';
 import { AdminAccountsView } from './components/AdminAccountsView';
 import { AdminBrandingView } from './components/AdminBrandingView';
+import { StudentExamGateway } from './components/StudentExamGateway';
+import { ArrowLeft } from 'lucide-react';
 import { calculateGamification } from './utils/gamification';
 import { doc, getDoc } from 'firebase/firestore';
 import {
@@ -134,13 +136,13 @@ export default function App() {
 
   const [activeExam, setActiveExam] = useState<ExamType>('GAT');
 
-  // Screen defaults to 'login' when user is null; teachers and admins land on student progress
+  // Screen defaults to 'login' when user is null; teachers/admins land on student progress; students land on exam selection
   const [currentScreen, setCurrentScreen] = useState<string>(() => {
     try {
       const savedUser = localStorage.getItem(`${STORAGE_KEY}_user`);
       if (savedUser) {
         const u = JSON.parse(savedUser);
-        return u.role === 'Admin' || u.role === 'Teacher' ? 'studentProgress' : 'dashboard';
+        return u.role === 'Admin' || u.role === 'Teacher' ? 'studentProgress' : 'studentSelect';
       }
     } catch (e) {}
     return 'login';
@@ -228,7 +230,23 @@ export default function App() {
     // Fetch live questions from Firestore
     fetchQuestionsFromDb(initialGATQuestions, initialSATQuestions, initialNAFSQuestions).then(dbBank => {
       if (dbBank && (dbBank.NAFS?.length || dbBank.GAT?.length || dbBank.SAT?.length)) {
-        setBank(dbBank);
+        setBank(prev => {
+          const merged: Record<ExamType, Question[]> = {
+            NAFS: [...(dbBank.NAFS || [])],
+            GAT: [...(dbBank.GAT || [])],
+            SAT: [...(dbBank.SAT || [])]
+          };
+          // Preserve any local questions that haven't synced yet and sync them to Firestore
+          (['NAFS', 'GAT', 'SAT'] as ExamType[]).forEach(ex => {
+            const dbIds = new Set(merged[ex].map(q => q.id));
+            const localOnly = (prev[ex] || []).filter(q => !dbIds.has(q.id));
+            if (localOnly.length > 0) {
+              merged[ex].push(...localOnly);
+              saveQuestionsBatchToDb(localOnly).catch(console.error);
+            }
+          });
+          return merged;
+        });
       }
     });
   }, []);
@@ -320,7 +338,7 @@ export default function App() {
       if (found.role === 'Admin' || found.role === 'Teacher') {
         setCurrentScreen('studentProgress');
       } else {
-        setCurrentScreen('dashboard');
+        setCurrentScreen('studentSelect');
       }
       showToast(`Signed in as ${found.name} (${found.role})`);
       return true;
@@ -352,7 +370,7 @@ export default function App() {
     if (newAccount.role === 'Admin' || newAccount.role === 'Teacher') {
       setCurrentScreen('studentProgress');
     } else {
-      setCurrentScreen('dashboard');
+      setCurrentScreen('studentSelect');
     }
 
     showToast(`Account created and saved to database! Welcome, ${newAccount.name.split(' ')[0]}.`);
@@ -366,12 +384,12 @@ export default function App() {
   useEffect(() => {
     if (!user || currentScreen === 'login' || currentScreen === 'onboard') return;
 
-    const studentScreens = ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'exam', 'results'];
+    const studentScreens = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'exam', 'results'];
     const teacherScreens = ['studentProgress', 'adminQuestions', 'adminImport', 'browser'];
 
     if (user.role === 'Student') {
       if (!studentScreens.includes(currentScreen)) {
-        setCurrentScreen('dashboard');
+        setCurrentScreen('studentSelect');
       }
     } else if (user.role === 'Teacher') {
       if (!teacherScreens.includes(currentScreen)) {
@@ -392,13 +410,13 @@ export default function App() {
       return;
     }
 
-    const isStudentSide = ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
+    const isStudentSide = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
     if (isStudentSide) {
       setCurrentScreen('studentProgress');
       showToast('Admin: Switched to Management Console.');
     } else {
-      setCurrentScreen('dashboard');
-      showToast('Admin: Switched to Student View Experience.');
+      setCurrentScreen('studentSelect');
+      showToast('Admin: Switched to Student View Track Selection.');
     }
   };
 
@@ -641,34 +659,62 @@ export default function App() {
     showToast(`Time ended. Auto-submitted: Score ${attempt.score}`);
   };
 
-  const handleAddQuestion = (q: Question) => {
-    setBank(prev => ({
-      ...prev,
-      [q.exam]: [q, ...prev[q.exam]]
-    }));
-    saveQuestionToDb(q).catch(console.error);
-    showToast(`Added question to ${q.skill}.`);
+  const handleAddQuestion = async (q: Question) => {
+    setBank(prev => {
+      const nextBank = {
+        ...prev,
+        [q.exam]: [q, ...prev[q.exam]]
+      };
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_bank`, JSON.stringify(nextBank));
+      } catch (e) {}
+      return nextBank;
+    });
+    showToast(`Saving question to ${q.skill}...`);
+    const ok = await saveQuestionToDb(q);
+    if (ok) {
+      showToast(`✓ Question saved to ${q.skill} and database.`);
+    } else {
+      showToast(`Question saved to local bank.`);
+    }
   };
 
-  const handleUpdateQuestion = (q: Question) => {
-    setBank(prev => ({
-      ...prev,
-      [q.exam]: prev[q.exam].map(item => (item.id === q.id ? q : item))
-    }));
-    saveQuestionToDb(q).catch(console.error);
-    showToast(`Updated question in ${q.skill}.`);
+  const handleUpdateQuestion = async (q: Question) => {
+    setBank(prev => {
+      const nextBank = {
+        ...prev,
+        [q.exam]: prev[q.exam].map(item => (item.id === q.id ? q : item))
+      };
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_bank`, JSON.stringify(nextBank));
+      } catch (e) {}
+      return nextBank;
+    });
+    showToast(`Updating question in database...`);
+    const ok = await saveQuestionToDb(q);
+    if (ok) {
+      showToast(`✓ Updated question in ${q.skill} in database.`);
+    } else {
+      showToast(`Updated question in local bank.`);
+    }
   };
 
-  const handleDeleteQuestion = (exam: ExamType, id: string) => {
-    setBank(prev => ({
-      ...prev,
-      [exam]: prev[exam].filter(item => item.id !== id)
-    }));
-    deleteQuestionFromDb(id).catch(console.error);
-    showToast('Question deleted.');
+  const handleDeleteQuestion = async (exam: ExamType, id: string) => {
+    setBank(prev => {
+      const nextBank = {
+        ...prev,
+        [exam]: prev[exam].filter(item => item.id !== id)
+      };
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_bank`, JSON.stringify(nextBank));
+      } catch (e) {}
+      return nextBank;
+    });
+    await deleteQuestionFromDb(id);
+    showToast('Question removed from database.');
   };
 
-  const handleImportDrafts = (questions: Question[]) => {
+  const handleImportDrafts = async (questions: Question[]) => {
     if (!questions.length) return;
     const byExam: Record<ExamType, Question[]> = { NAFS: [], GAT: [], SAT: [] };
     questions.forEach(q => {
@@ -677,15 +723,26 @@ export default function App() {
       }
     });
 
-    setBank(prev => ({
-      NAFS: [...byExam.NAFS, ...(prev.NAFS || [])],
-      GAT: [...byExam.GAT, ...prev.GAT],
-      SAT: [...byExam.SAT, ...prev.SAT]
-    }));
+    setBank(prev => {
+      const nextBank = {
+        NAFS: [...byExam.NAFS, ...(prev.NAFS || [])],
+        GAT: [...byExam.GAT, ...prev.GAT],
+        SAT: [...byExam.SAT, ...prev.SAT]
+      };
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_bank`, JSON.stringify(nextBank));
+      } catch (e) {}
+      return nextBank;
+    });
 
-    saveQuestionsBatchToDb(questions).catch(console.error);
     setCurrentScreen('adminQuestions');
-    showToast(`Imported and saved ${questions.length} questions to database.`);
+    showToast(`Saving ${questions.length} questions to database...`);
+    const ok = await saveQuestionsBatchToDb(questions);
+    if (ok) {
+      showToast(`✓ Uploaded and saved ${questions.length} questions to database and bank.`);
+    } else {
+      showToast(`Saved ${questions.length} questions to local bank.`);
+    }
   };
 
   const handleCreateAccounts = (newAccs: UserAccount[]) => {
@@ -804,8 +861,48 @@ export default function App() {
           onSelectExam={ex => setActiveExam(ex)}
           onSignOut={handleSignOut}
           onSwitchRole={handleSwitchRole}
+          onGoBackToSelect={() => setCurrentScreen('studentSelect')}
           settings={appSettings}
         />
+      )}
+
+      {/* Student Track Status & Go Back Action Bar */}
+      {(user?.role === 'Student' || ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen)) &&
+        currentScreen !== 'login' &&
+        currentScreen !== 'onboard' &&
+        currentScreen !== 'studentSelect' &&
+        currentScreen !== 'studentProgress' &&
+        currentScreen !== 'adminQuestions' &&
+        currentScreen !== 'adminImport' &&
+        currentScreen !== 'adminAccounts' &&
+        currentScreen !== 'adminBranding' &&
+        currentScreen !== 'exam' && (
+          <div className="bg-white/95 backdrop-blur-xs border-b border-slate-200 px-3 sm:px-6 lg:px-8 py-2">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px]">
+                  Current Track:
+                </span>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black text-xs text-white shadow-2xs ${
+                  activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
+                }`}>
+                  <span>{activeExam}</span>
+                  <span className="font-normal opacity-90 hidden sm:inline">
+                    · {activeExam === 'NAFS' ? 'National Assessment (نافس)' : activeExam === 'GAT' ? 'General Aptitude (القدرات)' : 'Digital SAT'}
+                  </span>
+                </span>
+              </div>
+
+              <button
+                onClick={() => setCurrentScreen('studentSelect')}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-[#1e3a8a] font-extrabold rounded-lg border border-slate-300 shadow-2xs hover:border-[#1e3a8a] transition-all cursor-pointer hover:-translate-x-0.5"
+                title="Go back to exam selection screen (GAT, SAT, NAFS)"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Go Back (Change Exam)</span>
+              </button>
+            </div>
+          </div>
       )}
 
       {/* Screen Router */}
@@ -816,6 +913,24 @@ export default function App() {
             onCreateAccount={handleCreateAccount}
             accounts={accounts}
             settings={appSettings}
+          />
+        )}
+
+        {/* Student Gateway: Select GAT, SAT, or NAFS before any analytics/data is shown */}
+        {currentScreen === 'studentSelect' && (
+          <StudentExamGateway
+            userName={user?.name || 'Student'}
+            questionsCount={{
+              NAFS: bank.NAFS?.length || 500,
+              GAT: bank.GAT?.length || 25,
+              SAT: bank.SAT?.length || 25
+            }}
+            onSelectTrack={exam => {
+              setActiveExam(exam);
+              setCurrentScreen('dashboard');
+              showToast(`Selected ${exam} pathway. Showing diagnostic analytics & bank.`);
+            }}
+            onBack={user?.role === 'Admin' ? () => setCurrentScreen('studentProgress') : undefined}
           />
         )}
 

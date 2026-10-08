@@ -35,7 +35,7 @@
     },
     "Question": {
       "title": "Question",
-      "description": "Practice or exam question for GAT or SAT",
+      "description": "Practice or exam question for NAFS, GAT, or SAT",
       "type": "object",
       "properties": {
         "id": {
@@ -44,7 +44,7 @@
         },
         "exam": {
           "type": "string",
-          "enum": ["GAT", "SAT"],
+          "enum": ["NAFS", "GAT", "SAT"],
           "description": "Exam type"
         },
         "section": {
@@ -63,20 +63,20 @@
           "type": "array",
           "description": "Answer options list"
         },
-        "correct": {
+        "answer": {
           "type": "number",
           "description": "0-based index of correct option"
         },
-        "explanation": {
+        "explain": {
           "type": "string",
           "description": "Detailed answer explanation"
         },
-        "passageId": {
+        "passage": {
           "type": "string",
-          "description": "Optional reading passage ID"
+          "description": "Optional reading passage text"
         }
       },
-      "required": ["id", "exam", "section", "skill", "prompt", "options", "correct", "explanation"]
+      "required": ["id", "exam", "section", "skill", "prompt", "options", "answer"]
     },
     "AppSettings": {
       "title": "AppSettings",
