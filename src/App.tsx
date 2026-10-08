@@ -22,6 +22,7 @@ import { Header } from './components/Header';
 import { AuthScreen } from './components/AuthScreen';
 import { OnboardingModal } from './components/OnboardingModal';
 import { DashboardView } from './components/DashboardView';
+import { Achievements } from './components/Achievements';
 import { SkillsView } from './components/SkillsView';
 import { PracticeSetsView } from './components/PracticeSetsView';
 import { QuestionBrowserView } from './components/QuestionBrowserView';
@@ -33,6 +34,7 @@ import { AdminQuestionsView } from './components/AdminQuestionsView';
 import { AdminImportView } from './components/AdminImportView';
 import { AdminAccountsView } from './components/AdminAccountsView';
 import { AdminBrandingView } from './components/AdminBrandingView';
+import { calculateGamification } from './utils/gamification';
 import { doc, getDoc } from 'firebase/firestore';
 import {
   db,
@@ -538,13 +540,16 @@ export default function App() {
       score = Math.round((400 + 1200 * accuracy) / 10) * 10;
     }
 
+    const now = new Date();
     return {
       id: `att-${Date.now().toString(36)}`,
       username: user ? user.username.toLowerCase() : 'student',
       exam: sess.exam,
       kind: sess.kind,
       label: sess.label,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      timestamp: now.getTime(),
+      hour: now.getHours(),
       score,
       correct,
       total: questionItems.length,
@@ -703,6 +708,29 @@ export default function App() {
     return Math.min(30, uniqueDates.size);
   }, [currentStudentAttempts]);
 
+  // Compute authentic gamification progression for current student
+  const studentGamification = React.useMemo(() => {
+    return calculateGamification(currentStudentAttempts, authenticStreak);
+  }, [currentStudentAttempts, authenticStreak]);
+
+  // Handle updating official registered target exam date
+  const handleUpdateTargetDate = (exam: ExamType, newDate: string) => {
+    const updated = {
+      ...profile,
+      dates: {
+        ...profile.dates,
+        [exam]: newDate
+      }
+    };
+    setProfile(updated);
+    try {
+      localStorage.setItem('ahs_profile', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    showToast(`Updated official ${exam} target date to ${newDate}`);
+  };
+
   return (
     <div className="min-h-screen bg-[#f3f2f2] text-[#201e1d] flex flex-col font-sans">
       {/* Toast Alert */}
@@ -719,6 +747,8 @@ export default function App() {
           activeExam={activeExam}
           user={user}
           streak={authenticStreak}
+          xp={studentGamification.xp}
+          level={studentGamification.level}
           onNavigate={screen => setCurrentScreen(screen)}
           onSelectExam={ex => setActiveExam(ex)}
           onSignOut={handleSignOut}
@@ -760,13 +790,27 @@ export default function App() {
             weekDone={weekDone}
             bank={bank[activeExam]}
             userName={user?.name || 'Student'}
+            studentAttempts={currentStudentAttempts}
             onStartMock={() => startMockExam(activeExam)}
             onStartFocus={skills => startFocusDrill(skills)}
             onStartQuick={startQuickWarmup}
             onViewSkills={() => setCurrentScreen('skills')}
             onViewResults={() => setCurrentScreen('results')}
             onViewAnalytics={() => setCurrentScreen('analytics')}
+            onViewAchievements={() => setCurrentScreen('achievements')}
             hasPastResults={currentExamAttempts.length > 0 || !!lastAttempt}
+            onUpdateTargetDate={handleUpdateTargetDate}
+          />
+        )}
+
+        {currentScreen === 'achievements' && (
+          <Achievements
+            studentAttempts={currentStudentAttempts}
+            streak={authenticStreak}
+            userName={user?.name || 'Student'}
+            onStartMock={() => startMockExam(activeExam)}
+            onStartQuick={startQuickWarmup}
+            onStartFocus={skills => startFocusDrill(skills)}
           />
         )}
 

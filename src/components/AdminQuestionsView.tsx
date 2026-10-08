@@ -134,8 +134,8 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
         </button>
       </div>
 
-      {/* Exam Switcher */}
-      <div className="inline-flex border border-[#201e1d]/30 bg-transparent">
+      {/* 3D Modern Exam Switcher Tabs */}
+      <div className="inline-flex p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] gap-1">
         {(['GAT', 'SAT'] as ExamType[]).map(exam => {
           const isSelected = activeExam === exam;
           const count = bank[exam]?.length || 0;
@@ -146,10 +146,10 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                 setActiveExam(exam);
                 setSkillFilter('All');
               }}
-              className={`px-4 py-1.5 text-xs font-extrabold cursor-pointer transition-all ${
+              className={`px-4 py-1.5 text-xs font-black cursor-pointer rounded-lg transition-all duration-200 ${
                 isSelected
-                  ? 'bg-[#1f3d7a] text-white'
-                  : 'text-[#201e1d] hover:bg-slate-200/60'
+                  ? 'bg-white text-[#1f3d7a] shadow-[0_2px_0_0_#1f3d7a,0_2px_4px_rgba(0,0,0,0.1)] -translate-y-0.5'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               {exam} · {count}

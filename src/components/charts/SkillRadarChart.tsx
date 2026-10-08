@@ -144,17 +144,20 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
             />
 
             {/* Student's Actual Mastery Area Polygon */}
-            <polygon
-              points={dataPoints}
-              fill="#1f3d7a"
-              fillOpacity="0.28"
-              stroke="#1f3d7a"
-              strokeWidth="2.8"
-            />
+            {hasMasteryData && (
+              <polygon
+                points={dataPoints}
+                fill="#1f3d7a"
+                fillOpacity="0.28"
+                stroke="#1f3d7a"
+                strokeWidth="2.8"
+              />
+            )}
 
             {/* Vertices & Skill Labels */}
             {skills.map((sk, i) => {
-              const val = mastery[sk] ?? 50;
+              const isAssessed = mastery[sk] !== undefined;
+              const val = isAssessed ? mastery[sk] : 0;
               const { x, y } = getCoordinates(i, val);
               const labelPos = getCoordinates(i, 116);
               const isSelected = selectedSkill === sk;
@@ -171,8 +174,8 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
                     y={labelPos.y + 3}
                     textAnchor={labelPos.x > center + 10 ? 'start' : labelPos.x < center - 10 ? 'end' : 'middle'}
                     fontSize="9.5"
-                    fill={isSelected ? '#1f3d7a' : '#475569'}
-                    fontWeight={isSelected ? '900' : '700'}
+                    fill={isSelected ? '#1f3d7a' : isAssessed ? '#334155' : '#94a3b8'}
+                    fontWeight={isSelected ? '900' : isAssessed ? '700' : '500'}
                     className="hover:fill-[#1f3d7a] transition-colors"
                   >
                     {sk.length > 14 ? sk.slice(0, 12) + '…' : sk}
@@ -182,8 +185,8 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
                   <circle
                     cx={x}
                     cy={y}
-                    r={isSelected ? 6 : 4}
-                    fill={val >= 75 ? '#10b981' : val >= 55 ? '#1f3d7a' : '#e15b47'}
+                    r={isSelected ? 6 : isAssessed ? 4 : 3}
+                    fill={!isAssessed ? '#cbd5e1' : val >= 75 ? '#10b981' : val >= 55 ? '#1f3d7a' : '#e15b47'}
                     stroke="#ffffff"
                     strokeWidth={isSelected ? 2.5 : 1.5}
                   />
@@ -191,6 +194,18 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({
               );
             })}
           </svg>
+
+          {!hasMasteryData && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4">
+              <div className="bg-white/95 backdrop-blur-xs p-4 border border-slate-300 shadow-sm text-center max-w-[220px]">
+                <Compass className="w-5 h-5 text-[#1f3d7a] mx-auto mb-1.5" />
+                <span className="text-xs font-black text-[#201e1d] block">Unassessed Radar</span>
+                <span className="text-[10px] text-slate-500 block mt-0.5 leading-tight">
+                  Complete questions to generate your diagnostic polygon
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Selected Skill Inspector / Drilldown (5 cols) */}

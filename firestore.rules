@@ -31,9 +31,7 @@ service cloud.firestore {
       return data.id is string &&
              data.username is string &&
              data.exam in ['GAT', 'SAT'] &&
-             data.score is number &&
-             data.correctCount is int &&
-             data.totalCount is int;
+             data.score is number;
     }
 
     // User accounts collection

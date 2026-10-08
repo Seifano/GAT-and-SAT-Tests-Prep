@@ -219,6 +219,10 @@ export const ExamView: React.FC<ExamViewProps> = ({
               <span className="text-slate-600">{currentQ.section}</span>
               <span className="text-slate-400">·</span>
               <span className="text-slate-600">{currentQ.skill}</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-[10px] text-emerald-800 font-black bg-emerald-50 px-2 py-0.5 border border-emerald-200">
+                +25 XP for correct
+              </span>
               {currentQ.src && (
                 <>
                   <span className="text-slate-400">·</span>
@@ -249,12 +253,12 @@ export const ExamView: React.FC<ExamViewProps> = ({
                     onClick={() => {
                       if (!isEliminated) onAnswer(oIdx);
                     }}
-                    className={`w-full text-left p-3.5 sm:p-4 border-2 transition-all flex items-center justify-between gap-3 cursor-pointer min-h-[52px] ${
+                    className={`w-full text-left p-3.5 sm:p-4 border-2 transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer min-h-[52px] ${
                       isEliminated
                         ? 'opacity-40 bg-slate-100 border-slate-200 line-through'
                         : isSelected
-                        ? 'border-[#1f3d7a] bg-[#1f3d7a]/10 text-[#1f3d7a]'
-                        : 'border-slate-300 bg-white hover:border-slate-400 text-[#201e1d]'
+                        ? 'border-[#1f3d7a] bg-[#1f3d7a]/10 text-[#1f3d7a] shadow-sm -translate-y-0.5'
+                        : 'border-slate-300 bg-white hover:border-[#1f3d7a] hover:bg-slate-50 hover:shadow-xs hover:-translate-y-0.5 text-[#201e1d]'
                     }`}
                   >
                     <div className="flex items-center gap-3 flex-1">

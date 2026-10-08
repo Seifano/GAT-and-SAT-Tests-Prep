@@ -21,11 +21,27 @@ export const PacingQuadrantChart: React.FC<PacingQuadrantChartProps> = ({
   // Benchmark pacing targets
   const targetSec = isGAT ? 50 : 78;
 
-  // Generate realistic pacing stats for each skill based on mastery
-  const skills = conf.sections.flatMap(s => s.skills);
-  const data = skills.map((sk, i) => {
-    const acc = mastery[sk] ?? 55;
-    // Estimated time per question: harder skills take more time
+  const assessedSkills = conf.sections.flatMap(s => s.skills).filter(sk => mastery[sk] !== undefined);
+
+  if (assessedSkills.length === 0) {
+    return (
+      <div className="bg-white border border-slate-300 p-8 space-y-4 text-center shadow-sm">
+        <div className="w-12 h-12 bg-slate-100 rounded-none flex items-center justify-center mx-auto text-[#1f3d7a]">
+          <Clock className="w-6 h-6" />
+        </div>
+        <div className="max-w-md mx-auto">
+          <h3 className="text-base font-extrabold text-[#201e1d]">No Pacing Velocity Recorded Yet</h3>
+          <p className="text-xs text-slate-600 mt-1">
+            Complete your first timed drill or mock exam to calibrate your seconds-per-question velocity against accuracy quadrants.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Generate realistic pacing stats for assessed skills
+  const data = assessedSkills.map((sk, i) => {
+    const acc = mastery[sk] || 0;
     const seed = (i * 7 + 13) % 19;
     const estimatedTime = Math.round(
       targetSec + (100 - acc) * 0.35 + (seed - 9) * 1.5

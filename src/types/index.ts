@@ -69,6 +69,8 @@ export interface TestAttempt {
   kind: 'mock' | 'focus' | 'quick';
   label: string;
   date: string;
+  timestamp?: number;
+  hour?: number;
   score: number;
   correct: number;
   total: number;
@@ -98,4 +100,36 @@ export interface AppSettings {
   loginHeadline: string;
   loginDescription: string;
   loginFootnotes: Array<{ title: string; subtitle: string }>;
+}
+
+export interface AchievementBadge {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt?: string;
+  progress?: number;
+  maxProgress?: number;
+  category?: 'habit' | 'streak' | 'accuracy' | 'mastery' | 'milestone';
+  tier?: 'Bronze' | 'Silver' | 'Gold' | 'Diamond';
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  xpReward?: number;
+  requirementText?: string;
+}
+
+export interface StudentGamification {
+  xp: number;
+  level: number;
+  levelTitle: string;
+  nextLevelXp: number;
+  currentLevelBaseXp: number;
+  totalQuestionsAnswered: number;
+  totalCorrect: number;
+  accuracy: number;
+  badges: AchievementBadge[];
+  streak: number;
+  dailyGoalProgress: number;
+  dailyGoalTarget: number;
+  badgeBonusXp?: number;
 }

@@ -144,6 +144,24 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         </div>
       </div>
 
+      {/* Gamification XP Reward Box */}
+      <div className="bg-gradient-to-r from-[#172554] to-[#1e3a8a] text-white p-5 border border-slate-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:shadow-lg transition-shadow">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-amber-400 text-slate-950 font-black flex items-center justify-center text-sm shadow-sm">
+            +{attempt.correct * 20 + attempt.total * 15 + (attempt.kind === 'mock' ? 120 : 0)}
+          </div>
+          <div>
+            <span className="text-sm font-black block tracking-tight">Experience Points (XP) Credited!</span>
+            <span className="text-xs text-slate-300">
+              +{attempt.correct * 20} XP accuracy bonus · +{attempt.total * 15} XP completion{attempt.kind === 'mock' ? ' · +120 XP full mock bonus' : ''}
+            </span>
+          </div>
+        </div>
+        <div className="text-xs font-bold text-amber-300 bg-amber-400/20 px-3 py-1.5 border border-amber-400/40">
+          Rank Progression Updated
+        </div>
+      </div>
+
       {/* 4 Diagnostic Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t-2 border-l-2 border-[#201e1d]/30 bg-white">
         <div className="p-6 border-r-2 border-b-2 border-[#201e1d]/30 flex flex-col justify-between">

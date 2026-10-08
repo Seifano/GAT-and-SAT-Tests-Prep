@@ -31,16 +31,20 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-accent-800), var(--color-accent) 55%, var(--color-accent-500));
-  transition: box-shadow .35s ease, filter .35s ease, background .2s ease;
+  background: #2563eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-in-out;
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--color-accent-700), var(--color-accent-500));
-  box-shadow: 0 6px 24px rgba(61, 99, 173, 0.45);
+  background: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.28), 0 4px 6px -4px rgba(37, 99, 235, 0.2);
 }
 .btn-primary:active {
-  background: var(--color-accent-800);
-  box-shadow: none;
+  background: #1e40af;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 @keyframes ahsGlow {

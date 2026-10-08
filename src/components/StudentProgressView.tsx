@@ -187,13 +187,15 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
           />
         </div>
 
-        <div className="inline-flex border border-[#201e1d]/30 bg-white">
+        <div className="inline-flex p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] gap-1">
           {(['All', 'GAT', 'SAT'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setExamFilter(tab)}
-              className={`px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                examFilter === tab ? 'bg-[#1f3d7a] text-white' : 'text-[#201e1d] hover:bg-slate-100'
+              className={`px-3.5 py-1 text-xs font-black rounded-lg transition-all duration-200 cursor-pointer ${
+                examFilter === tab
+                  ? 'bg-white text-[#1f3d7a] shadow-[0_2px_0_0_#1f3d7a,0_2px_4px_rgba(0,0,0,0.1)] -translate-y-0.5'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               {tab}
