@@ -104,7 +104,7 @@ export const StudentExamGateway: React.FC<StudentExamGatewayProps> = ({
         <div className="max-w-2xl mx-auto space-y-3 mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100 text-[#1e3a8a] text-xs font-black uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Welcome, {userName.split(' ')[0]}</span>
+            <span>Main Menu · Welcome, {userName.split(' ')[0]}</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
@@ -112,7 +112,7 @@ export const StudentExamGateway: React.FC<StudentExamGatewayProps> = ({
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-            Please choose the exam track you are preparing for. Once selected, your personalized diagnostic analytics, competency matrix, and question banks will load.
+            Please choose the exam track you are preparing for. All diagnostic metrics, study questions, and analytics will strictly isolate to your chosen pathway. To switch tracks, simply return here to the Main Menu.
           </p>
         </div>
 
@@ -190,7 +190,7 @@ export const StudentExamGateway: React.FC<StudentExamGatewayProps> = ({
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>Al-Hussan Model Schools Exam Preparation Standards</span>
           </div>
-          <span>You can switch or return to this selection screen at any time.</span>
+          <span>You can return to this Main Menu at any time to switch examination tracks.</span>
         </div>
       </div>
     </div>

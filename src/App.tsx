@@ -806,17 +806,17 @@ export default function App() {
     return res;
   }, [currentExamAttempts]);
 
-  // Compute authentic streak
+  // Compute authentic streak for the selected exam track
   const authenticStreak = React.useMemo(() => {
-    if (currentStudentAttempts.length === 0) return 0;
-    const uniqueDates = new Set(currentStudentAttempts.map(a => a.date));
+    if (currentExamAttempts.length === 0) return 0;
+    const uniqueDates = new Set(currentExamAttempts.map(a => a.date));
     return Math.min(30, uniqueDates.size);
-  }, [currentStudentAttempts]);
+  }, [currentExamAttempts]);
 
-  // Compute authentic gamification progression for current student
+  // Compute authentic gamification progression for current student in selected track
   const studentGamification = React.useMemo(() => {
-    return calculateGamification(currentStudentAttempts, authenticStreak);
-  }, [currentStudentAttempts, authenticStreak]);
+    return calculateGamification(currentExamAttempts, authenticStreak);
+  }, [currentExamAttempts, authenticStreak]);
 
   // Handle updating official registered target exam date
   const handleUpdateTargetDate = (exam: ExamType, newDate: string) => {
@@ -896,10 +896,10 @@ export default function App() {
               <button
                 onClick={() => setCurrentScreen('studentSelect')}
                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-[#1e3a8a] font-extrabold rounded-lg border border-slate-300 shadow-2xs hover:border-[#1e3a8a] transition-all cursor-pointer hover:-translate-x-0.5"
-                title="Go back to exam selection screen (GAT, SAT, NAFS)"
+                title="Return to Main Menu to select another examination track"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Go Back (Change Exam)</span>
+                <span>Return to Main Menu (Change Track)</span>
               </button>
             </div>
           </div>
@@ -959,7 +959,7 @@ export default function App() {
             weekDone={weekDone}
             bank={bank[activeExam]}
             userName={user?.name || 'Student'}
-            studentAttempts={currentStudentAttempts}
+            studentAttempts={currentExamAttempts}
             onStartMock={() => startMockExam(activeExam)}
             onStartFocus={skills => startFocusDrill(skills)}
             onStartQuick={startQuickWarmup}
@@ -969,13 +969,13 @@ export default function App() {
             onViewAchievements={() => setCurrentScreen('achievements')}
             hasPastResults={currentExamAttempts.length > 0 || !!lastAttempt}
             onUpdateTargetDate={handleUpdateTargetDate}
-            onSelectExam={ex => setActiveExam(ex)}
+            onGoBackToMainMenu={() => setCurrentScreen('studentSelect')}
           />
         )}
 
         {currentScreen === 'achievements' && (
           <Achievements
-            studentAttempts={currentStudentAttempts}
+            studentAttempts={currentExamAttempts}
             streak={authenticStreak}
             userName={user?.name || 'Student'}
             onStartMock={() => startMockExam(activeExam)}
@@ -1023,7 +1023,9 @@ export default function App() {
           <QuestionBrowserView
             activeExam={activeExam}
             bank={bank}
-            onSelectExam={ex => setActiveExam(ex)}
+            isStudent={user?.role === 'Student' || ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen)}
+            onGoBackToMainMenu={() => setCurrentScreen('studentSelect')}
+            onSelectExam={user?.role === 'Admin' || user?.role === 'Teacher' ? ex => setActiveExam(ex) : undefined}
           />
         )}
 

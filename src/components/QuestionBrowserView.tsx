@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
 import { Question, ExamType } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { Search, Filter, BookOpen, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, BookOpen, ChevronDown, ChevronUp, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 interface QuestionBrowserViewProps {
   activeExam: ExamType;
   bank: Record<ExamType, Question[]>;
-  onSelectExam: (exam: ExamType) => void;
+  onSelectExam?: (exam: ExamType) => void;
+  isStudent?: boolean;
+  onGoBackToMainMenu?: () => void;
 }
 
 export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
   activeExam,
   bank,
-  onSelectExam
+  onSelectExam,
+  isStudent = false,
+  onGoBackToMainMenu
 }) => {
   const [skillFilter, setSkillFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,23 +56,47 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
           </p>
         </div>
 
-        {/* Exam Toggle */}
-        <div className="inline-flex border border-[#201e1d]/30 bg-transparent shrink-0">
-          {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(e => (
-            <button
-              key={e}
-              onClick={() => {
-                onSelectExam(e);
-                setSkillFilter('All');
-              }}
-              className={`px-3 sm:px-4 py-1.5 text-xs font-black transition-all cursor-pointer ${
-                activeExam === e ? 'bg-[#1f3d7a] text-white' : 'text-[#201e1d] hover:bg-slate-200/60'
-              }`}
-            >
-              {e} ({bank[e]?.length || 0})
-            </button>
-          ))}
-        </div>
+        {/* Exam Toggle / Locked Track Display */}
+        {isStudent ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-slate-300 shadow-2xs">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Track:</span>
+              <span className={`px-2 py-0.5 rounded-md text-xs font-black text-white shadow-2xs ${
+                activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
+              }`}>
+                {activeExam} ({questions.length} questions)
+              </span>
+            </div>
+
+            {onGoBackToMainMenu && (
+              <button
+                onClick={onGoBackToMainMenu}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-[#1e3a8a] text-xs font-black rounded-xl border border-slate-300 shadow-2xs hover:border-[#1e3a8a] transition-all cursor-pointer"
+                title="Return to Main Menu to select a different track"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Main Menu</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="inline-flex border border-[#201e1d]/30 bg-transparent shrink-0">
+            {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(e => (
+              <button
+                key={e}
+                onClick={() => {
+                  onSelectExam?.(e);
+                  setSkillFilter('All');
+                }}
+                className={`px-3 sm:px-4 py-1.5 text-xs font-black transition-all cursor-pointer ${
+                  activeExam === e ? 'bg-[#1f3d7a] text-white' : 'text-[#201e1d] hover:bg-slate-200/60'
+                }`}
+              >
+                {e} ({bank[e]?.length || 0})
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search & Filter Bar */}

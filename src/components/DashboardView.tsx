@@ -7,6 +7,7 @@ import { Achievements } from './Achievements';
 import { calculateGamification } from '../utils/gamification';
 import {
   ArrowRight,
+  ArrowLeft,
   Zap,
   Flame,
   Calendar,
@@ -50,6 +51,7 @@ interface DashboardViewProps {
   hasPastResults: boolean;
   onUpdateTargetDate?: (exam: ExamType, date: string) => void;
   onSelectExam?: (exam: ExamType) => void;
+  onGoBackToMainMenu?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -71,7 +73,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onViewAchievements,
   hasPastResults,
   onUpdateTargetDate,
-  onSelectExam
+  onSelectExam,
+  onGoBackToMainMenu
 }) => {
   const [selectedBadge, setSelectedBadge] = useState<string | null>(null);
   const [showDateModal, setShowDateModal] = useState(false);
@@ -264,192 +267,98 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* 3 CIRCULAR ICONS IN THE MIDDLE OF SCREEN: NAFS · GAT PRACTICE · SAT */}
+      {/* ACTIVE TRACK INFORMATION CARD (Focused exclusively on selected track) */}
       <section className="bg-white border-2 border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
-        {/* Heritage Tri-Color Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-red-600 to-[#1e3a8a]" />
+        {/* Track-themed Top Accent Line */}
+        <div className={`absolute top-0 left-0 right-0 h-1.5 ${
+          activeExam === 'NAFS'
+            ? 'bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700'
+            : activeExam === 'GAT'
+            ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-700'
+            : 'bg-gradient-to-r from-blue-700 via-indigo-600 to-[#1e3a8a]'
+        }`} />
 
-        <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[#1e3a8a] text-[11px] font-black uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Official Examination Pathways</span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-black text-[#201e1d] tracking-tight">
-            Choose Your Examination Track
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Click any circular pathway below to switch tracks, view targeted skill domains, and launch timed practice.
-          </p>
-        </div>
-
-        {/* 3 Circular Icons Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-4xl mx-auto">
-          {/* 1. NAFS Circular Icon */}
-          <div
-            onClick={() => onSelectExam && onSelectExam('NAFS')}
-            className={`group relative flex flex-col items-center text-center p-6 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-              activeExam === 'NAFS'
-                ? 'border-emerald-600 bg-emerald-50/40 shadow-md ring-2 ring-emerald-500/30'
-                : 'border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-sm'
-            }`}
-          >
-            {activeExam === 'NAFS' && (
-              <span className="absolute top-3 right-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Active
-              </span>
-            )}
-
-            {/* Circular Icon Circle */}
-            <div className="relative mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center gap-4 sm:gap-6 min-w-0">
+            {/* Active Track Emblem */}
+            <div className="relative shrink-0">
               <div
-                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white transition-all duration-300 shadow-md group-hover:scale-105 ${
+                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex flex-col items-center justify-center text-white shadow-md ${
                   activeExam === 'NAFS'
-                    ? 'bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-800 ring-4 ring-emerald-200 shadow-emerald-700/25'
-                    : 'bg-gradient-to-br from-emerald-500 to-teal-700 ring-4 ring-slate-100 group-hover:ring-emerald-200'
+                    ? 'bg-gradient-to-br from-emerald-600 to-teal-800 ring-4 ring-emerald-100 shadow-emerald-700/20'
+                    : activeExam === 'GAT'
+                    ? 'bg-gradient-to-br from-red-600 to-rose-800 ring-4 ring-red-100 shadow-red-700/20'
+                    : 'bg-gradient-to-br from-blue-700 to-indigo-900 ring-4 ring-blue-100 shadow-blue-800/20'
                 }`}
               >
-                <BookOpen className="w-7 h-7 sm:w-8 sm:h-8 mb-1" />
-                <span className="text-sm sm:text-base font-black tracking-tight leading-none">NAFS</span>
-                <span className="text-[10px] sm:text-xs opacity-90 font-medium">نافس</span>
+                {activeExam === 'NAFS' ? (
+                  <BookOpen className="w-8 h-8 sm:w-9 sm:h-9 mb-1" />
+                ) : activeExam === 'GAT' ? (
+                  <Zap className="w-8 h-8 sm:w-9 sm:h-9 mb-1" />
+                ) : (
+                  <Target className="w-8 h-8 sm:w-9 sm:h-9 mb-1" />
+                )}
+                <span className="text-sm sm:text-base font-black tracking-tight leading-none">{activeExam}</span>
+                <span className="text-[10px] sm:text-xs opacity-90 font-medium">
+                  {activeExam === 'NAFS' ? 'نافس' : activeExam === 'GAT' ? 'القدرات' : 'Digital'}
+                </span>
               </div>
             </div>
 
-            <h3 className="text-base sm:text-lg font-black text-gray-900 group-hover:text-emerald-700 transition-colors">
-              NAFS Assessment
-            </h3>
-            <span className="inline-block mt-1 text-xs font-bold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              Grade 6 &amp; Grade 9 (G6 · G9)
-            </span>
-            <p className="text-xs text-slate-600 mt-2.5 leading-relaxed">
-              Standardized national reading literacy, text analysis, vocabulary in context, and language skills for G6 &amp; G9.
-            </p>
+            {/* Details strictly for active track */}
+            <div className="space-y-1.5 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                  activeExam === 'NAFS'
+                    ? 'text-emerald-800 bg-emerald-100 border border-emerald-300'
+                    : activeExam === 'GAT'
+                    ? 'text-red-800 bg-red-100 border border-red-300'
+                    : 'text-blue-800 bg-blue-100 border border-blue-300'
+                }`}>
+                  Current Examination Track
+                </span>
+                <span className="text-xs text-slate-500 font-bold">
+                  {bank.length} Verified Questions Loaded
+                </span>
+              </div>
 
-            <button
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                if (onSelectExam) onSelectExam('NAFS');
-              }}
-              className={`mt-4 w-full py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeExam === 'NAFS'
-                  ? 'bg-emerald-700 text-white shadow-xs'
-                  : 'bg-white border border-slate-300 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300'
-              }`}
-            >
-              {activeExam === 'NAFS' ? 'Currently Practicing NAFS' : 'Select NAFS (G6/G9)'}
-            </button>
+              <h2 className="text-xl sm:text-2xl font-black text-[#201e1d] tracking-tight">
+                {conf.full}
+              </h2>
+
+              <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
+                {conf.desc}
+              </p>
+
+              <div className="pt-1 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-500 font-semibold">Active Domains:</span>
+                {conf.sections.map(s => (
+                  <span
+                    key={s.name}
+                    className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-md font-bold text-slate-700 text-[11px]"
+                  >
+                    {s.name} ({s.skills.length} skills)
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* 2. GAT Practice Circular Icon */}
-          <div
-            onClick={() => onSelectExam && onSelectExam('GAT')}
-            className={`group relative flex flex-col items-center text-center p-6 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-              activeExam === 'GAT'
-                ? 'border-red-600 bg-red-50/40 shadow-md ring-2 ring-red-500/30'
-                : 'border-slate-200 bg-slate-50/50 hover:border-red-400 hover:bg-white hover:shadow-sm'
-            }`}
-          >
-            {activeExam === 'GAT' && (
-              <span className="absolute top-3 right-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-red-800 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
-                <CheckCircle2 className="w-3 h-3 text-red-600" /> Active
-              </span>
-            )}
-
-            {/* Circular Icon Circle */}
-            <div className="relative mb-4">
-              <div
-                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white transition-all duration-300 shadow-md group-hover:scale-105 ${
-                  activeExam === 'GAT'
-                    ? 'bg-gradient-to-br from-red-600 via-rose-700 to-red-800 ring-4 ring-red-200 shadow-red-700/25'
-                    : 'bg-gradient-to-br from-red-500 to-rose-700 ring-4 ring-slate-100 group-hover:ring-red-200'
-                }`}
+          {/* Action: Return to Main Menu to Change Track */}
+          <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end justify-between gap-3 shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-200">
+            {onGoBackToMainMenu && (
+              <button
+                type="button"
+                onClick={onGoBackToMainMenu}
+                className="w-full sm:w-auto px-4 sm:px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs hover:border-[#1e3a8a] hover:text-[#1e3a8a] hover:-translate-x-0.5"
               >
-                <Zap className="w-7 h-7 sm:w-8 sm:h-8 mb-1" />
-                <span className="text-sm sm:text-base font-black tracking-tight leading-none">GAT</span>
-                <span className="text-[10px] sm:text-xs opacity-90 font-medium">القدرات</span>
-              </div>
-            </div>
-
-            <h3 className="text-base sm:text-lg font-black text-gray-900 group-hover:text-red-700 transition-colors">
-              GAT Practice
-            </h3>
-            <span className="inline-block mt-1 text-xs font-bold text-red-700 bg-red-100/70 px-2.5 py-0.5 rounded-full border border-red-200">
-              Verbal &amp; Quantitative (Qudurat)
-            </span>
-            <p className="text-xs text-slate-600 mt-2.5 leading-relaxed">
-              Verbal analogies, sentence completions, contextual errors, quantitative arithmetic, algebra &amp; geometry.
-            </p>
-
-            <button
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                if (onSelectExam) onSelectExam('GAT');
-              }}
-              className={`mt-4 w-full py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeExam === 'GAT'
-                  ? 'bg-red-700 text-white shadow-xs'
-                  : 'bg-white border border-slate-300 text-slate-700 hover:bg-red-50 hover:text-red-800 hover:border-red-300'
-              }`}
-            >
-              {activeExam === 'GAT' ? 'Currently Practicing GAT' : 'Select GAT Practice'}
-            </button>
-          </div>
-
-          {/* 3. SAT Circular Icon */}
-          <div
-            onClick={() => onSelectExam && onSelectExam('SAT')}
-            className={`group relative flex flex-col items-center text-center p-6 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-              activeExam === 'SAT'
-                ? 'border-blue-700 bg-blue-50/40 shadow-md ring-2 ring-blue-500/30'
-                : 'border-slate-200 bg-slate-50/50 hover:border-blue-400 hover:bg-white hover:shadow-sm'
-            }`}
-          >
-            {activeExam === 'SAT' && (
-              <span className="absolute top-3 right-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-300">
-                <CheckCircle2 className="w-3 h-3 text-blue-700" /> Active
-              </span>
+                <ArrowLeft className="w-4 h-4 text-[#1e3a8a]" />
+                <span>Go Back to Main Menu</span>
+              </button>
             )}
-
-            {/* Circular Icon Circle */}
-            <div className="relative mb-4">
-              <div
-                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white transition-all duration-300 shadow-md group-hover:scale-105 ${
-                  activeExam === 'SAT'
-                    ? 'bg-gradient-to-br from-blue-700 via-indigo-800 to-[#1e3a8a] ring-4 ring-blue-200 shadow-blue-800/25'
-                    : 'bg-gradient-to-br from-blue-600 to-indigo-800 ring-4 ring-slate-100 group-hover:ring-blue-200'
-                }`}
-              >
-                <Target className="w-7 h-7 sm:w-8 sm:h-8 mb-1" />
-                <span className="text-sm sm:text-base font-black tracking-tight leading-none">SAT</span>
-                <span className="text-[10px] sm:text-xs opacity-90 font-medium">Digital</span>
-              </div>
-            </div>
-
-            <h3 className="text-base sm:text-lg font-black text-gray-900 group-hover:text-[#1e3a8a] transition-colors">
-              Digital SAT
-            </h3>
-            <span className="inline-block mt-1 text-xs font-bold text-blue-700 bg-blue-100/70 px-2.5 py-0.5 rounded-full border border-blue-200">
-              Reading, Writing &amp; Math
-            </span>
-            <p className="text-xs text-slate-600 mt-2.5 leading-relaxed">
-              Official digital adaptive format, reading and writing modules, advanced math, algebra &amp; 400–1600 scoring.
+            <p className="text-[11px] text-slate-500 max-w-xs text-left lg:text-right">
+              To practice or view analytics for a different examination track, return to the Main Menu.
             </p>
-
-            <button
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                if (onSelectExam) onSelectExam('SAT');
-              }}
-              className={`mt-4 w-full py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeExam === 'SAT'
-                  ? 'bg-[#1e3a8a] text-white shadow-xs'
-                  : 'bg-white border border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-[#1e3a8a] hover:border-blue-300'
-              }`}
-            >
-              {activeExam === 'SAT' ? 'Currently Practicing SAT' : 'Select Digital SAT'}
-            </button>
           </div>
         </div>
       </section>

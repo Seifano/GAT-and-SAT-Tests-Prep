@@ -176,15 +176,15 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Controls: Go Back button, DB sync, Exam Switcher, Streak, Role & Account */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
-            {/* Go Back button (for student view when an exam is loaded) */}
+            {/* Go Back to Main Menu button (for student view when an exam is loaded) */}
             {onGoBackToSelect && (user?.role === 'Student' || isViewingStudentSide) && currentScreen !== 'studentSelect' && (
               <button
                 onClick={onGoBackToSelect}
-                title="Return to exam track selection (GAT, SAT, NAFS)"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-800 bg-white hover:bg-slate-50 rounded-xl border border-slate-300/90 shadow-xs hover:border-[#1e3a8a] hover:text-[#1e3a8a] hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer shrink-0"
+                title="Return to Main Menu to switch to a different track (GAT, SAT, NAFS)"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-800 bg-white hover:bg-slate-50 rounded-xl border border-slate-300 shadow-xs hover:border-[#1e3a8a] hover:text-[#1e3a8a] hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer shrink-0"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-[#1e3a8a]" />
-                <span>Go Back</span>
+                <span>Main Menu</span>
               </button>
             )}
 
@@ -197,26 +197,41 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Live DB</span>
             </div>
 
-            {/* Exam Toggle - Segmented Control (only when in active study screens) */}
+            {/* Track Indicator: Locked in Student View (Must return to Main Menu to switch) */}
             {currentScreen !== 'studentSelect' && (
-              <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
-                {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => {
-                  const isActive = activeExam === exam;
-                  return (
-                    <button
-                      key={exam}
-                      onClick={() => onSelectExam(exam)}
-                      className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
-                        isActive
-                          ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
-                          : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
-                      }`}
-                    >
-                      {exam}
-                    </button>
-                  );
-                })}
-              </div>
+              (user?.role === 'Student' || isViewingStudentSide) ? (
+                <div
+                  title={`Current track: ${activeExam}. To switch track, return to Main Menu.`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-xl border border-slate-300/80 shadow-2xs shrink-0"
+                >
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Track:</span>
+                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-black text-white shadow-2xs ${
+                    activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
+                  }`}>
+                    {activeExam}
+                  </span>
+                </div>
+              ) : (
+                /* Admin/Teacher console track switcher */
+                <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
+                  {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => {
+                    const isActive = activeExam === exam;
+                    return (
+                      <button
+                        key={exam}
+                        onClick={() => onSelectExam(exam)}
+                        className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
+                          isActive
+                            ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
+                            : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
+                        }`}
+                      >
+                        {exam}
+                      </button>
+                    );
+                  })}
+                </div>
+              )
             )}
 
             {/* Streak Counter for Students */}
@@ -332,33 +347,47 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-full text-center px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#1e3a8a] border border-blue-200 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>← Go Back (Change Exam Track)</span>
+                <span>← Main Menu (Change Exam Track)</span>
               </button>
             )}
 
-            {/* Exam Toggle in Mobile Menu */}
+            {/* Track Indicator in Mobile Menu */}
             {currentScreen !== 'studentSelect' && (
-              <div className="flex items-center justify-between p-1.5 bg-slate-100 rounded-xl">
-                <span className="text-[11px] font-bold text-slate-500 uppercase px-2">Track:</span>
-                <div className="inline-flex items-center gap-1">
-                  {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => (
-                    <button
-                      key={exam}
-                      onClick={() => {
-                        onSelectExam(exam);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
-                        activeExam === exam
-                          ? 'bg-white text-[#1e3a8a] shadow-xs ring-1 ring-slate-300 font-black'
-                          : 'text-slate-600 hover:text-gray-900'
-                      }`}
-                    >
-                      {exam}
-                    </button>
-                  ))}
+              (user?.role === 'Student' || isViewingStudentSide) ? (
+                <div className="flex items-center justify-between p-2.5 bg-slate-100 rounded-xl text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">Active Track:</span>
+                    <span className={`px-2 py-0.5 rounded-md font-black text-white ${
+                      activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
+                    }`}>
+                      {activeExam}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-semibold">Locked to track</span>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between p-1.5 bg-slate-100 rounded-xl">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase px-2">Track:</span>
+                  <div className="inline-flex items-center gap-1">
+                    {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => (
+                      <button
+                        key={exam}
+                        onClick={() => {
+                          onSelectExam(exam);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                          activeExam === exam
+                            ? 'bg-white text-[#1e3a8a] shadow-xs ring-1 ring-slate-300 font-black'
+                            : 'text-slate-600 hover:text-gray-900'
+                        }`}
+                      >
+                        {exam}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
             )}
 
             {/* Admin Switcher for Mobile Drawer */}
