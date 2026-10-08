@@ -115,23 +115,23 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
             {currentUser.role === 'Admin' ? 'Instructor & Admin Hub' : 'Teacher Portal'}
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             Student Progress &amp; Diagnostics
           </h1>
-          <p className="text-sm text-slate-600 mt-1 max-w-xl">
+          <p className="text-sm text-slate-600 mt-1 max-w-xl break-words">
             Live diagnostic tracker showing authentic test attempts, scaled scores, and skill deficiencies across your roster.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 bg-white border border-slate-300 text-xs font-bold text-[#201e1d]">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+          <div className="px-3 py-1.5 bg-white border border-slate-300 text-xs font-bold text-[#201e1d] shrink-0">
             {studentAccounts.length} Total Students
           </div>
-          <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-xs font-bold text-emerald-800">
+          <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-xs font-bold text-emerald-800 shrink-0">
             {activeStudentsCount} Active Test Takers
           </div>
         </div>

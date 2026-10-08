@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { Question, ExamType } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { Plus, Search, Filter, Trash2, Edit3, X, BookOpen } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit3, X, BookOpen, UploadCloud } from 'lucide-react';
 
 interface AdminQuestionsViewProps {
   bank: Record<ExamType, Question[]>;
   onAddQuestion: (q: Question) => void;
   onUpdateQuestion: (q: Question) => void;
   onDeleteQuestion: (exam: ExamType, id: string) => void;
+  onNavigateImport?: () => void;
 }
 
 export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
   bank,
   onAddQuestion,
   onUpdateQuestion,
-  onDeleteQuestion
+  onDeleteQuestion,
+  onNavigateImport
 }) => {
   const [activeExam, setActiveExam] = useState<ExamType>('GAT');
   const [skillFilter, setSkillFilter] = useState('All');
@@ -116,22 +118,34 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
             Question bank
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             {currentBank.length} {activeExam} questions
           </h1>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="btn-primary px-5 py-2.5 text-white text-xs font-black flex items-center gap-2 cursor-pointer"
-        >
-          <span>Add question</span>
-          <Plus className="w-4 h-4" />
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {onNavigateImport && (
+            <button
+              onClick={onNavigateImport}
+              className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:border-[#1f3d7a] text-slate-800 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all duration-200"
+            >
+              <UploadCloud className="w-4 h-4 text-[#1f3d7a]" />
+              <span>Upload Word / PDF</span>
+            </button>
+          )}
+
+          <button
+            onClick={openAddModal}
+            className="btn-primary px-5 py-2.5 text-white text-xs font-black flex items-center gap-2 cursor-pointer"
+          >
+            <span>Add question</span>
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* 3D Modern Exam Switcher Tabs */}

@@ -11,7 +11,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { UserAccount, Question, AppSettings, TestAttempt, ExamType } from './types';
+import { UserAccount, Question, AppSettings, TestAttempt, ExamType, UserProfile } from './types';
 import { INITIAL_ACCOUNTS, DEFAULT_APP_SETTINGS } from './data/mockData';
 
 // Initialize Firebase App
@@ -243,14 +243,36 @@ export async function fetchQuestionsFromDb(
       return { GAT: defaultGAT, SAT: defaultSAT };
     }
     const result: Record<ExamType, Question[]> = { GAT: [], SAT: [] };
+    const dbQuestionIds = new Set<string>();
+
     snapshot.forEach(docSnap => {
       const q = docSnap.data() as Question;
       if (q.exam === 'GAT' || q.exam === 'SAT') {
         result[q.exam].push(q);
+        dbQuestionIds.add(q.id);
       }
     });
 
-    // If either bank is empty, populate with defaults
+    // Ensure all default questions are present in database
+    const missingDefaults: Question[] = [];
+    defaultGAT.forEach(q => {
+      if (!dbQuestionIds.has(q.id)) {
+        result.GAT.push(q);
+        missingDefaults.push(q);
+      }
+    });
+    defaultSAT.forEach(q => {
+      if (!dbQuestionIds.has(q.id)) {
+        result.SAT.push(q);
+        missingDefaults.push(q);
+      }
+    });
+
+    if (missingDefaults.length > 0) {
+      saveQuestionsBatchToDb(missingDefaults).catch(console.error);
+      console.log(`Synced ${missingDefaults.length} initial questions to Firestore database.`);
+    }
+
     if (result.GAT.length === 0) result.GAT = defaultGAT;
     if (result.SAT.length === 0) result.SAT = defaultSAT;
 
@@ -351,5 +373,33 @@ export async function fetchUserAttemptsFromDb(username: string): Promise<TestAtt
   } catch (err) {
     console.error(`Failed to fetch attempts for user ${username}:`, err);
     return [];
+  }
+}
+
+// ----------------------------------------------------
+// USER PROFILES & STUDY TARGETS DATABASE OPERATIONS
+// ----------------------------------------------------
+
+export async function saveUserProfileToDb(username: string, profile: UserProfile): Promise<void> {
+  try {
+    const docRef = doc(db, 'profiles', username.toLowerCase().trim());
+    await setDoc(docRef, profile, { merge: true });
+    console.log(`Saved study profile and exam dates for @${username} to Firestore.`);
+  } catch (err) {
+    console.error(`Error saving user profile to Firestore:`, err);
+  }
+}
+
+export async function fetchUserProfileFromDb(username: string): Promise<UserProfile | null> {
+  try {
+    const docRef = doc(db, 'profiles', username.toLowerCase().trim());
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data() as UserProfile;
+    }
+    return null;
+  } catch (err) {
+    console.error(`Error fetching profile from Firestore:`, err);
+    return null;
   }
 }

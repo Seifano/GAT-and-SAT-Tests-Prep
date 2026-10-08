@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { QuestionDraft, Question, ExamType } from '../types';
 import { parseRawQuestionsText } from '../utils/questionParser';
+import { extractTextFromFile } from '../utils/documentParser';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { UploadCloud, FileText, Check, Trash2, Edit3, X, Sparkles } from 'lucide-react';
+import { UploadCloud, FileText, Check, Trash2, Edit3, X, Sparkles, Loader2, FileCheck, AlertCircle } from 'lucide-react';
 
 interface AdminImportViewProps {
   onImportDrafts: (questions: Question[]) => void;
@@ -13,30 +14,60 @@ export const AdminImportView: React.FC<AdminImportViewProps> = ({ onImportDrafts
   const [examPref, setExamPref] = useState<ExamType | 'Auto'>('Auto');
   const [rawText, setRawText] = useState('');
   const [fileName, setFileName] = useState('');
+  const [fileType, setFileType] = useState<'word' | 'pdf' | 'text' | null>(null);
   const [drafts, setDrafts] = useState<QuestionDraft[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionMsg, setExtractionMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingDraftIndex, setEditingDraftIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleTextParse = (text: string, name = 'Pasted Questions') => {
+  const handleTextParse = (text: string, name = 'Pasted Questions', type: 'word' | 'pdf' | 'text' = 'text') => {
     setFileName(name);
+    setFileType(type);
+    setRawText(text);
     const parsed = parseRawQuestionsText(text, examPref);
     setDrafts(parsed);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processFile = async (file: File) => {
+    setIsExtracting(true);
+    setErrorMsg(null);
+    const lowerName = file.name.toLowerCase();
+    let detectedType: 'word' | 'pdf' | 'text' = 'text';
+
+    if (lowerName.endsWith('.docx') || lowerName.endsWith('.doc')) {
+      detectedType = 'word';
+      setExtractionMsg('Reading Word document & extracting questions...');
+    } else if (lowerName.endsWith('.pdf')) {
+      detectedType = 'pdf';
+      setExtractionMsg('Parsing PDF pages & extracting question text...');
+    } else {
+      detectedType = 'text';
+      setExtractionMsg('Reading text file...');
+    }
+
+    try {
+      const extractedText = await extractTextFromFile(file);
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new Error('No readable text could be extracted from this file. Please verify file content.');
+      }
+      handleTextParse(extractedText, file.name, detectedType);
+    } catch (err: any) {
+      console.error('File parsing error:', err);
+      setErrorMsg(`Failed to extract text from ${file.name}: ${err?.message || 'Unsupported or corrupted format'}`);
+    } finally {
+      setIsExtracting(false);
+      setExtractionMsg('');
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = event => {
-      const content = event.target?.result as string;
-      if (content) {
-        handleTextParse(content, file.name);
-      }
-    };
-    reader.readAsText(file);
+    await processFile(file);
     e.target.value = '';
   };
 
@@ -107,21 +138,21 @@ Explanation: 5x - 7 = 3x + 15 -> 2x = 22 -> x = 11.`;
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
             Import
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             Upload questions from a file
           </h1>
-          <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed">
+          <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed break-words">
             Upload text files or paste questions directly. Detected questions are listed for review before anything is added to the bank.
           </p>
         </div>
 
         <button
           onClick={loadSample}
-          className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-xs font-bold text-[#1f3d7a] cursor-pointer"
+          className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-xs font-bold text-[#1f3d7a] cursor-pointer shrink-0"
         >
           Load format sample
         </button>
@@ -155,39 +186,95 @@ Explanation: 5x - 7 = 3x + 15 -> 2x = 22 -> x = 11.`;
               setIsDragging(true);
             }}
             onDragLeave={() => setIsDragging(false)}
-            onDrop={e => {
+            onDrop={async e => {
               e.preventDefault();
               setIsDragging(false);
               const file = e.dataTransfer.files?.[0];
               if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => {
-                  const content = ev.target?.result as string;
-                  if (content) handleTextParse(content, file.name);
-                };
-                reader.readAsText(file);
+                await processFile(file);
               }
             }}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 bg-white ${
+            onClick={() => !isExtracting && fileInputRef.current?.click()}
+            className={`border-2 p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 bg-white ${
               isDragging ? 'border-[#1f3d7a] bg-[#1f3d7a]/5' : 'border-[#201e1d]/30 hover:border-[#1f3d7a]'
-            }`}
+            } ${isExtracting ? 'opacity-70 pointer-events-none' : ''}`}
           >
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.doc,.docx,.pdf"
+              accept=".docx,.doc,.pdf,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
               onChange={handleFileChange}
               className="hidden"
             />
-            <UploadCloud className="w-8 h-8 text-[#1f3d7a]" />
-            <div className="font-extrabold text-base text-[#201e1d]">
-              Drop a file here or click to browse
-            </div>
-            <div className="text-xs text-slate-500">
-              Supports .txt, formatted text transcripts, and exported test documents
-            </div>
+            
+            {isExtracting ? (
+              <div className="flex flex-col items-center gap-2 py-4">
+                <Loader2 className="w-10 h-10 text-[#1f3d7a] animate-spin" />
+                <div className="font-extrabold text-sm text-[#1f3d7a]">{extractionMsg || 'Processing document...'}</div>
+                <div className="text-xs text-slate-500">Extracting questions, options, and answer keys</div>
+              </div>
+            ) : (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-[#1f3d7a] shadow-inner">
+                  <UploadCloud className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="font-extrabold text-base text-[#201e1d]">
+                    Drop your question file here or click to browse
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    Upload Word documents, PDF question banks, or plain text transcripts
+                  </div>
+                </div>
+
+                {/* Badges for Supported Formats */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-blue-50 text-blue-800 ring-1 ring-blue-200">
+                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                    Word Doc (.docx, .doc)
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-red-50 text-red-800 ring-1 ring-red-200">
+                    <FileText className="w-3.5 h-3.5 text-red-600" />
+                    PDF (.pdf)
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-black bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200">
+                    <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    Text & Notes (.txt)
+                  </span>
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Error notification if extraction fails */}
+          {errorMsg && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5 text-xs text-red-800">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block">Extraction Error:</span>
+                <span>{errorMsg}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Extracted file feedback */}
+          {fileName && !isExtracting && (
+            <div className="p-2.5 bg-slate-100 border border-slate-300 rounded-lg flex items-center justify-between text-xs font-bold text-slate-800">
+              <div className="flex items-center gap-2 truncate">
+                <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">Loaded: <strong>{fileName}</strong></span>
+                {fileType === 'word' && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-extrabold uppercase">Word Doc</span>
+                )}
+                {fileType === 'pdf' && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-800 font-extrabold uppercase">PDF</span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-500 shrink-0 ml-2">
+                {drafts.length} questions detected
+              </span>
+            </div>
+          )}
 
           {/* Paste Input */}
           <div className="space-y-1.5">

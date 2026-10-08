@@ -36,14 +36,14 @@ export const PracticeSetsView: React.FC<PracticeSetsViewProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Header Banner */}
-      <div className="pb-6 border-b border-slate-300">
+      <div className="pb-6 border-b border-slate-300 min-w-0">
         <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
           Gamified Training Grounds
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
           Choose Your {activeExam} Training Arena
         </h1>
-        <p className="text-sm text-slate-600 max-w-xl mt-1.5 leading-relaxed">
+        <p className="text-sm text-slate-600 max-w-xl mt-1.5 leading-relaxed break-words">
           From high-velocity warmup sprints to full-length timed simulations, earn XP and level up your mastery with every completed set.
         </p>
       </div>

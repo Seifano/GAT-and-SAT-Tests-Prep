@@ -95,29 +95,29 @@ export const ExamView: React.FC<ExamViewProps> = ({
     <div className="min-h-screen bg-[#f3f2f2] flex flex-col font-sans text-[#201e1d]">
       {/* Test Bar */}
       <header className="sticky top-0 z-30 bg-[#f3f2f2] border-b-2 border-[#201e1d]/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4 overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
             <button
               onClick={onExit}
               title="Exit exam"
-              className="p-1 text-slate-700 hover:text-black cursor-pointer"
+              className="p-1 text-slate-700 hover:text-black cursor-pointer shrink-0"
             >
               <X className="w-5 h-5" />
             </button>
-            <div>
-              <div className="font-extrabold text-sm text-[#201e1d] flex items-center gap-2">
-                <span>{session.label}</span>
-                <span className="text-xs bg-[#1f3d7a] text-white px-1.5 py-0.2 font-mono">
+            <div className="min-w-0">
+              <div className="font-extrabold text-xs sm:text-sm text-[#201e1d] flex items-center gap-1.5 min-w-0">
+                <span className="truncate max-w-[120px] sm:max-w-[200px] md:max-w-xs">{session.label}</span>
+                <span className="text-[10px] sm:text-xs bg-[#1f3d7a] text-white px-1.5 py-0.5 font-mono shrink-0">
                   {session.exam}
                 </span>
               </div>
-              <div className="text-xs text-slate-600">
-                {answeredCount} of {totalCount} answered · Question {session.cur + 1}
+              <div className="text-[11px] sm:text-xs text-slate-600 truncate">
+                {answeredCount}/{totalCount} answered · Q{session.cur + 1}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Built-in Exam Tools */}
             <button
               onClick={() => setShowCalculator(true)}

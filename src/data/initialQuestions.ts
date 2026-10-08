@@ -610,10 +610,10 @@ export const initialSATQuestions: Question[] = [
     exam: 'SAT',
     section: 'Math',
     skill: 'Algebra',
-    prompt: 'If 4(2x - 3) = 3(x + 6) + 4, what is the value of x?',
-    options: ['4', '5', '6', '7'],
-    answer: 2,
-    explain: 'Expand both sides: 8x - 12 = 3x + 18 + 4 → 8x - 12 = 3x + 22. Subtract 3x: 5x - 12 = 22. Add 12: 5x = 34. Wait, let\'s verify: 8x - 3x = 5x; 22 + 12 = 34. Let\'s check x = 6: 4(12 - 3) = 4(9) = 36; 3(6 + 6) + 4 = 3(12) + 4 = 40. For x = 6: 4(2x - 3) = 8x - 12; 3(x + 4) + 6? Let\'s recalculate 5x = 30 → x = 6 with 4(2x - 3) = 3(x + 2) + 20: 8x - 12 = 3x + 26 → 5x = 38. With prompt 4(2x - 3) = 3(x + 6) + 2: 8x - 12 = 3x + 20 → 5x = 30 → x = 6.',
+    prompt: 'If 3(2x - 1) = 2(x + 5) + 3, what is the value of x?',
+    options: ['3', '4', '5', '6'],
+    answer: 1,
+    explain: 'Expand both sides: 6x - 3 = 2x + 10 + 3 → 6x - 3 = 2x + 13. Subtract 2x from both sides: 4x - 3 = 13. Add 3: 4x = 16. Divide by 4: x = 4.',
     src: 'Digital SAT Math Archive'
   },
   {
@@ -680,6 +680,133 @@ export const initialSATQuestions: Question[] = [
     options: ['5/13', '12/13', '5/12', '13/12'],
     answer: 0,
     explain: 'In any right triangle where angle B is 90°, angles A and C are complementary (A + C = 90°). By cofunction identity, cos(C) = cos(90° - A) = sin(A). Since sin(A) = 5/13, cos(C) = 5/13.',
+    src: 'Digital SAT Math Archive'
+  },
+
+  // Additional SAT Questions for full practice and mock test pools
+  {
+    id: 'sat-rw-09',
+    exam: 'SAT',
+    section: 'Reading & Writing',
+    skill: 'Words in Context',
+    prompt: 'Because the original manuscript contained numerous ink smudges and torn margins, the archivist cautioned that any transcriptions of the centuries-old diary would be necessarily ______.\n\nWhich choice completes the text with the most logical and precise word or phrase?',
+    options: ['provisional', 'definitive', 'redundant', 'prestigious'],
+    answer: 0,
+    explain: '"Provisional" means temporary or subject to further confirmation, fitting an incomplete, damaged manuscript with torn margins.',
+    src: 'Digital SAT Practice Suite'
+  },
+  {
+    id: 'sat-rw-10',
+    exam: 'SAT',
+    section: 'Reading & Writing',
+    skill: 'Conventions',
+    prompt: 'Astronomer Maria Mitchell gained international acclaim in 1847 after discovering a new comet through a two-inch equatorial ______ her breakthrough earned her a gold medal from the King of Denmark.\n\nWhich choice completes the text so that it conforms to the conventions of Standard English?',
+    options: [
+      'telescope,',
+      'telescope; and',
+      'telescope;',
+      'telescope'
+    ],
+    answer: 2,
+    explain: 'The two independent clauses ("Astronomer Maria Mitchell gained..." and "her breakthrough earned her...") must be separated by a semicolon or a comma plus coordinating conjunction. A semicolon alone properly joins them.',
+    src: 'Digital SAT Practice Suite'
+  },
+  {
+    id: 'sat-rw-11',
+    exam: 'SAT',
+    section: 'Reading & Writing',
+    skill: 'Transitions',
+    prompt: 'Geologists originally hypothesized that tectonic subduction zones remained stationary over hundred-million-year epochs. Paleomagnetic mapping in the western Pacific, ______, demonstrated that trench rollbacks cause subduction hinge lines to migrate laterally at measurable rates of several centimeters per year.\n\nWhich choice completes the text with the most logical transition?',
+    options: ['furthermore', 'nevertheless', 'consequently', 'for example'],
+    answer: 1,
+    explain: '"Nevertheless" or contrastive transition marks the pivot between the initial static hypothesis and the empirical discovery of lateral migration.',
+    src: 'Digital SAT Practice Suite'
+  },
+  {
+    id: 'sat-rw-12',
+    exam: 'SAT',
+    section: 'Reading & Writing',
+    skill: 'Central Ideas',
+    prompt: 'In his landmark 1935 essay, Walter Benjamin contended that mechanical reproduction strips a work of art of its "aura"—its unique presence in time and space. Yet contemporary digital museum initiatives reveal that high-resolution interactive scans actually heighten viewer curiosity, driving record in-person attendance to witness the physical originals.\n\nWhich choice best summarizes the main idea of the passage?',
+    options: [
+      'Walter Benjamin correctly predicted that digital scans would render physical art museums obsolete.',
+      'Modern digital exhibits demonstrate that reproductions can enhance rather than diminish the appeal of original artworks.',
+      'Physical art exhibitions should cease creating digital scans to safeguard the authenticity of their collections.',
+      'Museum attendance has declined because audiences prefer viewing digital reproductions from home.'
+    ],
+    answer: 1,
+    explain: 'The passage illustrates that contrary to Benjamin\'s view that reproductions ruin the "aura", digital reproductions in fact stimulate greater appreciation and in-person attendance for original artworks.',
+    src: 'Digital SAT Practice Suite'
+  },
+  {
+    id: 'sat-mt-07',
+    exam: 'SAT',
+    section: 'Math',
+    skill: 'Algebra',
+    prompt: 'If 2x + 5y = 19 and 3x - 2y = 0, what is the value of x + y?',
+    options: ['5', '7', '8', '10'],
+    answer: 0,
+    explain: 'From 3x - 2y = 0, y = 1.5x. Substitute into 2x + 5(1.5x) = 19 → 2x + 7.5x = 9.5x = 19 → x = 2. Then y = 1.5(2) = 3. Therefore, x + y = 2 + 3 = 5.',
+    src: 'Digital SAT Math Archive'
+  },
+  {
+    id: 'sat-mt-08',
+    exam: 'SAT',
+    section: 'Math',
+    skill: 'Advanced Math',
+    prompt: 'A quadratic function is given by g(x) = (x - 4)² - 9. What are the x-intercepts of the graph of g?',
+    options: ['(1, 0) and (7, 0)', '(-1, 0) and (7, 0)', '(3, 0) and (-3, 0)', '(4, 0) and (-9, 0)'],
+    answer: 0,
+    explain: 'Set g(x) = 0: (x - 4)² - 9 = 0 → (x - 4)² = 9 → x - 4 = ±3. Thus x = 4 + 3 = 7 or x = 4 - 3 = 1. The intercepts are (1, 0) and (7, 0).',
+    src: 'Digital SAT Math Archive'
+  },
+  {
+    id: 'sat-mt-09',
+    exam: 'SAT',
+    section: 'Math',
+    skill: 'Data Analysis',
+    prompt: 'The mean score of 8 students on a mathematics quiz was 84. When a 9th student\'s score was included, the mean score became 85. What was the score of the 9th student?',
+    options: ['89', '91', '93', '95'],
+    answer: 2,
+    explain: 'Sum for 8 students = 8 × 84 = 672. Sum for 9 students = 9 × 85 = 765. Ninth student\'s score = 765 - 672 = 93.',
+    src: 'Digital SAT Math Archive'
+  },
+  {
+    id: 'sat-mt-10',
+    exam: 'SAT',
+    section: 'Math',
+    skill: 'Geometry & Trig',
+    prompt: 'A circle in the xy-plane has equation (x - 3)² + (y + 5)² = 49. What are the coordinates of the center and the radius of this circle?',
+    options: [
+      'Center (3, -5), radius 7',
+      'Center (-3, 5), radius 7',
+      'Center (3, -5), radius 49',
+      'Center (-3, 5), radius 49'
+    ],
+    answer: 0,
+    explain: 'Standard circle equation is (x - h)² + (y - k)² = r². Here h = 3, k = -5, and r² = 49 → r = 7. Center is (3, -5) and radius is 7.',
+    src: 'Digital SAT Math Archive'
+  },
+  {
+    id: 'sat-mt-11',
+    exam: 'SAT',
+    section: 'Math',
+    skill: 'Algebra',
+    prompt: 'Line L passes through the points (2, 7) and (6, 15). What is the y-intercept of Line L?',
+    options: ['(0, 1)', '(0, 2)', '(0, 3)', '(0, 4)'],
+    answer: 2,
+    explain: 'Slope m = (15 - 7) / (6 - 2) = 8 / 4 = 2. Using point-slope form: y - 7 = 2(x - 2) → y = 2x - 4 + 7 → y = 2x + 3. The y-intercept is (0, 3).',
+    src: 'Digital SAT Math Archive'
+  },
+  {
+    id: 'sat-mt-12',
+    exam: 'SAT',
+    section: 'Math',
+    skill: 'Geometry & Trig',
+    prompt: 'A right circular cylinder has a height of 10 cm and a base radius of 3 cm. What is its total volume in terms of π?',
+    options: ['30π cm³', '60π cm³', '90π cm³', '120π cm³'],
+    answer: 2,
+    explain: 'Volume of cylinder = πr²h = π(3²)(10) = π(9)(10) = 90π cm³.',
     src: 'Digital SAT Math Archive'
   }
 ];

@@ -105,21 +105,21 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
-            <span>Diagnostic Report · {attempt.label}</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
+            <span className="truncate max-w-[200px] sm:max-w-none">Diagnostic Report · {attempt.label}</span>
             <span className="text-slate-400">·</span>
-            <span>{attempt.date}</span>
+            <span className="shrink-0">{attempt.date}</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             {targetDiff <= 0 ? 'Target Score Achieved!' : `${targetDiff} points from your ${target} goal.`}
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-slate-600 mt-1 break-words">
             Comprehensive session diagnostic breakdown with error analysis and step-by-step rationales.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={onReturnDashboard}
             className="px-4 py-2.5 border border-slate-400 bg-white hover:bg-slate-100 text-xs font-bold text-[#201e1d] cursor-pointer"

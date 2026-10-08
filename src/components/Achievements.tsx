@@ -167,13 +167,13 @@ export const Achievements: React.FC<AchievementsProps> = ({
           </div>
 
           {/* Quick Metrics Pods */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto shrink-0">
             {/* Unlocked Count */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/15 min-w-[130px] shadow-inner text-center">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 min-w-0 sm:min-w-[120px] shadow-inner text-center">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300 block">
                 Badges Earned
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-amber-300 tabular-nums my-0.5">
+              <div className="text-xl sm:text-2xl font-black text-amber-300 tabular-nums my-0.5">
                 {unlockedCount} <span className="text-xs text-slate-400 font-bold">/ {totalBadges}</span>
               </div>
               <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden mt-1">
@@ -185,27 +185,27 @@ export const Achievements: React.FC<AchievementsProps> = ({
             </div>
 
             {/* Streak Indicator */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/15 min-w-[125px] shadow-inner text-center">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 min-w-0 sm:min-w-[120px] shadow-inner text-center">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300 block">
                 Study Velocity
               </span>
               <div className="flex items-center justify-center gap-1.5 my-0.5">
-                <Flame className="w-5 h-5 text-amber-400 fill-amber-400 animate-pulse" />
-                <span className="text-2xl sm:text-3xl font-black text-white tabular-nums">
+                <Flame className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
+                <span className="text-xl sm:text-2xl font-black text-white tabular-nums">
                   {streak}d
                 </span>
               </div>
-              <span className="text-[10px] text-amber-300 font-bold block">
+              <span className="text-[10px] text-amber-300 font-bold block truncate">
                 {streak >= 3 ? 'Consistency King Active' : `${3 - streak}d to Consistency King`}
               </span>
             </div>
 
             {/* Bonus XP Earned */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/15 min-w-[130px] shadow-inner text-center">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/15 min-w-0 sm:min-w-[120px] shadow-inner text-center">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300 block">
                 Accolade Bonus
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-400 tabular-nums my-0.5">
+              <div className="text-xl sm:text-2xl font-black text-emerald-400 tabular-nums my-0.5">
                 +{gamification.badgeBonusXp || 0}
               </div>
               <span className="text-[10px] text-slate-300 font-bold block">XP Awarded</span>

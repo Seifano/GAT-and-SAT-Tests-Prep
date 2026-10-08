@@ -98,13 +98,13 @@ export function parseRawQuestionsText(text: string, preferredExam: ExamType | 'A
       }
     }
 
-    // Check for question start like "1. ", "Question 1:", "12) "
-    const qMatch = line.match(/^(?:Q(?:uestion)?\s*)?(\d{1,3})\s*[.)\-:]\s*(.*)$/i);
+    // Check for question start like "1. ", "Question 1:", "12) ", "[1] ", "Q1. "
+    const qMatch = line.match(/^(?:Q(?:uestion)?\s*#?|\[|\()?\s*(\d{1,3})\s*(?:[.)\]\-:]|\s*:)\s*(.*)$/i);
     if (qMatch && !/^\(?[A-D][).]/i.test(line)) {
       flushCurrent();
       current = {
         num: parseInt(qMatch[1], 10),
-        prompt: qMatch[2],
+        prompt: qMatch[2] || '',
         options: ['', '', '', ''],
         answer: -1,
         explain: ''
@@ -116,25 +116,25 @@ export function parseRawQuestionsText(text: string, preferredExam: ExamType | 'A
 
     if (!current) continue;
 
-    // Check for answer key like "Answer: B", "Ans: A", "Key: C"
-    const ansMatch = line.match(/^(?:answer|ans|correct answer|key)\s*[:\-]?\s*\(?([A-D])\)?\b/i);
+    // Check for answer key like "Answer: B", "Ans: A", "Key: C", "Correct: D", "Solution: A"
+    const ansMatch = line.match(/^(?:answer|ans|correct answer|correct|key|solution|sol)\s*[:\-]?\s*(?:is\s*)?\(?\[?([A-D])\]?\)?\b/i);
     if (ansMatch) {
       current.answer = 'ABCD'.indexOf(ansMatch[1].toUpperCase());
       mode = 'explain';
       continue;
     }
 
-    // Check for explanation
-    const expMatch = line.match(/^(?:explanation|why|solution)\s*[:\-]\s*(.*)$/i);
+    // Check for explanation like "Explanation:", "Rationale:", "Why:"
+    const expMatch = line.match(/^(?:explanation|explain|rationale|why|solution notes)\s*[:\-]\s*(.*)$/i);
     if (expMatch) {
       current.explain = expMatch[1];
       mode = 'explain';
       continue;
     }
 
-    // Check for options like "A) ... B) ..."
-    const optionMatches = [...line.matchAll(/(?:^|\s)\(?([A-Da-d])[).]\s*/g)];
-    if (optionMatches.length && optionMatches[0].index === 0) {
+    // Check for options like "A) ... B) ...", "A. ...", "(A) ...", "[A] ..."
+    const optionMatches = [...line.matchAll(/(?:^|\s)(?:\(|\[)?([A-Da-d])(?:[).\]\-:]|\s*:)\s*/g)];
+    if (optionMatches.length && (optionMatches[0].index === 0 || /^\s*\(?[A-Da-d][).\]]/.test(line))) {
       optionMatches.forEach((match, k) => {
         const optLetter = match[1].toUpperCase();
         const optIdx = 'ABCD'.indexOf(optLetter);

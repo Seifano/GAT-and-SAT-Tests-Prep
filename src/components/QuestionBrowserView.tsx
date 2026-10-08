@@ -40,20 +40,20 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
             Question Bank Library
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             Browse &amp; Study {activeExam} Questions
           </h1>
-          <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed">
+          <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed break-words">
             Review questions, study detailed answer keys, and explore real test passages at your own pace outside of timed simulations.
           </p>
         </div>
 
         {/* Exam Toggle */}
-        <div className="inline-flex border border-[#201e1d]/30 bg-transparent">
+        <div className="inline-flex border border-[#201e1d]/30 bg-transparent shrink-0">
           {(['GAT', 'SAT'] as ExamType[]).map(e => (
             <button
               key={e}

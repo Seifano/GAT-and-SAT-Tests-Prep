@@ -50,7 +50,9 @@ import {
   saveQuestionsBatchToDb,
   deleteQuestionFromDb,
   saveAttemptToDb,
-  fetchAllAttemptsFromDb
+  fetchAllAttemptsFromDb,
+  saveUserProfileToDb,
+  fetchUserProfileFromDb
 } from './firebase';
 
 const STORAGE_KEY = 'ahs_prepline_v5';
@@ -297,6 +299,14 @@ export default function App() {
       }
 
       setUser(found);
+      if (found.role === 'Student') {
+        fetchUserProfileFromDb(found.username).then(dbProfile => {
+          if (dbProfile) {
+            setProfile(dbProfile);
+          }
+        });
+      }
+
       if (found.role === 'Admin' || found.role === 'Teacher') {
         setCurrentScreen('studentProgress');
       } else {
@@ -339,6 +349,27 @@ export default function App() {
     return true;
   };
 
+  // Enforce strict Role-Based Access Control (RBAC):
+  // - Student can ONLY see student view
+  // - Teacher can ONLY see teacher view
+  // - Admin has full access to everything
+  useEffect(() => {
+    if (!user || currentScreen === 'login' || currentScreen === 'onboard') return;
+
+    const studentScreens = ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'exam', 'results'];
+    const teacherScreens = ['studentProgress', 'adminQuestions', 'adminImport', 'browser'];
+
+    if (user.role === 'Student') {
+      if (!studentScreens.includes(currentScreen)) {
+        setCurrentScreen('dashboard');
+      }
+    } else if (user.role === 'Teacher') {
+      if (!teacherScreens.includes(currentScreen)) {
+        setCurrentScreen('studentProgress');
+      }
+    }
+  }, [user?.role, currentScreen]);
+
   const handleSignOut = () => {
     setUser(null);
     setCurrentScreen('login');
@@ -346,18 +377,18 @@ export default function App() {
   };
 
   const handleSwitchRole = () => {
-    if (user?.role === 'Admin' || user?.role === 'Teacher') {
-      const student = accounts.find(a => a.role === 'Student') || INITIAL_ACCOUNTS[3];
-      setUser(student);
-      setCurrentScreen('dashboard');
-      showToast(`Switched to Student view (${student.name})`);
-    } else {
-      const teacher = accounts.find(a => a.role === 'Teacher');
-      const admin = accounts.find(a => a.role === 'Admin') || INITIAL_ACCOUNTS[0];
-      const targetStaff = teacher || admin;
-      setUser(targetStaff);
+    if (user?.role !== 'Admin') {
+      showToast('Role switching is restricted to administrators only.');
+      return;
+    }
+
+    const isStudentSide = ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
+    if (isStudentSide) {
       setCurrentScreen('studentProgress');
-      showToast(`Switched to ${targetStaff.role} view (${targetStaff.name})`);
+      showToast('Admin: Switched to Management Console.');
+    } else {
+      setCurrentScreen('dashboard');
+      showToast('Admin: Switched to Student View Experience.');
     }
   };
 
@@ -728,6 +759,9 @@ export default function App() {
     } catch {
       // ignore
     }
+    if (user?.username) {
+      saveUserProfileToDb(user.username, updated).catch(console.error);
+    }
     showToast(`Updated official ${exam} target date to ${newDate}`);
   };
 
@@ -773,6 +807,9 @@ export default function App() {
             initialProfile={profile}
             onComplete={newProfile => {
               setProfile(newProfile);
+              if (user?.username) {
+                saveUserProfileToDb(user.username, newProfile).catch(console.error);
+              }
               setActiveExam(newProfile.exams[0] || 'GAT');
               setCurrentScreen('dashboard');
               showToast('Onboarding complete!');
@@ -924,6 +961,7 @@ export default function App() {
             onAddQuestion={handleAddQuestion}
             onUpdateQuestion={handleUpdateQuestion}
             onDeleteQuestion={handleDeleteQuestion}
+            onNavigateImport={() => setCurrentScreen('adminImport')}
           />
         )}
 

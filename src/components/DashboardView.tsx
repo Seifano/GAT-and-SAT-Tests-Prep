@@ -182,38 +182,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Welcome Bar & Action Buttons */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-gray-200">
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#1e3a8a] mb-2">
-            <span>{conf.full}</span>
+            <span className="truncate max-w-[200px] sm:max-w-none">{conf.full}</span>
             <span className="text-gray-300">·</span>
             {percentile !== null ? (
-              <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full ring-1 ring-emerald-200/60">
+              <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full ring-1 ring-emerald-200/60 shrink-0">
                 {percentile}th National Standing
               </span>
             ) : (
-              <span className="text-slate-500 font-semibold bg-gray-100 px-2 py-0.5 rounded-full ring-1 ring-gray-200">
+              <span className="text-slate-500 font-semibold bg-gray-100 px-2 py-0.5 rounded-full ring-1 ring-gray-200 shrink-0">
                 Diagnostic Calibrating
               </span>
             )}
             {/* School Tri-Color Heritage Badge: Crimson Red · Navy Blue · Green */}
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white ring-1 ring-gray-200 text-gray-700 shadow-2xs">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white ring-1 ring-gray-200 text-gray-700 shadow-2xs shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-red-700" title="Crimson Red" />
               <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a8a]" title="Navy Blue" />
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" title="Green" />
               <span>AHS Standards</span>
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             Welcome back, {userName.split(' ')[0]}.
           </h1>
-          <p className="text-sm text-slate-600 mt-1 max-w-xl">
+          <p className="text-sm text-slate-600 mt-1 max-w-xl break-words">
             {hasCompletedTests
               ? 'Your diagnostic profile is calibrated based on verified test attempts. Maintain study velocity to close your target gap.'
               : 'Begin your first diagnostic session or practice drill below to establish authentic scores, skill mastery, and unlock XP.'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
           {/* Secondary/Ghost Button: Deep Analytics */}
           <button
             onClick={onViewAnalytics}

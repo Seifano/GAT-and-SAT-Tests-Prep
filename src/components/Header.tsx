@@ -65,19 +65,27 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'studentProgress', label: 'Student Progress' },
     { id: 'adminQuestions', label: 'Questions' },
     { id: 'adminImport', label: 'Import' },
-    { id: 'browser', label: 'Library' },
-    { id: 'dashboard', label: 'Student View' }
+    { id: 'browser', label: 'Library' }
   ];
 
-  const adminNav = [
+  const adminStaffNav = [
     { id: 'studentProgress', label: 'Student Progress' },
     { id: 'adminQuestions', label: 'Questions' },
     { id: 'adminImport', label: 'Import' },
     { id: 'adminAccounts', label: 'Accounts' },
     { id: 'adminBranding', label: 'Logo & Branding' },
     { id: 'browser', label: 'Library' },
-    { id: 'dashboard', label: 'Student View' }
+    { id: 'dashboard', label: 'Student View ↗' }
   ];
+
+  // If admin is browsing student screens, give full access to student tabs plus admin return
+  const isViewingStudentSide = ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
+  const adminNav = isViewingStudentSide
+    ? [
+        { id: 'studentProgress', label: '← Admin Console' },
+        ...studentNav
+      ]
+    : adminStaffNav;
 
   const navLinks = isAdmin ? adminNav : isTeacher ? teacherNav : studentNav;
 
@@ -91,29 +99,30 @@ export const Header: React.FC<HeaderProps> = ({
       {/* School Tri-Color Heritage Accent Stripe: Crimson Red · Navy Blue · Green */}
       <div className="h-1 w-full bg-gradient-to-r from-red-800 via-[#1e3a8a] to-emerald-700" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-2 sm:gap-3">
           {/* Brand Wordmark & Emblem */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
             <button
-              onClick={() => handleNavClick(isAdmin ? 'adminQuestions' : 'dashboard')}
-              className="flex items-center gap-3 text-left cursor-pointer group transition-transform duration-200 hover:scale-[1.01]"
+              onClick={() => handleNavClick(isAdmin ? (isViewingStudentSide ? 'dashboard' : 'studentProgress') : isTeacher ? 'studentProgress' : 'dashboard')}
+              className="flex items-center gap-2 sm:gap-3 text-left cursor-pointer group transition-transform duration-200 hover:scale-[1.01] min-w-0"
+              title={settings?.appName || 'AHS Exams Prepline'}
             >
               <img
                 src={settings?.logoUrl || AHS_LOGO_SRC}
                 alt="Logo"
-                className="h-10 w-auto max-w-[110px] object-contain transition-transform duration-200 group-hover:scale-105"
+                className="h-8 sm:h-9 w-auto max-w-[70px] sm:max-w-[90px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
               />
-              <div>
-                <span className="text-lg font-black tracking-tight text-[#201e1d] block leading-none">
+              <div className="min-w-0">
+                <span className="text-sm sm:text-base lg:text-lg font-black tracking-tight text-[#201e1d] block leading-tight truncate max-w-[130px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-xs">
                   {settings?.appName || 'AHS Exams Prepline'}
                 </span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1e3a8a]">
-                    {isAdmin ? 'Admin Console' : isTeacher ? 'Teacher Portal' : 'High-Stakes Prep'}
+                <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[#1e3a8a] truncate max-w-[110px] sm:max-w-[160px]">
+                    {isAdmin ? (isViewingStudentSide ? 'Admin (Student Mode)' : 'Admin Console') : isTeacher ? 'Teacher View' : 'Student View'}
                   </span>
                   {/* School Tri-Color Heritage Pill */}
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white ring-1 ring-gray-200 text-gray-700 shadow-2xs">
+                  <span className="hidden xs:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white ring-1 ring-gray-200 text-gray-700 shadow-2xs shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-700" title="Crimson Red" />
                     <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a8a]" title="Navy Blue" />
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" title="Green" />
@@ -123,26 +132,26 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </button>
 
-            {/* Desktop 3D Navigation Tabs */}
-            <nav className="hidden lg:flex items-center gap-1.5 ml-3 p-1.5 bg-slate-200/80 rounded-2xl border border-slate-300/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]">
+            {/* Desktop 3D Navigation Tabs - Neatly spaced for xl+ screens */}
+            <nav className="hidden xl:flex items-center gap-1 ml-1 p-1 bg-slate-200/80 rounded-2xl border border-slate-300/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] shrink-0">
               {navLinks.map(link => {
                 const isActive = currentScreen === link.id;
                 return (
                   <button
                     key={link.id}
                     onClick={() => handleNavClick(link.id)}
-                    className={`text-xs font-black uppercase tracking-wider transition-all duration-200 ease-out cursor-pointer px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 ${
+                    className={`text-[11px] font-black uppercase tracking-wider transition-all duration-150 ease-out cursor-pointer px-2.5 py-1.5 rounded-xl flex items-center gap-1 whitespace-nowrap ${
                       isActive
-                        ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_4px_8px_-1px_rgba(30,58,138,0.22)] -translate-y-0.5 border-t border-x border-white ring-1 ring-slate-900/5'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 hover:shadow-[0_2px_0_0_rgba(0,0,0,0.04)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-none'
+                        ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_3px_6px_-1px_rgba(30,58,138,0.2)] -translate-y-0.5 border border-slate-200/90'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 hover:-translate-y-0.5 active:translate-y-0'
                     }`}
                   >
                     {link.id === 'achievements' && (
-                      <Trophy className={`w-3.5 h-3.5 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
+                      <Trophy className={`w-3 h-3 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
                     )}
                     <span>{link.label}</span>
                     {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a8a] shadow-[0_0_4px_rgba(30,58,138,0.6)]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a8a]" />
                     )}
                   </button>
                 );
@@ -151,25 +160,25 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Right Controls: DB sync, Exam Switcher, Streak, Role & Account */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
             {/* Live Firestore DB Indicator - Modern Subtle Ring & Soft Scale */}
             <div
               title="Connected to Cloud Firestore Database"
-              className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-800 text-[11px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs hover:ring-emerald-300 hover:scale-[1.02] active:scale-95 transition-all duration-200 ease-in-out cursor-default"
+              className="hidden 2xl:inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-xs" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>Live DB</span>
             </div>
 
             {/* Exam Toggle - Modern 3D Segmented Control */}
-            <div className="inline-flex items-center p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] transition-all duration-200 ease-in-out">
+            <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
               {(['GAT', 'SAT'] as ExamType[]).map(exam => {
                 const isActive = activeExam === exam;
                 return (
                   <button
                     key={exam}
                     onClick={() => onSelectExam(exam)}
-                    className={`px-3 py-1 text-xs font-black rounded-lg transition-all duration-200 ease-out cursor-pointer ${
+                    className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
                       isActive
                         ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
                         : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
@@ -182,10 +191,10 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Streak Counter for Students */}
-            {!isAdmin && (
+            {!isAdmin && !isTeacher && (
               <div
                 title="Active Study Streak"
-                className="flex items-center gap-1.5 text-xs font-bold text-gray-800 px-2.5 py-1.5 bg-white rounded-lg ring-1 ring-gray-200 shadow-2xs hover:ring-amber-300 transition-all duration-200 ease-in-out"
+                className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-gray-800 px-2 py-1 bg-white rounded-lg ring-1 ring-gray-200 shadow-2xs hover:ring-amber-300 transition-all shrink-0"
               >
                 <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                 <span>{streak}d</span>
@@ -196,45 +205,49 @@ export const Header: React.FC<HeaderProps> = ({
             {!isAdmin && !isTeacher && (
               <div
                 title={`Tier Level ${level || 1} Scholar · ${xp || 0} Total XP Earned`}
-                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 rounded-lg ring-1 ring-amber-200 text-xs font-bold text-amber-900 shadow-2xs hover:bg-amber-100/70 transition-all duration-200 ease-in-out cursor-default"
+                className="hidden md:inline-flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg ring-1 ring-amber-200 text-[11px] font-bold text-amber-900 shadow-2xs cursor-default shrink-0"
               >
-                <span className="w-4 h-4 bg-amber-400 text-slate-900 rounded-md flex items-center justify-center text-[10px] font-black">
+                <span className="w-3.5 h-3.5 bg-amber-400 text-slate-900 rounded flex items-center justify-center text-[9px] font-black">
                   L{level || 1}
                 </span>
                 <span className="tabular-nums">{xp || 0} XP</span>
               </div>
             )}
 
-            {/* Role Switcher - Modern Subtle Ring & Soft Scale */}
-            <button
-              onClick={onSwitchRole}
-              title={isAdmin ? 'Switch between Admin and Student View' : isTeacher ? 'Switch between Teacher and Student View' : 'Switch role view'}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-800 bg-white hover:bg-gray-50 rounded-lg ring-1 ring-gray-200 shadow-xs hover:ring-gray-300 hover:scale-[1.02] active:scale-95 transition-all duration-200 ease-in-out cursor-pointer"
-            >
-              {isAdmin ? (
-                <>
-                  <ShieldCheck className="w-3.5 h-3.5 text-red-700" />
-                  <span>Admin</span>
-                </>
-              ) : isTeacher ? (
-                <>
-                  <GraduationCap className="w-3.5 h-3.5 text-[#1e3a8a]" />
-                  <span>Teacher</span>
-                </>
-              ) : (
-                <>
-                  <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Student</span>
-                </>
-              )}
-            </button>
+            {/* Role Display / Switcher (Admin has switch view power, Students and Teachers see verified role badges) */}
+            {isAdmin ? (
+              <button
+                onClick={onSwitchRole}
+                title="Switch between Admin Management and Student Experience"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-gray-900 bg-white hover:bg-gray-50 rounded-lg ring-1 ring-red-300 shadow-xs hover:ring-red-400 hover:scale-[1.02] active:scale-95 transition-all duration-150 cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-red-700" />
+                <span>Admin (Switch)</span>
+              </button>
+            ) : isTeacher ? (
+              <div
+                title="Teacher Account · Teacher View Only"
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-[#1e3a8a] bg-blue-50/90 rounded-lg ring-1 ring-blue-200 shadow-2xs cursor-default shrink-0 whitespace-nowrap"
+              >
+                <GraduationCap className="w-3.5 h-3.5 text-[#1e3a8a]" />
+                <span>Teacher View</span>
+              </div>
+            ) : (
+              <div
+                title="Student Account · Student View Only"
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50/90 rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0 whitespace-nowrap"
+              >
+                <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Student View</span>
+              </div>
+            )}
 
             {/* User Profile & Sign Out */}
             {user && (
-              <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+              <div className="flex items-center gap-1.5 pl-1.5 border-l border-gray-200 shrink-0">
                 <div
-                  title={`Signed in as @${user.username}`}
-                  className="w-8 h-8 rounded-lg bg-[#1e3a8a] text-white font-extrabold text-xs flex items-center justify-center shadow-xs ring-1 ring-blue-900/40"
+                  title={`Signed in as @${user.username} (${user.role})`}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#1e3a8a] text-white font-extrabold text-xs flex items-center justify-center shadow-xs ring-1 ring-blue-900/40 shrink-0"
                 >
                   {user.name.charAt(0).toUpperCase()}
                 </div>
@@ -242,17 +255,18 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={onSignOut}
                   title="Sign out of account"
-                  className="p-1.5 rounded-lg text-slate-500 hover:text-black hover:bg-gray-100 active:scale-95 transition-all duration-200 ease-in-out cursor-pointer"
+                  className="p-1 sm:p-1.5 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50 active:scale-95 transition-all duration-150 cursor-pointer shrink-0"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
             )}
 
-            {/* Mobile Menu Toggle */}
+            {/* Mobile / Tablet Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 rounded-lg text-slate-700 hover:text-black hover:bg-gray-100 active:scale-95 transition-all duration-200 ease-in-out cursor-pointer"
+              className="xl:hidden p-1.5 rounded-lg text-slate-700 hover:text-black hover:bg-gray-200/60 active:scale-95 transition-all duration-150 cursor-pointer shrink-0"
+              aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -261,29 +275,63 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Navigation Drawer with 3D tactile buttons */}
         {mobileMenuOpen && (
-          <div className="lg:hidden py-3 border-t border-slate-200 space-y-1.5">
-            {navLinks.map(link => {
-              const isActive = currentScreen === link.id;
-              return (
-                <button
-                  key={link.id}
-                  onClick={() => handleNavClick(link.id)}
-                  className={`flex items-center justify-between w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-                    isActive
-                      ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_3px_6px_rgba(30,58,138,0.15)] -translate-y-0.5 border border-slate-200'
-                      : 'text-slate-700 bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {link.id === 'achievements' && (
-                      <Trophy className={`w-4 h-4 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
-                    )}
-                    <span>{link.label}</span>
-                  </div>
-                  {isActive && <span className="w-2 h-2 rounded-full bg-[#1e3a8a]" />}
-                </button>
-              );
-            })}
+          <div className="xl:hidden py-3 border-t border-slate-200 space-y-2">
+            {/* User Status Bar in Mobile Menu */}
+            <div className="flex items-center justify-between px-2 py-1.5 bg-slate-100 rounded-lg text-xs font-bold text-slate-700">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>@{user?.username || 'user'}</span>
+                <span className="text-slate-400">·</span>
+                <span className="text-[#1e3a8a]">{user?.role}</span>
+              </div>
+              {!isAdmin && !isTeacher && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-amber-600 font-bold">{streak}d streak</span>
+                  <span className="text-slate-400">·</span>
+                  <span className="text-amber-800 font-black">{xp || 0} XP</span>
+                </div>
+              )}
+            </div>
+
+            {/* Admin Switcher for Mobile Drawer */}
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  onSwitchRole();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-center px-3 py-2 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-red-700" />
+                <span>{isViewingStudentSide ? 'Return to Admin Management Console' : 'Switch to Student View Preview'}</span>
+              </button>
+            )}
+
+            {/* Navigation Tabs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+              {navLinks.map(link => {
+                const isActive = currentScreen === link.id;
+                return (
+                  <button
+                    key={link.id}
+                    onClick={() => handleNavClick(link.id)}
+                    className={`flex items-center justify-between w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer ${
+                      isActive
+                        ? 'bg-white text-[#1e3a8a] shadow-[0_3px_0_0_#1e3a8a,0_3px_6px_rgba(30,58,138,0.15)] -translate-y-0.5 border border-slate-200'
+                        : 'text-slate-700 bg-white/70 hover:bg-white border border-slate-200/60 shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {link.id === 'achievements' && (
+                        <Trophy className={`w-4 h-4 ${isActive ? 'text-amber-500 fill-amber-400' : 'text-slate-500'}`} />
+                      )}
+                      <span>{link.label}</span>
+                    </div>
+                    {isActive && <span className="w-2 h-2 rounded-full bg-[#1e3a8a]" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

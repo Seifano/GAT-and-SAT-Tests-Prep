@@ -56,19 +56,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-300">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
             Diagnostic Intelligence · {conf.full}
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             Performance Analytics &amp; Visualizations
           </h1>
-          <p className="text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
+          <p className="text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed break-words">
             Multi-axis competency radar, speed vs. accuracy pacing quadrants, score growth trajectories, and predictive score simulation.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
           <button
             onClick={() => onStartFocus(weakestSkills.length > 0 ? weakestSkills : [allSkills[0]])}
             className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-xs font-bold text-[#201e1d] flex items-center gap-2 cursor-pointer transition-all duration-200 hover:shadow-sm"

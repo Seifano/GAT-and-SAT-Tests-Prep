@@ -38,19 +38,19 @@ export const SkillsView: React.FC<SkillsViewProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-300">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
             {conf.id} Competency Matrix
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             Authentic Skill Diagnostics
           </h1>
-          <p className="text-sm text-slate-600 max-w-xl mt-1.5 leading-relaxed">
+          <p className="text-sm text-slate-600 max-w-xl mt-1.5 leading-relaxed break-words">
             Mastery is calculated solely from your authentic submitted test and practice responses. Skills under 60% are marked for high-priority focus.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
           <div className="px-3.5 py-2 bg-white border border-slate-300 text-xs font-bold text-[#201e1d] shadow-sm">
             {assessedSkills.length > 0 ? (
               <span>Average Mastery: <strong className="text-[#1f3d7a]">{avgMastery}%</strong></span>

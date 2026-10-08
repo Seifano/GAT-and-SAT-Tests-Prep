@@ -31,7 +31,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const [selectedExams, setSelectedExams] = useState<ExamType[]>(['GAT', 'SAT']);
-  const [newRole, setNewRole] = useState<'Student' | 'Admin'>('Student');
+  const [newRole, setNewRole] = useState<'Student' | 'Teacher' | 'Admin'>('Student');
 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -415,14 +415,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Role</label>
+                  <label className="block font-bold text-slate-700 mb-1">Account Role</label>
                   <select
                     value={newRole}
-                    onChange={e => setNewRole(e.target.value as 'Student' | 'Admin')}
+                    onChange={e => setNewRole(e.target.value as 'Student' | 'Teacher' | 'Admin')}
                     className="w-full px-3 py-2 bg-[#eae9e9] border border-slate-300 text-sm font-bold text-[#201e1d]"
                   >
-                    <option value="Student">Student</option>
-                    <option value="Admin">Teacher / Admin</option>
+                    <option value="Student">Student (Student View)</option>
+                    <option value="Teacher">Teacher (Teacher View)</option>
+                    <option value="Admin">Administrator (Full Access)</option>
                   </select>
                 </div>
               </div>

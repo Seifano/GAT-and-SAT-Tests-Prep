@@ -194,14 +194,14 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
-      <div className="pb-4 border-b-2 border-[#201e1d]/30">
+      <div className="pb-4 border-b-2 border-[#201e1d]/30 min-w-0">
         <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
           Accounts
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
           {studentCount} student{studentCount === 1 ? '' : 's'} · {adminCount} admin{adminCount === 1 ? '' : 's'}
         </h1>
-        <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed">
+        <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed break-words">
           Manage user accounts connected to the live database. Create credentials for students and instructors individually or in bulk, and new users can access the platform immediately from any device.
         </p>
       </div>

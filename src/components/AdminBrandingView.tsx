@@ -68,21 +68,21 @@ export const AdminBrandingView: React.FC<AdminBrandingViewProps> = ({ settings, 
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
             Admin Configuration
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#201e1d] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
             Change Logo &amp; Rename Login Page
           </h1>
-          <p className="text-sm text-slate-600 max-w-xl mt-1 leading-relaxed">
+          <p className="text-sm text-slate-600 max-w-xl mt-1 leading-relaxed break-words">
             Customize the school logo emblem, rename the login page titles, and update brand wording across the student portal.
           </p>
         </div>
 
         <button
           onClick={() => handleSave()}
-          className="btn-primary px-6 py-2.5 text-white text-xs font-black flex items-center gap-2 cursor-pointer shadow-sm"
+          className="btn-primary px-6 py-2.5 text-white text-xs font-black flex items-center gap-2 cursor-pointer shadow-sm shrink-0"
         >
           {saved ? <Check className="w-4 h-4 text-emerald-300" /> : <Sparkles className="w-4 h-4" />}
           <span>{saved ? 'Changes Saved!' : 'Save Branding Changes'}</span>
