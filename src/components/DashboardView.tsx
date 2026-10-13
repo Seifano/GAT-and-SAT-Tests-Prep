@@ -28,7 +28,10 @@ import {
   Compass,
   Star,
   Sun,
-  Moon
+  Moon,
+  Cloud,
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -52,6 +55,9 @@ interface DashboardViewProps {
   onUpdateTargetDate?: (exam: ExamType, date: string) => void;
   onSelectExam?: (exam: ExamType) => void;
   onGoBackToMainMenu?: () => void;
+  onSyncAllToCloud?: () => Promise<void> | void;
+  cloudSyncStatus?: 'synced' | 'syncing' | 'idle';
+  lastCloudSyncTime?: string;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -74,7 +80,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   hasPastResults,
   onUpdateTargetDate,
   onSelectExam,
-  onGoBackToMainMenu
+  onGoBackToMainMenu,
+  onSyncAllToCloud,
+  cloudSyncStatus = 'idle',
+  lastCloudSyncTime = 'Connected'
 }) => {
   const [selectedBadge, setSelectedBadge] = useState<string | null>(null);
   const [showDateModal, setShowDateModal] = useState(false);
@@ -195,7 +204,46 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 sm:space-y-8 font-sans">
+      {/* Background Cloud Protection & Security Shield Bar */}
+      <div className="bg-gradient-to-r from-slate-900 via-[#152a55] to-slate-900 text-white px-4 sm:px-6 py-2.5 rounded-2xl border border-slate-700/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="font-black uppercase tracking-wider text-[10px] sm:text-[11px] text-emerald-300">
+            Cloud Shield Protected:
+          </span>
+          <span className="text-slate-300 text-[11px] sm:text-xs">
+            Live Cloud Firestore &amp; Dual-Vault Storage Active ({lastCloudSyncTime || 'Synchronized'})
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 text-[11px] font-bold text-slate-300">
+          <span className="inline-flex items-center gap-1 text-emerald-300">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Anti-Loss Vault Active</span>
+          </span>
+          {onSyncAllToCloud && (
+            <button
+              onClick={onSyncAllToCloud}
+              disabled={cloudSyncStatus === 'syncing'}
+              className="text-xs text-sky-300 hover:text-white underline cursor-pointer flex items-center gap-1 font-bold"
+            >
+              {cloudSyncStatus === 'syncing' ? (
+                <>
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span>Syncing...</span>
+                </>
+              ) : (
+                <>
+                  <Cloud className="w-3 h-3" />
+                  <span>Sync to Cloud</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Top Welcome Bar & Action Buttons */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-gray-200">
         <div className="min-w-0">

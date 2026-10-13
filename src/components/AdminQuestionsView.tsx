@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Question, ExamType } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { Plus, Search, Filter, Trash2, Edit3, X, BookOpen, UploadCloud } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit3, X, BookOpen, UploadCloud, Cloud, RefreshCw } from 'lucide-react';
 
 interface AdminQuestionsViewProps {
   bank: Record<ExamType, Question[]>;
@@ -9,6 +9,9 @@ interface AdminQuestionsViewProps {
   onUpdateQuestion: (q: Question) => void;
   onDeleteQuestion: (exam: ExamType, id: string) => void;
   onNavigateImport?: () => void;
+  onSyncAllToCloud?: () => Promise<void> | void;
+  cloudSyncStatus?: 'synced' | 'syncing' | 'idle';
+  lastCloudSyncTime?: string;
 }
 
 export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
@@ -16,7 +19,10 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
   onAddQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
-  onNavigateImport
+  onNavigateImport,
+  onSyncAllToCloud,
+  cloudSyncStatus = 'idle',
+  lastCloudSyncTime = 'Connected'
 }) => {
   const [activeExam, setActiveExam] = useState<ExamType>('GAT');
   const [skillFilter, setSkillFilter] = useState('All');
@@ -128,6 +134,22 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {onSyncAllToCloud && (
+            <button
+              onClick={onSyncAllToCloud}
+              disabled={cloudSyncStatus === 'syncing'}
+              className="px-4 py-2.5 bg-[#1f3d7a] hover:bg-[#152a55] text-white shadow-xs text-xs font-black flex items-center gap-2 cursor-pointer transition-all duration-200 rounded-lg hover:-translate-y-0.5 active:translate-y-0"
+              title="Save and synchronize all uploaded questions to Cloud Firestore"
+            >
+              {cloudSyncStatus === 'syncing' ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Cloud className="w-4 h-4 text-sky-300" />
+              )}
+              <span>{cloudSyncStatus === 'syncing' ? 'Syncing to Cloud...' : 'Save to Cloud'}</span>
+            </button>
+          )}
+
           {onNavigateImport && (
             <button
               onClick={onNavigateImport}

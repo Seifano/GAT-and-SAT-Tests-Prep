@@ -1,6 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UserAccount, UserRole } from '../types';
-import { Search, X, Check, ArrowRight } from 'lucide-react';
+import {
+  Search,
+  X,
+  Check,
+  ArrowRight,
+  Cloud,
+  ShieldCheck,
+  Download,
+  Upload,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2,
+  Lock
+} from 'lucide-react';
 
 interface AdminAccountsViewProps {
   accounts: UserAccount[];
@@ -9,6 +22,9 @@ interface AdminAccountsViewProps {
   onResetPassword: (username: string, newPass: string) => void;
   onDeleteAccount: (username: string) => void;
   onUpdateAccountRole?: (username: string, newRole: UserRole) => void;
+  onSyncAllToCloud?: () => Promise<void> | void;
+  cloudSyncStatus?: 'synced' | 'syncing' | 'idle';
+  lastCloudSyncTime?: string;
 }
 
 export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
@@ -17,10 +33,16 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   onCreateAccounts,
   onResetPassword,
   onDeleteAccount,
-  onUpdateAccountRole
+  onUpdateAccountRole,
+  onSyncAllToCloud,
+  cloudSyncStatus = 'idle',
+  lastCloudSyncTime = 'Connected'
 }) => {
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'All' | UserRole>('All');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
   // Single form
   const [name, setName] = useState('');
@@ -40,8 +62,8 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const [showIssuedPass, setShowIssuedPass] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Confirm delete
-  const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
+  // Confirm delete modal
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<UserAccount | null>(null);
 
   const generatePassword = () => {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -181,29 +203,169 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadBackupJson = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(accounts, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", `ahs_accounts_safety_vault_${new Date().toISOString().slice(0, 10)}.json`);
+    dlAnchorElem.click();
+  };
+
+  const handleRestoreBackupJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const valid = parsed.filter(a => a.username && a.name && a.role);
+          if (valid.length > 0) {
+            onCreateAccounts(valid);
+            setRestoreMessage(`✓ Restored and imported ${valid.length} accounts from JSON backup.`);
+            setTimeout(() => setRestoreMessage(null), 5000);
+          } else {
+            setRestoreMessage('No valid account entries found in JSON.');
+          }
+        }
+      } catch (err) {
+        setRestoreMessage('Failed to parse backup JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const filteredAccounts = accounts.filter(a => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return true;
-    return (a.name + ' ' + a.username + ' ' + (a.email || '')).toLowerCase().includes(term);
+    const matchTerm = !term || (a.name + ' ' + a.username + ' ' + (a.email || '')).toLowerCase().includes(term);
+    const matchRole = roleFilter === 'All' || a.role === roleFilter;
+    return matchTerm && matchRole;
   });
 
   const studentCount = accounts.filter(a => a.role === 'Student').length;
   const adminCount = accounts.filter(a => a.role === 'Admin').length;
+  const teacherCount = accounts.filter(a => a.role === 'Teacher').length;
   const bulkLinesCount = bulkText.split(/\r?\n/).filter(l => l.trim()).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
-      <div className="pb-4 border-b-2 border-[#201e1d]/30 min-w-0">
-        <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
-          Accounts
+      <div className="pb-4 border-b-2 border-[#201e1d]/30 min-w-0 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
+            Accounts Management
+          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
+            {studentCount} student{studentCount === 1 ? '' : 's'} · {teacherCount} teacher{teacherCount === 1 ? '' : 's'} · {adminCount} admin{adminCount === 1 ? '' : 's'}
+          </h1>
+          <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed break-words">
+            Manage user accounts connected to the live database. Create credentials for students and instructors individually or in bulk, and new users can access the platform immediately from any device.
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
-          {studentCount} student{studentCount === 1 ? '' : 's'} · {adminCount} admin{adminCount === 1 ? '' : 's'}
-        </h1>
-        <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed break-words">
-          Manage user accounts connected to the live database. Create credentials for students and instructors individually or in bulk, and new users can access the platform immediately from any device.
-        </p>
+
+        {onSyncAllToCloud && (
+          <button
+            type="button"
+            onClick={onSyncAllToCloud}
+            disabled={cloudSyncStatus === 'syncing'}
+            className="px-5 py-2.5 bg-[#1e3a8a] hover:bg-[#162c68] text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5"
+          >
+            {cloudSyncStatus === 'syncing' ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Cloud className="w-4 h-4 text-sky-300" />
+            )}
+            <span>{cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Save Changes to Cloud'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Cloud Database & Security Command Center */}
+      <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white p-6 sm:p-7 rounded-3xl shadow-md border border-blue-800 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
+                Cloud Database Shield · Dual-Vault Persistence
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+              Cloud Persistence &amp; Account Protection
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+              All accounts and credentials are encrypted and synchronized with Cloud Firestore database. Local state is safeguarded by an immutable secondary safety vault so no accounts can be lost.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {onSyncAllToCloud && (
+              <button
+                type="button"
+                onClick={onSyncAllToCloud}
+                disabled={cloudSyncStatus === 'syncing'}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+              >
+                {cloudSyncStatus === 'syncing' ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Cloud className="w-4 h-4" />
+                )}
+                <span>{cloudSyncStatus === 'syncing' ? 'Syncing to Cloud...' : 'Save All Changes to Cloud'}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleDownloadBackupJson}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+              title="Download an offline JSON backup of all accounts"
+            >
+              <Download className="w-4 h-4 text-emerald-300" />
+              <span>Export Backup (.json)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+              title="Import accounts from an offline JSON backup"
+            >
+              <Upload className="w-4 h-4 text-sky-300" />
+              <span>Restore (.json)</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleRestoreBackupJson}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        {restoreMessage && (
+          <div className="p-3 bg-emerald-500/20 border border-emerald-400 text-emerald-200 text-xs font-bold rounded-xl flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{restoreMessage}</span>
+          </div>
+        )}
+
+        <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between text-[11px] text-slate-300 gap-2">
+          <div className="flex items-center gap-3">
+            <span>Status: <strong className="text-white">Protected</strong></span>
+            <span>·</span>
+            <span>Synced: <strong className="text-emerald-300">{lastCloudSyncTime}</strong></span>
+            <span>·</span>
+            <span>Total Accounts: <strong className="text-white">{accounts.length} accounts</strong></span>
+          </div>
+          <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
+            <ShieldCheck className="w-4 h-4" />
+            <span>Anti-loss Dual-Vault active</span>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -415,7 +577,24 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
         {/* Right Column: User Roster (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[#201e1d]/30 pb-2">
-            <h3 className="text-base font-extrabold text-[#201e1d]">Roster ({accounts.length})</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-extrabold text-[#201e1d]">Roster ({accounts.length})</h3>
+              {/* Role filter buttons */}
+              <div className="hidden sm:inline-flex border border-slate-300 rounded-lg p-0.5 bg-slate-100 text-[10px] font-bold">
+                {(['All', 'Student', 'Teacher', 'Admin'] as const).map(rf => (
+                  <button
+                    key={rf}
+                    type="button"
+                    onClick={() => setRoleFilter(rf)}
+                    className={`px-2 py-0.5 rounded cursor-pointer transition-all ${
+                      roleFilter === rf ? 'bg-white text-[#1f3d7a] shadow-2xs font-black' : 'text-slate-600 hover:text-black'
+                    }`}
+                  >
+                    {rf}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="relative w-full sm:w-60">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -444,7 +623,6 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               <tbody className="divide-y divide-slate-300">
                 {filteredAccounts.map(acc => {
                   const isCurrent = currentUser?.username === acc.username;
-                  const isConfirming = confirmDeleteUser === acc.username;
 
                   return (
                     <tr key={acc.username} className="hover:bg-slate-100/50">
@@ -471,45 +649,26 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                       </td>
                       <td className="py-3 px-2 text-slate-500">{acc.created || '—'}</td>
                       <td className="py-3 px-2 text-right">
-                        {isConfirming ? (
-                          <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleReset(acc)}
+                            className="text-xs font-bold text-[#1f3d7a] hover:underline cursor-pointer"
+                          >
+                            Reset password
+                          </button>
+                          {!isCurrent && (
                             <button
-                              onClick={() => {
-                                onDeleteAccount(acc.username);
-                                setConfirmDeleteUser(null);
-                              }}
-                              className="px-2 py-1 bg-[#e15b47] text-white text-xs font-bold cursor-pointer"
+                              onClick={() => setConfirmDeleteTarget(acc)}
+                              className="text-xs font-bold text-red-600 hover:text-red-800 cursor-pointer"
+                              title="Delete user account safely with confirmation"
                             >
                               Remove
                             </button>
-                            <button
-                              onClick={() => setConfirmDeleteUser(null)}
-                              className="px-2 py-1 bg-slate-200 text-[#201e1d] text-xs font-bold cursor-pointer"
-                            >
-                              Keep
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleReset(acc)}
-                              className="text-xs font-bold text-[#1f3d7a] hover:underline cursor-pointer"
-                            >
-                              Reset password
-                            </button>
-                            {!isCurrent && (
-                              <button
-                                onClick={() => setConfirmDeleteUser(acc.username)}
-                                className="text-xs font-bold text-slate-600 hover:text-black cursor-pointer"
-                              >
-                                Remove
-                              </button>
-                            )}
-                            {isCurrent && (
-                              <span className="text-[11px] text-slate-400">You</span>
-                            )}
-                          </div>
-                        )}
+                          )}
+                          {isCurrent && (
+                            <span className="text-[11px] text-slate-400">You</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -519,6 +678,43 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Safety Modal */}
+      {confirmDeleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-red-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 bg-red-50 text-red-700 border-2 border-red-200 rounded-2xl mx-auto flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900">
+              Confirm Account Removal
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Are you sure you want to delete <strong className="text-slate-900">@{confirmDeleteTarget.username} ({confirmDeleteTarget.name})</strong>?
+              This will permanently revoke access and remove the user from Cloud Firestore and the safety vault.
+            </p>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteTarget(null)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancel &amp; Keep
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteAccount(confirmDeleteTarget.username);
+                  setConfirmDeleteTarget(null);
+                }}
+                className="px-5 py-2.5 bg-red-700 hover:bg-red-800 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Yes, Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

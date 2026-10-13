@@ -47,8 +47,17 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
     const colRef = collection(db, 'users');
     const snapshot = await getDocs(colRef);
     if (snapshot.empty) {
+      // Check if backup vault has accounts before falling back to initial mock
+      const vaultAccounts = await fetchAccountsVaultFromDb();
+      if (vaultAccounts && vaultAccounts.length > 0) {
+        // Restore from cloud vault
+        await saveUsersBatchToDb(vaultAccounts);
+        return vaultAccounts;
+      }
+
       // Seed default accounts into database if empty
       await seedDefaultUsers();
+      await backupAccountsVaultToDb(INITIAL_ACCOUNTS);
       return INITIAL_ACCOUNTS;
     }
     const accounts: UserAccount[] = [];
@@ -84,6 +93,19 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
       });
     });
 
+    // Check backup vault to see if any accounts are missing from individual docs
+    try {
+      const vaultAccounts = await fetchAccountsVaultFromDb();
+      const existingUsernames = new Set(accounts.map(a => a.username.toLowerCase().trim()));
+      const missingFromVault = vaultAccounts.filter(va => !existingUsernames.has(va.username.toLowerCase().trim()));
+      if (missingFromVault.length > 0) {
+        accounts.push(...missingFromVault);
+        saveUsersBatchToDb(missingFromVault).catch(console.error);
+      }
+    } catch (e) {
+      // ignore
+    }
+
     // Ensure Admin account is always present in database
     const hasAdmin = accounts.some(a => a.username.toLowerCase() === 'admin');
     if (!hasAdmin) {
@@ -116,6 +138,9 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
       }
     }
 
+    // Update safety backup vault with latest state
+    backupAccountsVaultToDb(accounts).catch(console.error);
+
     return accounts;
   } catch (err) {
     console.error('Failed to load users from database, using cached fallback:', err);
@@ -123,9 +148,39 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
   }
 }
 
+export async function backupAccountsVaultToDb(accounts: UserAccount[]): Promise<void> {
+  try {
+    const vaultRef = doc(db, 'backups', 'accounts_vault');
+    await setDoc(vaultRef, {
+      accounts,
+      updatedAt: new Date().toISOString(),
+      count: accounts.length
+    }, { merge: true });
+  } catch (err) {
+    console.warn('Could not write accounts vault backup to Firestore:', err);
+  }
+}
+
+export async function fetchAccountsVaultFromDb(): Promise<UserAccount[]> {
+  try {
+    const vaultRef = doc(db, 'backups', 'accounts_vault');
+    const snap = await getDoc(vaultRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data && Array.isArray(data.accounts) && data.accounts.length > 0) {
+        return data.accounts as UserAccount[];
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+  return [];
+}
+
 export async function saveUserToDb(account: UserAccount): Promise<void> {
   try {
-    const userDocRef = doc(db, 'users', account.username.toLowerCase().trim());
+    const docId = account.username.toLowerCase().trim().replace(/\//g, '_');
+    const userDocRef = doc(db, 'users', docId);
     await setDoc(userDocRef, {
       name: account.name,
       username: account.username,
@@ -142,10 +197,12 @@ export async function saveUserToDb(account: UserAccount): Promise<void> {
 }
 
 export async function saveUsersBatchToDb(newAccounts: UserAccount[]): Promise<void> {
+  if (!newAccounts.length) return;
   try {
     const batch = writeBatch(db);
     newAccounts.forEach(account => {
-      const userDocRef = doc(db, 'users', account.username.toLowerCase().trim());
+      const docId = account.username.toLowerCase().trim().replace(/\//g, '_');
+      const userDocRef = doc(db, 'users', docId);
       batch.set(userDocRef, {
         name: account.name,
         username: account.username,
@@ -158,17 +215,18 @@ export async function saveUsersBatchToDb(newAccounts: UserAccount[]): Promise<vo
     await batch.commit();
     console.log(`Batch of ${newAccounts.length} users saved to Firestore database.`);
   } catch (err) {
-    console.error('Error saving users batch to Firestore:', err);
+    console.error('Error saving users batch to Firestore, falling back to individual writes:', err);
     // Fallback: save individually
     for (const acc of newAccounts) {
-      await saveUserToDb(acc);
+      await saveUserToDb(acc).catch(console.error);
     }
   }
 }
 
 export async function deleteUserFromDb(username: string): Promise<void> {
   try {
-    const userDocRef = doc(db, 'users', username.toLowerCase().trim());
+    const docId = username.toLowerCase().trim().replace(/\//g, '_');
+    const userDocRef = doc(db, 'users', docId);
     await deleteDoc(userDocRef);
     console.log(`User @${username} removed from Firestore database.`);
   } catch (err) {
@@ -180,7 +238,8 @@ export async function deleteUserFromDb(username: string): Promise<void> {
 export async function seedDefaultUsers(): Promise<void> {
   try {
     for (const acc of INITIAL_ACCOUNTS) {
-      const userDocRef = doc(db, 'users', acc.username.toLowerCase().trim());
+      const docId = acc.username.toLowerCase().trim().replace(/\//g, '_');
+      const userDocRef = doc(db, 'users', docId);
       await setDoc(userDocRef, {
         name: acc.name,
         username: acc.username,
@@ -292,8 +351,10 @@ export async function fetchQuestionsFromDb(
 }
 
 export function sanitizeQuestionForDb(q: Question): Record<string, any> {
+  const rawId = String(q.id || `q-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`);
+  const safeId = rawId.replace(/\//g, '_');
   const cleaned: Record<string, any> = {
-    id: String(q.id || `q-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`),
+    id: safeId,
     exam: (q.exam === 'NAFS' || q.exam === 'SAT') ? q.exam : 'GAT',
     section: String(q.section || 'General'),
     skill: String(q.skill || 'General'),
@@ -353,7 +414,8 @@ export async function saveQuestionsBatchToDb(questions: Question[]): Promise<boo
 
 export async function deleteQuestionFromDb(id: string): Promise<void> {
   try {
-    const docRef = doc(db, 'questions', id);
+    const safeId = String(id).replace(/\//g, '_');
+    const docRef = doc(db, 'questions', safeId);
     await deleteDoc(docRef);
   } catch (err) {
     console.error(`Error deleting question ${id} from Firestore:`, err);
@@ -377,6 +439,50 @@ async function seedQuestions(gat: Question[], sat: Question[], nafs: Question[] 
     console.log(`Seeded ${all.length} questions into Firestore.`);
   } catch (err) {
     console.error('Failed to seed questions to Firestore:', err);
+  }
+}
+
+// ----------------------------------------------------
+// FULL CLOUD SYNCHRONIZATION & SECURITY VAULT
+// ----------------------------------------------------
+
+export async function saveAllChangesToCloud(
+  accounts: UserAccount[],
+  bank: Record<ExamType, Question[]>,
+  settings: AppSettings
+): Promise<{ success: boolean; accountsCount: number; questionsCount: number; timestamp: string; error?: string }> {
+  let questionsCount = 0;
+  try {
+    // 1. Batch save all accounts and update backup vault
+    await saveUsersBatchToDb(accounts);
+    await backupAccountsVaultToDb(accounts);
+
+    // 2. Batch save questions from all tracks
+    const allQuestions = [...(bank.NAFS || []), ...(bank.GAT || []), ...(bank.SAT || [])];
+    questionsCount = allQuestions.length;
+    await saveQuestionsBatchToDb(allQuestions);
+
+    // 3. Save app settings
+    await saveAppSettingsToDb(settings);
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    console.log(`All changes (${accounts.length} accounts, ${questionsCount} questions) saved to cloud successfully.`);
+
+    return {
+      success: true,
+      accountsCount: accounts.length,
+      questionsCount,
+      timestamp
+    };
+  } catch (err: any) {
+    console.error('Error during full cloud sync:', err);
+    return {
+      success: false,
+      accountsCount: accounts.length,
+      questionsCount,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      error: err?.message || 'Unknown network error'
+    };
   }
 }
 

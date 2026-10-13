@@ -12,7 +12,10 @@ import {
   Database,
   BarChart2,
   Trophy,
-  ArrowLeft
+  ArrowLeft,
+  Cloud,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -28,6 +31,9 @@ interface HeaderProps {
   settings?: import('../types').AppSettings;
   xp?: number;
   level?: number;
+  onSyncAllToCloud?: () => Promise<void> | void;
+  cloudSyncStatus?: 'synced' | 'syncing' | 'idle';
+  lastCloudSyncTime?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,7 +48,10 @@ export const Header: React.FC<HeaderProps> = ({
   onGoBackToSelect,
   settings,
   xp,
-  level
+  level,
+  onSyncAllToCloud,
+  cloudSyncStatus = 'idle',
+  lastCloudSyncTime = 'Connected'
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = user?.role === 'Admin';
@@ -103,9 +112,9 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="h-1.5 w-full bg-gradient-to-r from-red-800 via-[#1e3a8a] to-emerald-700" />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between min-h-[4.75rem] py-2 gap-3 sm:gap-4">
-          {/* Far Left Brand Wordmark & Enlarged Emblem (Never squeezed or hidden behind tabs) */}
-          <div className="flex items-center shrink-0">
+        <div className="flex items-center justify-between min-h-[5rem] sm:min-h-[5.5rem] py-2 gap-3 sm:gap-5">
+          {/* Far Left Brand Wordmark & Enlarged Emblem (Pushed to far left with zero tab collision) */}
+          <div className="flex items-center shrink-0 z-10 mr-2 sm:mr-4">
             <button
               onClick={() => {
                 if (isAdmin) {
@@ -116,13 +125,13 @@ export const Header: React.FC<HeaderProps> = ({
                   handleNavClick(currentScreen === 'studentSelect' ? 'studentSelect' : 'dashboard');
                 }
               }}
-              className="flex items-center gap-2.5 sm:gap-3.5 text-left cursor-pointer group transition-transform duration-200 hover:scale-[1.01] shrink-0"
+              className="flex items-center gap-3 sm:gap-4 text-left cursor-pointer group transition-transform duration-200 hover:scale-[1.01] shrink-0"
               title={settings?.appName || 'AHS Exams Prepline'}
             >
               <img
                 src={settings?.logoUrl || AHS_LOGO_SRC}
                 alt="AHS School Emblem Logo"
-                className="h-12 sm:h-14 lg:h-16 w-auto max-w-[95px] sm:max-w-[125px] lg:max-w-[150px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105 drop-shadow-xs"
+                className="h-14 sm:h-16 lg:h-20 w-auto max-w-[110px] sm:max-w-[145px] lg:max-w-[180px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105 drop-shadow-sm"
               />
               <div className="min-w-0">
                 <span className="text-base sm:text-lg lg:text-xl font-black tracking-tight text-[#201e1d] block leading-tight">
@@ -188,13 +197,37 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* Admin Cloud Sync Action Button */}
+            {isAdmin && onSyncAllToCloud && (
+              <button
+                onClick={onSyncAllToCloud}
+                disabled={cloudSyncStatus === 'syncing'}
+                title="Save all changes (accounts, questions, settings) to Cloud Firestore database"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black rounded-xl border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:translate-y-0 ${
+                  cloudSyncStatus === 'syncing'
+                    ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
+                    : 'bg-[#1e3a8a] hover:bg-[#162c68] text-white border-[#1e3a8a]'
+                }`}
+              >
+                {cloudSyncStatus === 'syncing' ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Cloud className="w-3.5 h-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Save to Cloud'}
+                </span>
+                <span className="sm:hidden">Sync</span>
+              </button>
+            )}
+
             {/* Live Firestore DB Indicator */}
             <div
-              title="Connected to Cloud Firestore Database"
-              className="hidden 2xl:inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0"
+              title={`Cloud Protection: Connected & Synchronized (${lastCloudSyncTime})`}
+              className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live DB</span>
+              <span>Cloud Protected</span>
             </div>
 
             {/* Track Indicator: Locked in Student View (Must return to Main Menu to switch) */}

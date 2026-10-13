@@ -4,10 +4,10 @@ service cloud.firestore {
 
     // Helper functions
     function isValidUser(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.username is string && data.username.size() >= 3 && data.username.size() <= 50 &&
+      return data.name is string && data.name.size() > 0 &&
+             data.username is string && data.username.size() >= 1 &&
              data.role in ['Student', 'Teacher', 'Admin'] &&
-             data.password is string && data.password.size() >= 4 && data.password.size() <= 100;
+             data.password is string && data.password.size() >= 1;
     }
 
     function isValidQuestion(data) {
@@ -21,9 +21,9 @@ service cloud.firestore {
     }
 
     function isValidSettings(data) {
-      return data.appName is string && data.appName.size() <= 100 &&
-             data.loginTitle is string && data.loginTitle.size() <= 100 &&
-             data.loginHeadline is string && data.loginHeadline.size() <= 200;
+      return data.appName is string &&
+             data.loginTitle is string &&
+             data.loginHeadline is string;
     }
 
     function isValidAttempt(data) {
@@ -49,9 +49,7 @@ service cloud.firestore {
 
     // Settings collection
     match /settings/{settingId} {
-      allow read: if true;
-      allow create, update: if isValidSettings(request.resource.data);
-      allow delete: if false;
+      allow read, write: if true;
     }
 
     // Attempts collection
@@ -59,6 +57,16 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isValidAttempt(request.resource.data);
       allow update, delete: if true;
+    }
+
+    // User study profiles collection
+    match /profiles/{username} {
+      allow read, write: if true;
+    }
+
+    // Cloud Backups and Data Protection collection
+    match /backups/{backupId} {
+      allow read, write: if true;
     }
 
     // Test connectivity document

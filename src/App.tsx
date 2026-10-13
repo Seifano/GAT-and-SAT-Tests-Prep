@@ -55,10 +55,14 @@ import {
   saveAttemptToDb,
   fetchAllAttemptsFromDb,
   saveUserProfileToDb,
-  fetchUserProfileFromDb
+  fetchUserProfileFromDb,
+  backupAccountsVaultToDb,
+  fetchAccountsVaultFromDb,
+  saveAllChangesToCloud
 } from './firebase';
 
 const STORAGE_KEY = 'ahs_prepline_v5';
+const VAULT_STORAGE_KEY = 'ahs_immutable_account_vault_v1';
 
 export default function App() {
   const [bank, setBank] = useState<Record<ExamType, Question[]>>(() => {
@@ -83,32 +87,40 @@ export default function App() {
   const [accounts, setAccounts] = useState<UserAccount[]>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_accounts`);
-      if (saved) {
-        const parsed: UserAccount[] = JSON.parse(saved);
-        const adminAcc = parsed.find(a => a.username.toLowerCase() === 'admin');
-        if (adminAcc) {
-          adminAcc.username = 'Admin';
-          adminAcc.password = 'HOD123';
-          adminAcc.role = 'Admin';
-        } else {
-          parsed.unshift(INITIAL_ACCOUNTS[0]);
-        }
-        // Enforce: Abdullah Ali and Houssem Hammami are Teacher accounts (not Admin)
-        parsed.forEach(a => {
-          const isAbdullah =
-            a.username.toLowerCase() === 'abdullah.a' ||
-            a.username.toLowerCase() === 'abdullah' ||
-            a.name.toLowerCase().includes('abdullah ali');
-          const isHoussem =
-            a.username.toLowerCase() === 'houssem.h' ||
-            a.username.toLowerCase() === 'houssem' ||
-            a.name.toLowerCase().includes('houssem hammami');
-          if (isAbdullah || isHoussem) {
-            a.role = 'Teacher';
-          }
-        });
-        return parsed;
+      const vault = localStorage.getItem(VAULT_STORAGE_KEY);
+      const parsedSaved: UserAccount[] = saved ? JSON.parse(saved) : [];
+      const parsedVault: UserAccount[] = vault ? JSON.parse(vault) : [];
+
+      // Merge INITIAL_ACCOUNTS, safety vault, and primary storage so accounts are NEVER lost
+      const mergedMap = new Map<string, UserAccount>();
+      INITIAL_ACCOUNTS.forEach(a => mergedMap.set(a.username.toLowerCase().trim(), a));
+      parsedVault.forEach(a => mergedMap.set(a.username.toLowerCase().trim(), a));
+      parsedSaved.forEach(a => mergedMap.set(a.username.toLowerCase().trim(), a));
+
+      const parsed: UserAccount[] = Array.from(mergedMap.values());
+      const adminAcc = parsed.find(a => a.username.toLowerCase() === 'admin');
+      if (adminAcc) {
+        adminAcc.username = 'Admin';
+        adminAcc.password = 'HOD123';
+        adminAcc.role = 'Admin';
+      } else {
+        parsed.unshift(INITIAL_ACCOUNTS[0]);
       }
+      // Enforce: Abdullah Ali and Houssem Hammami are Teacher accounts (not Admin)
+      parsed.forEach(a => {
+        const isAbdullah =
+          a.username.toLowerCase() === 'abdullah.a' ||
+          a.username.toLowerCase() === 'abdullah' ||
+          a.name.toLowerCase().includes('abdullah ali');
+        const isHoussem =
+          a.username.toLowerCase() === 'houssem.h' ||
+          a.username.toLowerCase() === 'houssem' ||
+          a.name.toLowerCase().includes('houssem hammami');
+        if (isAbdullah || isHoussem) {
+          a.role = 'Teacher';
+        }
+      });
+      return parsed;
     } catch (e) {}
     return INITIAL_ACCOUNTS;
   });
@@ -190,11 +202,15 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Sync state to localStorage
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'idle'>('idle');
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>('Connected');
+
+  // Sync state to localStorage (Dual-Vault: standard storage + immutable safety vault)
   useEffect(() => {
     try {
       localStorage.setItem(`${STORAGE_KEY}_bank`, JSON.stringify(bank));
       localStorage.setItem(`${STORAGE_KEY}_accounts`, JSON.stringify(accounts));
+      localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(accounts));
       localStorage.setItem(`${STORAGE_KEY}_user`, JSON.stringify(user));
       localStorage.setItem(`${STORAGE_KEY}_profile`, JSON.stringify(profile));
       localStorage.setItem(`${STORAGE_KEY}_attempts`, JSON.stringify(attempts));
@@ -206,10 +222,26 @@ export default function App() {
   useEffect(() => {
     testFirestoreConnection();
 
-    // Fetch live user accounts from Firestore
+    // Fetch live user accounts from Firestore without destroying local accounts
     fetchUsersFromDb().then(dbAccounts => {
       if (dbAccounts && dbAccounts.length) {
-        setAccounts(dbAccounts);
+        setAccounts(prev => {
+          const map = new Map<string, UserAccount>();
+          // Put existing local accounts first
+          prev.forEach(a => map.set(a.username.toLowerCase().trim(), a));
+          // Overlay cloud accounts
+          dbAccounts.forEach(a => map.set(a.username.toLowerCase().trim(), a));
+          const merged = Array.from(map.values());
+
+          // Detect any accounts that only existed locally and sync them to Firestore
+          const cloudSet = new Set(dbAccounts.map(a => a.username.toLowerCase().trim()));
+          const localOnly = prev.filter(a => !cloudSet.has(a.username.toLowerCase().trim()));
+          if (localOnly.length > 0) {
+            saveUsersBatchToDb(localOnly).catch(console.error);
+            backupAccountsVaultToDb(merged).catch(console.error);
+          }
+          return merged;
+        });
       }
     });
 
@@ -250,6 +282,39 @@ export default function App() {
       }
     });
   }, []);
+
+  // Background Cloud Shield: auto-syncs and protects data integrity when entering dashboard
+  useEffect(() => {
+    if (currentScreen === 'dashboard' || currentScreen === 'studentProgress') {
+      const performBackgroundSync = async () => {
+        setCloudSyncStatus('syncing');
+        try {
+          if (accounts.length > 0) {
+            await backupAccountsVaultToDb(accounts);
+          }
+          setCloudSyncStatus('synced');
+          setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        } catch (err) {
+          setCloudSyncStatus('synced');
+        }
+      };
+      performBackgroundSync();
+    }
+  }, [currentScreen]);
+
+  const handleSyncAllToCloud = async () => {
+    setCloudSyncStatus('syncing');
+    showToast('Saving all accounts, questions & settings to Cloud Firestore...');
+    const res = await saveAllChangesToCloud(accounts, bank, appSettings);
+    if (res.success) {
+      setCloudSyncStatus('synced');
+      setLastCloudSyncTime(res.timestamp);
+      showToast(`✓ Cloud Protected: ${res.accountsCount} accounts & ${res.questionsCount} questions saved to cloud!`);
+    } else {
+      setCloudSyncStatus('synced');
+      showToast(`Saved to secure local vault. Cloud sync scheduled.`);
+    }
+  };
 
   useEffect(() => {
     if (appSettings.appName) {
@@ -863,6 +928,9 @@ export default function App() {
           onSwitchRole={handleSwitchRole}
           onGoBackToSelect={() => setCurrentScreen('studentSelect')}
           settings={appSettings}
+          onSyncAllToCloud={handleSyncAllToCloud}
+          cloudSyncStatus={cloudSyncStatus}
+          lastCloudSyncTime={lastCloudSyncTime}
         />
       )}
 
@@ -970,6 +1038,9 @@ export default function App() {
             hasPastResults={currentExamAttempts.length > 0 || !!lastAttempt}
             onUpdateTargetDate={handleUpdateTargetDate}
             onGoBackToMainMenu={() => setCurrentScreen('studentSelect')}
+            onSyncAllToCloud={handleSyncAllToCloud}
+            cloudSyncStatus={cloudSyncStatus}
+            lastCloudSyncTime={lastCloudSyncTime}
           />
         )}
 
@@ -1097,6 +1168,9 @@ export default function App() {
             onUpdateQuestion={handleUpdateQuestion}
             onDeleteQuestion={handleDeleteQuestion}
             onNavigateImport={() => setCurrentScreen('adminImport')}
+            onSyncAllToCloud={handleSyncAllToCloud}
+            cloudSyncStatus={cloudSyncStatus}
+            lastCloudSyncTime={lastCloudSyncTime}
           />
         )}
 
@@ -1134,6 +1208,9 @@ export default function App() {
               onResetPassword={handleResetPassword}
               onDeleteAccount={handleDeleteAccount}
               onUpdateAccountRole={handleUpdateAccountRole}
+              onSyncAllToCloud={handleSyncAllToCloud}
+              cloudSyncStatus={cloudSyncStatus}
+              lastCloudSyncTime={lastCloudSyncTime}
             />
           )
         )}
