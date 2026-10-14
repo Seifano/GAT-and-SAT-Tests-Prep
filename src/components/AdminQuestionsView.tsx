@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Question, ExamType } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { Plus, Search, Filter, Trash2, Edit3, X, BookOpen, UploadCloud, Cloud, RefreshCw } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit3, X, BookOpen, UploadCloud, Cloud, RefreshCw, ChevronDown } from 'lucide-react';
 
 interface AdminQuestionsViewProps {
   bank: Record<ExamType, Question[]>;
@@ -26,6 +26,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
 }) => {
   const [activeExam, setActiveExam] = useState<ExamType>('GAT');
   const [skillFilter, setSkillFilter] = useState('All');
+  const [showCoverageGrid, setShowCoverageGrid] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -194,33 +195,64 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
         })}
       </div>
 
-      {/* Coverage Grid */}
-      <div className="space-y-2">
-        <div className="text-xs text-slate-500">
-          Coverage by skill. Click a skill to filter; fewer than 2 questions is marked.
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 border-t-2 border-l-2 border-[#201e1d]/30 bg-white">
-          {allSkills.map(sk => {
-            const count = currentBank.filter(q => q.skill === sk).length;
-            const isSelected = skillFilter === sk;
-            const isLow = count < 2;
-
-            return (
-              <button
-                key={sk}
-                onClick={() => setSkillFilter(isSelected ? 'All' : sk)}
-                className={`p-3 border-r-2 border-b-2 border-[#201e1d]/30 text-left transition-all cursor-pointer ${
-                  isSelected ? 'bg-[#1f3d7a]/15' : 'hover:bg-slate-50'
-                }`}
-              >
-                <span className="text-xs text-slate-700 block truncate font-medium">{sk}</span>
-                <span className={`text-2xl font-black block mt-1 tabular-nums ${isLow ? 'text-[#e15b47]' : 'text-[#201e1d]'}`}>
-                  {count}
+      {/* Collapsible Skill Coverage Matrix */}
+      <div className="bg-white rounded-xl border border-slate-300 shadow-2xs overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowCoverageGrid(!showCoverageGrid)}
+          className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-50 transition-colors cursor-pointer group"
+          aria-expanded={showCoverageGrid}
+        >
+          <div className="flex items-center gap-2.5">
+            <Filter className="w-4 h-4 text-[#1f3d7a]" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider group-hover:text-[#1f3d7a] transition-colors">
+                  Skill Coverage Matrix ({allSkills.length} Domains)
                 </span>
-              </button>
-            );
-          })}
-        </div>
+                {skillFilter !== 'All' && (
+                  <span className="text-[10px] font-bold text-[#1f3d7a] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                    Active Filter: {skillFilter}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Click to inspect inventory counts by domain; fewer than 2 questions is flagged
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+            <span>{showCoverageGrid ? 'Hide Matrix' : 'Show Matrix'}</span>
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showCoverageGrid ? 'rotate-180 text-[#1f3d7a]' : ''}`} />
+          </div>
+        </button>
+
+        {showCoverageGrid && (
+          <div className="border-t border-slate-200 p-3 bg-slate-50/50 animate-viewFadeIn">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 border-t border-l border-slate-200 bg-white">
+              {allSkills.map(sk => {
+                const count = currentBank.filter(q => q.skill === sk).length;
+                const isSelected = skillFilter === sk;
+                const isLow = count < 2;
+
+                return (
+                  <button
+                    key={sk}
+                    onClick={() => setSkillFilter(isSelected ? 'All' : sk)}
+                    className={`p-3 border-r border-b border-slate-200 text-left transition-all cursor-pointer ${
+                      isSelected ? 'bg-[#1f3d7a]/15 ring-1 ring-[#1f3d7a] z-10' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-xs text-slate-700 block truncate font-medium">{sk}</span>
+                    <span className={`text-2xl font-black block mt-1 tabular-nums ${isLow ? 'text-[#e15b47]' : 'text-[#201e1d]'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search and Filters */}

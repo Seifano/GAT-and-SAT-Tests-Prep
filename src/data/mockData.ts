@@ -137,9 +137,13 @@ export const INITIAL_HISTORY: Record<ExamType, Array<{ score: number; date: stri
   SAT: []
 };
 
+import { DEFAULT_TECH_BACKGROUND_DATA_URL } from '../assets/background';
+
 export const DEFAULT_APP_SETTINGS: import('../types').AppSettings = {
   appName: 'AHS Exams Prepline',
   logoUrl: '',
+  backgroundUrl: DEFAULT_TECH_BACKGROUND_DATA_URL,
+  backgroundTheme: 'cyber_vector_18129294',
   loginTitle: 'AHS Exams Prepline',
   loginHeadline: 'NAFS, GAT, and SAT practice, in one place.',
   loginDescription: 'Timed mock exams, an authentic question bank built from recent test reports, and targeted feedback on the skills that move your score.',

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { AppSettings } from '../types';
 import { AHS_LOGO_SRC } from '../assets/logo';
 import { PRESET_LOGOS } from '../data/presetLogos';
-import { Upload, RotateCcw, Check, Sparkles, Image, Eye, Type, CheckCircle2 } from 'lucide-react';
+import { PRESET_BACKGROUNDS, DEFAULT_TECH_BACKGROUND_DATA_URL } from '../assets/background';
+import { Upload, RotateCcw, Check, Sparkles, Image, Eye, Type, CheckCircle2, Palette, Layers } from 'lucide-react';
 
 interface AdminBrandingViewProps {
   settings: AppSettings;
@@ -12,6 +13,8 @@ interface AdminBrandingViewProps {
 export const AdminBrandingView: React.FC<AdminBrandingViewProps> = ({ settings, onSaveSettings }) => {
   const [appName, setAppName] = useState(settings.appName);
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl || AHS_LOGO_SRC);
+  const [backgroundUrl, setBackgroundUrl] = useState(settings.backgroundUrl || DEFAULT_TECH_BACKGROUND_DATA_URL);
+  const [backgroundTheme, setBackgroundTheme] = useState(settings.backgroundTheme || 'cyber_vector_18129294');
   const [loginTitle, setLoginTitle] = useState(settings.loginTitle);
   const [loginHeadline, setLoginHeadline] = useState(settings.loginHeadline);
   const [loginDescription, setLoginDescription] = useState(settings.loginDescription);
@@ -25,6 +28,7 @@ export const AdminBrandingView: React.FC<AdminBrandingViewProps> = ({ settings, 
 
   const [saved, setSaved] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const bgFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,11 +54,39 @@ export const AdminBrandingView: React.FC<AdminBrandingViewProps> = ({ settings, 
     setLogoUrl(AHS_LOGO_SRC);
   };
 
+  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload a valid image file (PNG, JPG, SVG, WebP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string;
+      if (dataUrl) {
+        setBackgroundUrl(dataUrl);
+        setBackgroundTheme('custom_uploaded');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleResetBackground = () => {
+    setBackgroundUrl(DEFAULT_TECH_BACKGROUND_DATA_URL);
+    setBackgroundTheme('cyber_vector_18129294');
+  };
+
   const handleSave = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     onSaveSettings({
       appName: appName.trim() || 'AHS Exams Prepline',
       logoUrl: logoUrl.trim() || AHS_LOGO_SRC,
+      backgroundUrl: backgroundUrl.trim() || DEFAULT_TECH_BACKGROUND_DATA_URL,
+      backgroundTheme: backgroundTheme,
       loginTitle: loginTitle.trim() || 'AHS Exams Prepline',
       loginHeadline: loginHeadline.trim() || 'GAT and SAT practice, in one place.',
       loginDescription: loginDescription.trim(),
@@ -218,7 +250,121 @@ export const AdminBrandingView: React.FC<AdminBrandingViewProps> = ({ settings, 
           </div>
         </div>
 
-        {/* Section 2: Rename Login Page & Title Customization */}
+        {/* Section 2: Custom Portal & Login Background (No Boring White Background) */}
+        <div className="border-2 border-[#201e1d]/30 bg-white p-6 space-y-6">
+          <div className="flex items-center justify-between pb-2 border-b-2 border-[#201e1d]/20">
+            <div className="flex items-center gap-2 text-[#1f3d7a] font-extrabold text-base">
+              <Palette className="w-5 h-5" />
+              <h2>Login &amp; Portal Background Artwork</h2>
+            </div>
+            <button
+              type="button"
+              onClick={handleResetBackground}
+              className="text-xs text-slate-600 hover:text-[#1f3d7a] flex items-center gap-1 font-bold cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset to Default Tech Background</span>
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Replaces the boring white background across the login page and study dashboard with high-resolution geometric tech vectors or your own uploaded school campus background.
+          </p>
+
+          {/* Preset Background Options */}
+          <div>
+            <label className="block font-bold text-[#201e1d] text-xs mb-2">
+              Choose Preset Graphic Theme
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {PRESET_BACKGROUNDS.map(preset => {
+                const isSelected = backgroundTheme === preset.id || backgroundUrl === preset.dataUrl;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      setBackgroundUrl(preset.dataUrl);
+                      setBackgroundTheme(preset.id);
+                    }}
+                    className={`p-3 text-left border-2 transition-all cursor-pointer rounded-xl flex flex-col justify-between h-28 relative overflow-hidden ${
+                      isSelected
+                        ? 'border-[#1f3d7a] ring-2 ring-[#1f3d7a]/20 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-400 bg-slate-50'
+                    }`}
+                  >
+                    <div
+                      className="absolute inset-0 opacity-25 pointer-events-none bg-cover bg-center"
+                      style={{ backgroundImage: `url(${preset.dataUrl})` }}
+                    />
+                    <div className="relative z-1 flex items-start justify-between">
+                      <span className="font-extrabold text-xs text-slate-900 leading-snug">
+                        {preset.name}
+                      </span>
+                      {isSelected && (
+                        <CheckCircle2 className="w-4 h-4 text-[#1f3d7a] shrink-0" />
+                      )}
+                    </div>
+                    <span className="relative z-1 text-[10px] text-slate-600 line-clamp-2">
+                      {preset.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Upload Custom Background File or URL */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-slate-200 text-xs">
+            <div>
+              <label className="block font-bold text-[#201e1d] mb-1">
+                Upload Custom Background File (PNG, JPG, SVG, WebP)
+              </label>
+              <input
+                type="file"
+                ref={bgFileInputRef}
+                onChange={handleBackgroundUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => bgFileInputRef.current?.click()}
+                className="w-full py-3 px-4 border-2 border-dashed border-slate-300 hover:border-[#1f3d7a] bg-slate-50 hover:bg-slate-100 flex items-center justify-center gap-2 font-bold text-slate-700 cursor-pointer transition-colors rounded-xl"
+              >
+                <Upload className="w-4 h-4 text-[#1f3d7a]" />
+                <span>Upload Custom Background Image...</span>
+              </button>
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                Images are saved to the cloud database and displayed across all entry and dashboard views.
+              </span>
+            </div>
+
+            <div>
+              <label className="block font-bold text-[#201e1d] mb-1">
+                Or Paste Background Image URL / Data URI
+              </label>
+              <input
+                type="text"
+                value={backgroundUrl.startsWith('data:') ? 'Custom Vector Artwork (Data URI loaded)' : backgroundUrl}
+                onChange={e => {
+                  setBackgroundUrl(e.target.value);
+                  setBackgroundTheme('custom_url');
+                }}
+                placeholder="https://example.com/background.jpg"
+                className="w-full p-2.5 bg-[#f3f2f2] border border-slate-300 text-xs font-mono text-[#201e1d] focus:outline-none focus:border-[#1f3d7a] rounded-lg"
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-600">Active Theme:</span>
+                <span className="px-2 py-0.5 rounded-md bg-sky-100 text-[#1f3d7a] font-mono text-[10px] font-bold">
+                  {backgroundTheme}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Rename Login Page & Title Customization */}
         <div className="border-2 border-[#201e1d]/30 bg-white p-6 space-y-6">
           <div className="flex items-center gap-2 pb-2 border-b-2 border-[#201e1d]/20 text-[#1f3d7a] font-extrabold text-base">
             <Type className="w-5 h-5" />
@@ -328,39 +474,51 @@ export const AdminBrandingView: React.FC<AdminBrandingViewProps> = ({ settings, 
           </div>
         </div>
 
-        {/* Section 3: Live Preview Box */}
+        {/* Section 4: Live Preview Box */}
         <div className="border-2 border-[#201e1d]/30 bg-white p-6 space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b-2 border-[#201e1d]/20 text-[#1f3d7a] font-extrabold text-base">
             <Eye className="w-5 h-5" />
-            <h2>Live Login Page Stage Preview</h2>
+            <h2>Live Login &amp; Portal Stage Preview</h2>
           </div>
 
-          <div className="rounded-none bg-gradient-to-br from-[#0a1730] via-[#1f3d7a] to-[#3d63ad] text-white p-8 max-w-2xl border border-slate-800 space-y-6">
-            <div className="flex items-center gap-3">
-              <img
-                src={logoUrl}
-                alt="Emblem"
-                className="h-12 w-auto object-contain filter drop-shadow-md"
-              />
-              <span className="text-xl font-black text-white">{loginTitle}</span>
-            </div>
+          <div
+            className="rounded-2xl text-white p-8 max-w-2xl border-2 border-slate-700/80 shadow-2xl relative overflow-hidden bg-cover bg-center"
+            style={{ backgroundImage: `url(${backgroundUrl})` }}
+          >
+            {/* Soft Ambient Overlay */}
+            <div className="absolute inset-0 bg-[#061022]/80 backdrop-blur-[1px] pointer-events-none" />
 
-            <div className="space-y-2">
-              <h3 className="text-2xl sm:text-3xl font-black leading-tight text-white">
-                {loginHeadline}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
-                {loginDescription}
-              </p>
-            </div>
+            <div className="relative z-1 space-y-6">
+              <div className="flex items-center gap-3">
+                <img
+                  src={logoUrl}
+                  alt="Emblem"
+                  className="h-12 w-auto object-contain filter drop-shadow-md"
+                />
+                <span className="text-xl font-black text-white">{loginTitle}</span>
+              </div>
 
-            <div className="grid grid-cols-3 border-t border-white/30 pt-3 gap-2 text-xs">
-              {footnotes.map((fn, i) => (
-                <div key={i}>
-                  <span className="text-slate-400 block text-[10px]">{fn.title}</span>
-                  <span className="font-extrabold text-white text-xs">{fn.subtitle}</span>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-cyan-300 border border-cyan-400/40 px-2.5 py-0.5 bg-cyan-950/40 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>Official Exam Prep Portal</span>
                 </div>
-              ))}
+                <h3 className="text-2xl sm:text-3xl font-black leading-tight text-white">
+                  {loginHeadline}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
+                  {loginDescription}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 border-t border-white/30 pt-3 gap-2 text-xs">
+                {footnotes.map((fn, i) => (
+                  <div key={i}>
+                    <span className="text-slate-400 block text-[10px]">{fn.title}</span>
+                    <span className="font-extrabold text-white text-xs">{fn.subtitle}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -372,7 +530,7 @@ export const AdminBrandingView: React.FC<AdminBrandingViewProps> = ({ settings, 
             className="btn-primary px-8 py-3 text-white text-xs font-black flex items-center gap-2 cursor-pointer shadow-sm"
           >
             {saved ? <Check className="w-4 h-4 text-emerald-300" /> : <Sparkles className="w-4 h-4" />}
-            <span>{saved ? 'Settings Saved' : 'Save Logo & Login Page Customizations'}</span>
+            <span>{saved ? 'Settings Saved to Cloud!' : 'Save Branding, Logo & Background'}</span>
           </button>
         </div>
       </form>

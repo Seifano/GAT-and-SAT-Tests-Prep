@@ -12,7 +12,8 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle2,
-  Lock
+  Lock,
+  ChevronDown
 } from 'lucide-react';
 
 interface AdminAccountsViewProps {
@@ -41,6 +42,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'All' | UserRole>('All');
+  const [showCommandCenter, setShowCommandCenter] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
@@ -282,90 +284,114 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
         )}
       </div>
 
-      {/* Cloud Database & Security Command Center */}
-      <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white p-6 sm:p-7 rounded-3xl shadow-md border border-blue-800 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
-                Cloud Database Shield · Dual-Vault Persistence
-              </span>
+      {/* Cloud Database & Security Command Center (Collapsible Accordion) */}
+      <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white rounded-2xl shadow-md border border-blue-800 overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => setShowCommandCenter(!showCommandCenter)}
+          className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-white/5 transition-colors cursor-pointer group"
+          aria-expanded={showCommandCenter}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
+                  Cloud Database Shield
+                </span>
+                <span className="text-xs text-slate-400">·</span>
+                <span className="text-xs text-slate-300 font-bold truncate">
+                  Anti-Loss Vault Active ({accounts.length} accounts · Synced: {lastCloudSyncTime})
+                </span>
+              </div>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-              Cloud Persistence &amp; Account Protection
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
-              All accounts and credentials are encrypted and synchronized with Cloud Firestore database. Local state is safeguarded by an immutable secondary safety vault so no accounts can be lost.
-            </p>
           </div>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-300 shrink-0">
+            <span>{showCommandCenter ? 'Hide Controls' : 'Manage Cloud Vault & Backups'}</span>
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showCommandCenter ? 'rotate-180 text-emerald-400' : ''}`} />
+          </div>
+        </button>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {onSyncAllToCloud && (
-              <button
-                type="button"
-                onClick={onSyncAllToCloud}
-                disabled={cloudSyncStatus === 'syncing'}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
-              >
-                {cloudSyncStatus === 'syncing' ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Cloud className="w-4 h-4" />
+        {showCommandCenter && (
+          <div className="px-6 pb-6 pt-3 border-t border-white/10 space-y-4 animate-viewFadeIn">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="space-y-1.5 min-w-0">
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+                  Cloud Persistence &amp; Account Protection
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+                  All accounts and credentials are encrypted and synchronized with Cloud Firestore database. Local state is safeguarded by an immutable secondary safety vault so no accounts can be lost.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                {onSyncAllToCloud && (
+                  <button
+                    type="button"
+                    onClick={onSyncAllToCloud}
+                    disabled={cloudSyncStatus === 'syncing'}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    {cloudSyncStatus === 'syncing' ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Cloud className="w-4 h-4" />
+                    )}
+                    <span>{cloudSyncStatus === 'syncing' ? 'Syncing to Cloud...' : 'Save All Changes to Cloud'}</span>
+                  </button>
                 )}
-                <span>{cloudSyncStatus === 'syncing' ? 'Syncing to Cloud...' : 'Save All Changes to Cloud'}</span>
-              </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadBackupJson}
+                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                  title="Download an offline JSON backup of all accounts"
+                >
+                  <Download className="w-4 h-4 text-emerald-300" />
+                  <span>Export Backup (.json)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                  title="Import accounts from an offline JSON backup"
+                >
+                  <Upload className="w-4 h-4 text-sky-300" />
+                  <span>Restore (.json)</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleRestoreBackupJson}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {restoreMessage && (
+              <div className="p-3 bg-emerald-500/20 border border-emerald-400 text-emerald-200 text-xs font-bold rounded-xl flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{restoreMessage}</span>
+              </div>
             )}
 
-            <button
-              type="button"
-              onClick={handleDownloadBackupJson}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer"
-              title="Download an offline JSON backup of all accounts"
-            >
-              <Download className="w-4 h-4 text-emerald-300" />
-              <span>Export Backup (.json)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer"
-              title="Import accounts from an offline JSON backup"
-            >
-              <Upload className="w-4 h-4 text-sky-300" />
-              <span>Restore (.json)</span>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              onChange={handleRestoreBackupJson}
-              className="hidden"
-            />
-          </div>
-        </div>
-
-        {restoreMessage && (
-          <div className="p-3 bg-emerald-500/20 border border-emerald-400 text-emerald-200 text-xs font-bold rounded-xl flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{restoreMessage}</span>
+            <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between text-[11px] text-slate-300 gap-2">
+              <div className="flex items-center gap-3">
+                <span>Status: <strong className="text-white">Protected</strong></span>
+                <span>·</span>
+                <span>Synced: <strong className="text-emerald-300">{lastCloudSyncTime}</strong></span>
+                <span>·</span>
+                <span>Total Accounts: <strong className="text-white">{accounts.length} accounts</strong></span>
+              </div>
+              <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Anti-loss Dual-Vault active</span>
+              </div>
+            </div>
           </div>
         )}
-
-        <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between text-[11px] text-slate-300 gap-2">
-          <div className="flex items-center gap-3">
-            <span>Status: <strong className="text-white">Protected</strong></span>
-            <span>·</span>
-            <span>Synced: <strong className="text-emerald-300">{lastCloudSyncTime}</strong></span>
-            <span>·</span>
-            <span>Total Accounts: <strong className="text-white">{accounts.length} accounts</strong></span>
-          </div>
-          <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
-            <ShieldCheck className="w-4 h-4" />
-            <span>Anti-loss Dual-Vault active</span>
-          </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

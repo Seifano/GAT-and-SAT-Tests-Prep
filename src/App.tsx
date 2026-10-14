@@ -36,6 +36,7 @@ import { AdminImportView } from './components/AdminImportView';
 import { AdminAccountsView } from './components/AdminAccountsView';
 import { AdminBrandingView } from './components/AdminBrandingView';
 import { StudentExamGateway } from './components/StudentExamGateway';
+import { Sidebar } from './components/Sidebar';
 import { ArrowLeft } from 'lucide-react';
 import { calculateGamification } from './utils/gamification';
 import { doc, getDoc } from 'firebase/firestore';
@@ -63,6 +64,21 @@ import {
 
 const STORAGE_KEY = 'ahs_prepline_v5';
 const VAULT_STORAGE_KEY = 'ahs_immutable_account_vault_v1';
+
+export const ACTIVE_VIEW_INFO: Record<string, { title: string; subtitle: string; category: string }> = {
+  dashboard: { title: 'Dashboard', subtitle: 'Overview, diagnostic goals, score trends & daily targets', category: 'Study' },
+  practice: { title: 'Practice Sets', subtitle: 'Modular drill sets and timed domain questions', category: 'Study' },
+  analytics: { title: 'Deep Analytics', subtitle: 'Diagnostic curves, standing & skill progression', category: 'Diagnostics' },
+  skills: { title: 'Skill Matrix', subtitle: 'Domain-by-domain proficiency diagnostics & mastery', category: 'Diagnostics' },
+  achievements: { title: 'Achievements & XP', subtitle: 'Earned scholar milestones, tier badges & active study streaks', category: 'Milestones' },
+  browser: { title: 'Question Library', subtitle: 'Browse verified questions, answer keys & passages', category: 'Curriculum' },
+  results: { title: 'Test Reports', subtitle: 'Diagnostic summary and detailed solution review', category: 'Diagnostics' },
+  studentProgress: { title: 'Student Progress', subtitle: 'Roster diagnostic analytics, scores & attempt tracking', category: 'Academic' },
+  adminQuestions: { title: 'Question Bank', subtitle: 'Create, edit, audit & manage test questions across tracks', category: 'Curriculum' },
+  adminImport: { title: 'Word & PDF Importer', subtitle: 'Bulk convert exam documents into structured question items', category: 'Curriculum' },
+  adminAccounts: { title: 'User Accounts', subtitle: 'Student and teacher credential vault with cloud backup', category: 'Administration' },
+  adminBranding: { title: 'School Branding', subtitle: 'Customize school emblem, application name & login theme', category: 'Administration' },
+};
 
 export default function App() {
   const [bank, setBank] = useState<Record<ExamType, Question[]>>(() => {
@@ -204,6 +220,14 @@ export default function App() {
 
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'idle'>('idle');
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>('Connected');
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ahs_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // Sync state to localStorage (Dual-Vault: standard storage + immutable safety vault)
   useEffect(() => {
@@ -931,50 +955,105 @@ export default function App() {
           onSyncAllToCloud={handleSyncAllToCloud}
           cloudSyncStatus={cloudSyncStatus}
           lastCloudSyncTime={lastCloudSyncTime}
+          onToggleSidebar={() => setSidebarMobileOpen(prev => !prev)}
         />
       )}
 
-      {/* Student Track Status & Go Back Action Bar */}
-      {(user?.role === 'Student' || ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen)) &&
-        currentScreen !== 'login' &&
-        currentScreen !== 'onboard' &&
-        currentScreen !== 'studentSelect' &&
-        currentScreen !== 'studentProgress' &&
-        currentScreen !== 'adminQuestions' &&
-        currentScreen !== 'adminImport' &&
-        currentScreen !== 'adminAccounts' &&
-        currentScreen !== 'adminBranding' &&
-        currentScreen !== 'exam' && (
-          <div className="bg-white/95 backdrop-blur-xs border-b border-slate-200 px-3 sm:px-6 lg:px-8 py-2">
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-500 uppercase tracking-wider text-[10px] sm:text-[11px]">
-                  Current Track:
-                </span>
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-black text-xs text-white shadow-2xs ${
-                  activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
-                }`}>
-                  <span>{activeExam}</span>
-                  <span className="font-normal opacity-90 hidden sm:inline">
-                    · {activeExam === 'NAFS' ? 'National Assessment (نافس)' : activeExam === 'GAT' ? 'General Aptitude (القدرات)' : 'Digital SAT'}
-                  </span>
-                </span>
+      {/* Main App Layout Container: Left Sidebar Navigation List + Main Content View */}
+      <div className="flex-1 flex min-h-0 relative">
+        {/* Left Navigation List (Sidebar) - Formatted like a modern forum / website sidebar */}
+        {currentScreen !== 'login' &&
+          currentScreen !== 'onboard' &&
+          currentScreen !== 'studentSelect' &&
+          currentScreen !== 'exam' && (
+            <Sidebar
+              currentScreen={currentScreen}
+              activeExam={activeExam}
+              user={user}
+              onNavigate={screen => {
+                setCurrentScreen(screen);
+                setSidebarMobileOpen(false);
+              }}
+              onSelectExam={ex => setActiveExam(ex)}
+              onGoBackToSelect={() => setCurrentScreen('studentSelect')}
+              isOpenMobile={sidebarMobileOpen}
+              onCloseMobile={() => setSidebarMobileOpen(false)}
+              isCollapsedDesktop={sidebarCollapsed}
+              onToggleCollapseDesktop={() => {
+                setSidebarCollapsed(prev => {
+                  const next = !prev;
+                  try {
+                    localStorage.setItem('ahs_sidebar_collapsed', String(next));
+                  } catch {}
+                  return next;
+                });
+              }}
+              questionCounts={{
+                NAFS: bank.NAFS?.length || 0,
+                GAT: bank.GAT?.length || 0,
+                SAT: bank.SAT?.length || 0
+              }}
+              streak={authenticStreak}
+              xp={studentGamification.xp}
+            />
+        )}
+
+        {/* Right / Main Content Column */}
+        <div className="flex-1 min-w-0 flex flex-col bg-[#f3f2f2]">
+          {/* Active View Header & Breadcrumb Bar (Appears across all active module screens) */}
+          {currentScreen !== 'login' &&
+            currentScreen !== 'onboard' &&
+            currentScreen !== 'studentSelect' &&
+            currentScreen !== 'exam' && (
+              <div className="bg-white/95 backdrop-blur-xs border-b border-slate-200/90 px-3 sm:px-6 lg:px-8 py-2.5">
+                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  {/* Breadcrumb Navigation & Module Context */}
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <span className="text-slate-400 font-medium">AHS Prepline</span>
+                    <span className="text-slate-300">/</span>
+                    
+                    {/* Track or Staff Context Indicator */}
+                    {user?.role === 'Student' || ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen) ? (
+                      <div className="inline-flex items-center gap-1.5 font-bold text-slate-700">
+                        <span className={`w-2 h-2 rounded-full ${
+                          activeExam === 'NAFS' ? 'bg-emerald-600' : activeExam === 'GAT' ? 'bg-red-600' : 'bg-[#1e3a8a]'
+                        }`} />
+                        <span>{activeExam} Track</span>
+                      </div>
+                    ) : (
+                      <span className="font-bold text-slate-700">Staff Console</span>
+                    )}
+
+                    <span className="text-slate-300">/</span>
+                    <span className="font-extrabold text-[#1e3a8a] truncate">
+                      {ACTIVE_VIEW_INFO[currentScreen]?.title || currentScreen}
+                    </span>
+
+                    {/* Subtitle tag */}
+                    {ACTIVE_VIEW_INFO[currentScreen]?.subtitle && (
+                      <span className="hidden md:inline-block text-[11px] text-slate-500 font-normal pl-1 border-l border-slate-200 truncate max-w-md">
+                        {ACTIVE_VIEW_INFO[currentScreen].subtitle}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions: Return to Main Menu for Students */}
+                  {(user?.role === 'Student' || ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen)) && (
+                    <button
+                      onClick={() => setCurrentScreen('studentSelect')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-[#1e3a8a] font-extrabold rounded-xl border border-slate-300 shadow-2xs hover:border-[#1e3a8a] transition-all cursor-pointer hover:-translate-x-0.5 shrink-0 ml-auto sm:ml-0"
+                      title="Return to Main Menu to select another examination track"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Main Menu (Switch Track)</span>
+                    </button>
+                  )}
+                </div>
               </div>
+          )}
 
-              <button
-                onClick={() => setCurrentScreen('studentSelect')}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-[#1e3a8a] font-extrabold rounded-lg border border-slate-300 shadow-2xs hover:border-[#1e3a8a] transition-all cursor-pointer hover:-translate-x-0.5"
-                title="Return to Main Menu to select another examination track"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Return to Main Menu (Change Track)</span>
-              </button>
-            </div>
-          </div>
-      )}
-
-      {/* Screen Router */}
-      <div className="flex-1 flex flex-col">
+          {/* Screen Router with Smooth Fade Transition */}
+          <div className="flex-1 flex flex-col animate-viewFadeIn" key={currentScreen}>
         {currentScreen === 'login' && (
           <AuthScreen
             onSignIn={handleSignIn}
@@ -1246,5 +1325,7 @@ export default function App() {
         )}
       </div>
     </div>
+  </div>
+</div>
   );
 }

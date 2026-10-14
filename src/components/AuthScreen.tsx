@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserAccount, ExamType, AppSettings } from '../types';
 import { AHS_LOGO_SRC } from '../assets/logo';
-import { ArrowRight, UserPlus, LogIn, Check, Eye, EyeOff } from 'lucide-react';
+import { DEFAULT_TECH_BACKGROUND_DATA_URL } from '../assets/background';
+import { ArrowRight, UserPlus, LogIn, Check, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 interface AuthScreenProps {
   onSignIn: (username: string, password: string) => Promise<boolean>;
@@ -41,6 +42,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   // Resolved branding settings
   const logo = settings?.logoUrl || AHS_LOGO_SRC;
+  const backgroundUrl = settings?.backgroundUrl || DEFAULT_TECH_BACKGROUND_DATA_URL;
   const loginTitle = settings?.loginTitle || 'AHS Exams Prepline';
   const loginHeadline = settings?.loginHeadline || 'GAT and SAT practice, in one place.';
   const loginDescription =
@@ -234,9 +236,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#f3f2f2]">
+    <div
+      className="min-h-screen flex flex-col md:flex-row relative overflow-hidden bg-cover bg-center bg-no-repeat bg-fixed"
+      style={{ backgroundImage: `url(${backgroundUrl})` }}
+    >
+      {/* Deep Space STEM Overlay */}
+      <div className="absolute inset-0 bg-[#061022]/80 backdrop-blur-[2px] pointer-events-none" />
+
       {/* Left Brand Showcase Panel */}
-      <div className="relative overflow-hidden md:w-1/2 lg:w-7/12 min-h-[420px] md:min-h-screen bg-gradient-to-br from-[#0a1730] via-[#1f3d7a] to-[#3d63ad] text-[#f3f2f2] p-8 sm:p-12 lg:p-14 flex flex-col justify-between">
+      <div className="relative z-10 overflow-hidden md:w-1/2 lg:w-7/12 min-h-[420px] md:min-h-screen text-[#f3f2f2] p-8 sm:p-12 lg:p-14 flex flex-col justify-between border-b md:border-b-0 md:border-r border-white/10 bg-gradient-to-br from-black/40 via-transparent to-black/20">
         <div
           className="absolute -left-36 -bottom-48 w-[560px] h-[560px] pointer-events-none rounded-full"
           style={{
@@ -268,8 +276,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
         {/* Hero Title & Pitch */}
         <div className="relative z-10 my-10 max-w-xl space-y-4">
-          <div className="inline-block text-xs font-bold uppercase tracking-wider text-blue-300 border border-blue-400/30 px-3 py-1 bg-blue-900/30">
-            Official Exam Prep
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-300 border border-cyan-400/40 px-3 py-1 bg-cyan-950/40 backdrop-blur-xs rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span>Official Exam Prep Portal</span>
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.05] tracking-tight text-white text-balance">
             {loginHeadline}
@@ -280,7 +289,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </div>
 
         {/* Footer Highlights */}
-        <div className="relative z-10 grid grid-cols-3 border-t-2 border-white/60 pt-4 gap-4 text-xs sm:text-sm text-slate-200">
+        <div className="relative z-10 grid grid-cols-3 border-t-2 border-white/30 pt-4 gap-4 text-xs sm:text-sm text-slate-200">
           {footnotes.map((fn, i) => (
             <div key={i}>
               <span className="text-slate-400 block text-xs">{fn.title}</span>
@@ -290,11 +299,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </div>
       </div>
 
-      {/* Right Form Panel: Sign In or Create Account */}
-      <div className="md:w-1/2 lg:w-5/12 p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-[#f3f2f2]">
-        <div className="w-full max-w-md mx-auto space-y-6">
+      {/* Right Form Panel: Sign In or Create Account (Glassmorphic card floating over the uploaded background) */}
+      <div className="relative z-10 md:w-1/2 lg:w-5/12 p-4 sm:p-8 lg:p-12 flex flex-col justify-center items-center">
+        <div className="w-full max-w-md bg-white/95 backdrop-blur-xl border-2 border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.4)] rounded-3xl p-6 sm:p-9 space-y-6">
           {/* Mode Switcher Tabs */}
-          <div className="flex border-b-2 border-[#201e1d]/30 gap-6 pb-2">
+          <div className="flex border-b-2 border-[#201e1d]/20 gap-6 pb-2">
             <button
               type="button"
               onClick={() => {

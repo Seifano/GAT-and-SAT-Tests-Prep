@@ -96,6 +96,8 @@ export interface ActiveSession {
 export interface AppSettings {
   appName: string;
   logoUrl?: string;
+  backgroundUrl?: string;
+  backgroundTheme?: string;
   loginTitle: string;
   loginHeadline: string;
   loginDescription: string;

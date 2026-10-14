@@ -144,36 +144,36 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t-2 border-l-2 border-[#201e1d]/30 bg-white">
-        <div className="p-6 border-r-2 border-b-2 border-[#201e1d]/30 flex flex-col justify-between">
-          <span className="text-xs text-slate-500 font-bold">Enrolled Students</span>
-          <span className="text-4xl font-black text-[#1f3d7a] my-2 tabular-nums">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between border-t-4 border-t-[#1e3a8a] hover:shadow-xs transition-shadow">
+          <span className="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Enrolled Students</span>
+          <span className="text-3xl sm:text-4xl font-black text-[#1e3a8a] my-2 tabular-nums">
             {studentAccounts.length}
           </span>
-          <span className="text-xs text-slate-700 font-bold">In class roster</span>
+          <span className="text-xs text-slate-600 font-bold">In class roster</span>
         </div>
 
-        <div className="p-6 border-r-2 border-b-2 border-[#201e1d]/30 flex flex-col justify-between">
-          <span className="text-xs text-slate-500 font-bold">Completed Tests</span>
-          <span className="text-4xl font-black text-[#201e1d] my-2 tabular-nums">
+        <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between border-t-4 border-t-slate-700 hover:shadow-xs transition-shadow">
+          <span className="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Completed Tests</span>
+          <span className="text-3xl sm:text-4xl font-black text-[#201e1d] my-2 tabular-nums">
             {totalAttemptsCount}
           </span>
-          <span className="text-xs text-slate-700 font-bold">Mocks &amp; practice sets</span>
+          <span className="text-xs text-slate-600 font-bold">Mocks &amp; practice sets</span>
         </div>
 
-        <div className="p-6 border-r-2 border-b-2 border-[#201e1d]/30 flex flex-col justify-between">
-          <span className="text-xs text-slate-500 font-bold">Active Participation</span>
-          <span className="text-4xl font-black text-emerald-700 my-2 tabular-nums">
+        <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between border-t-4 border-t-emerald-600 hover:shadow-xs transition-shadow">
+          <span className="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Active Participation</span>
+          <span className="text-3xl sm:text-4xl font-black text-emerald-700 my-2 tabular-nums">
             {studentAccounts.length > 0
               ? Math.round((activeStudentsCount / studentAccounts.length) * 100)
               : 0}%
           </span>
-          <span className="text-xs text-slate-700 font-bold">Completed &gt; 1 test session</span>
+          <span className="text-xs text-slate-600 font-bold">Completed &gt; 1 test session</span>
         </div>
 
-        <div className="p-6 border-r-2 border-b-2 border-[#201e1d]/30 flex flex-col justify-between">
-          <span className="text-xs text-slate-500 font-bold">Diagnostic Status</span>
-          <span className="text-4xl font-black text-[#201e1d] my-2 tabular-nums">
+        <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between border-t-4 border-t-amber-500 hover:shadow-xs transition-shadow">
+          <span className="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Diagnostic Status</span>
+          <span className="text-3xl sm:text-4xl font-black text-slate-800 my-2 tabular-nums">
             {studentAccounts.length - activeStudentsCount}
           </span>
           <span className="text-xs text-amber-700 font-bold">Students unassessed</span>

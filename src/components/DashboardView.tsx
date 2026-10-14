@@ -18,6 +18,7 @@ import {
   Award,
   TrendingUp,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   Trophy,
   CheckCircle2,
@@ -87,6 +88,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const [selectedBadge, setSelectedBadge] = useState<string | null>(null);
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showAchievementsSection, setShowAchievementsSection] = useState(false);
+  const [showHeatmapSection, setShowHeatmapSection] = useState(true);
 
   const conf = EXAM_CONFIGS[activeExam];
   const defaultTarget = activeExam === 'NAFS' ? 650 : activeExam === 'GAT' ? 88 : 1450;
@@ -995,19 +998,91 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* FULL ACHIEVEMENTS & BADGES SHOWCASE ON DASHBOARD */}
-      <Achievements
-        compact
-        studentAttempts={studentAttempts}
-        streak={streak}
-        userName={userName}
-        onStartMock={onStartMock}
-        onStartQuick={onStartQuick}
-        onStartFocus={onStartFocus}
-      />
+      {/* Collapsible Section: Achievements & Scholar Accolades */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => setShowAchievementsSection(!showAchievementsSection)}
+          className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50/70 transition-colors cursor-pointer group"
+          aria-expanded={showAchievementsSection}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center ring-1 ring-amber-200 shrink-0">
+              <Trophy className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-slate-900 group-hover:text-[#1e3a8a] transition-colors">
+                  Scholar Badges &amp; Milestone Trophies
+                </span>
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full ring-1 ring-amber-200 shrink-0">
+                  {gamification.badges.filter(b => b.unlocked).length} / {gamification.badges.length} Unlocked
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Earned badges, progress milestones, and scholar accolades across study sessions
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 shrink-0">
+            <span>{showAchievementsSection ? 'Collapse' : 'Expand'}</span>
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showAchievementsSection ? 'rotate-180 text-[#1e3a8a]' : ''}`} />
+          </div>
+        </button>
 
-      {/* Study Frequency Activity Heatmap */}
-      <ActivityHeatmap streak={streak} attempts={studentAttempts} />
+        {showAchievementsSection && (
+          <div className="border-t border-slate-100 p-5 bg-slate-50/30 animate-viewFadeIn">
+            <Achievements
+              compact
+              studentAttempts={studentAttempts}
+              streak={streak}
+              userName={userName}
+              onStartMock={onStartMock}
+              onStartQuick={onStartQuick}
+              onStartFocus={onStartFocus}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Collapsible Section: Study Frequency Activity Heatmap */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => setShowHeatmapSection(!showHeatmapSection)}
+          className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50/70 transition-colors cursor-pointer group"
+          aria-expanded={showHeatmapSection}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#1e3a8a] flex items-center justify-center ring-1 ring-blue-200 shrink-0">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-slate-900 group-hover:text-[#1e3a8a] transition-colors">
+                  Study Activity &amp; Pacing Heatmap
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full ring-1 ring-emerald-200 shrink-0">
+                  {streak}d Active Streak
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Daily drill distribution and mock session frequency across the academic cycle
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 shrink-0">
+            <span>{showHeatmapSection ? 'Collapse' : 'Expand'}</span>
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showHeatmapSection ? 'rotate-180 text-[#1e3a8a]' : ''}`} />
+          </div>
+        </button>
+
+        {showHeatmapSection && (
+          <div className="border-t border-slate-100 p-5 bg-slate-50/30 animate-viewFadeIn">
+            <ActivityHeatmap streak={streak} attempts={studentAttempts} />
+          </div>
+        )}
+      </div>
 
       {/* Official Exam Date Information & Customization Modal */}
       {showDateModal && (
