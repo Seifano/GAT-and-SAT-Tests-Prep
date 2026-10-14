@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveSession, Question } from '../types';
-import { Clock, Flag, X, ArrowLeft, ArrowRight, Bookmark, BookOpen, Calculator, Strikethrough, Check } from 'lucide-react';
+import { Clock, X, ArrowRight, Bookmark, BookOpen, Calculator, Strikethrough } from 'lucide-react';
 import { ReferenceSheetModal } from './tools/ReferenceSheetModal';
 import { CalculatorModal } from './tools/CalculatorModal';
 

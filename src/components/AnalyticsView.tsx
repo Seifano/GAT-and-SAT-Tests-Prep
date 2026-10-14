@@ -5,7 +5,7 @@ import { ScoreTrajectoryChart } from './charts/ScoreTrajectoryChart';
 import { SkillRadarChart } from './charts/SkillRadarChart';
 import { PacingQuadrantChart } from './charts/PacingQuadrantChart';
 import { ScoreSimulator } from './charts/ScoreSimulator';
-import { BarChart3, TrendingUp, Compass, Clock, Calculator, Calendar, ArrowRight, Zap, Award } from 'lucide-react';
+import { ArrowRight, Zap } from 'lucide-react';
 
 interface AnalyticsViewProps {
   activeExam: ExamType;

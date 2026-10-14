@@ -3,10 +3,7 @@ import { ExamType, UserAccount } from '../types';
 import {
   LayoutGrid,
   Zap,
-  TrendingUp,
-  Layers,
   Award,
-  Trophy,
   BookOpen,
   Compass,
   Users,
@@ -18,9 +15,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Flame,
-  ArrowLeft,
-  CheckCircle2
+  ArrowLeft
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -74,56 +69,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isStaff = isAdmin || isTeacher;
   const isViewingStudentSide = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
 
-  // Student navigation hierarchy
+  // Student navigation hierarchy: ultra-clean, straightforward, zero confusion
   const studentCategories: NavCategory[] = [
     {
-      title: 'Study & Drills',
+      title: 'Practice & Study',
       items: [
-        { id: 'dashboard', label: 'Dashboard', desc: 'Overview & daily targets', icon: LayoutGrid },
-        { id: 'practice', label: 'Practice Drills', desc: 'Timed modular sets', icon: Zap }
+        { id: 'dashboard', label: 'Home & Practice', desc: 'Mock exams, warmup & progress', icon: LayoutGrid },
+        { id: 'practice', label: 'Practice by Topic', desc: 'Drills for specific skills', icon: Zap },
+        { id: 'browser', label: 'Question Bank', desc: 'Grade-matched verified questions', icon: BookOpen, badge: questionCounts && questionCounts[activeExam] ? `${questionCounts[activeExam]}` : undefined },
+        { id: 'results', label: 'My Test History', desc: 'Past scores & review answers', icon: Award }
       ]
     },
     {
-      title: 'Diagnostics & Mastery',
-      items: [
-        { id: 'analytics', label: 'Deep Analytics', desc: 'Diagnostic curves & standing', icon: TrendingUp },
-        { id: 'skills', label: 'Skill Matrix', desc: 'Proficiency diagnostics', icon: Layers },
-        { id: 'results', label: 'Past Test Reports', desc: 'Detailed test analysis', icon: Award }
-      ]
-    },
-    {
-      title: 'Scholar Milestones',
-      items: [
-        {
-          id: 'achievements',
-          label: 'Achievements & XP',
-          desc: 'Badges, milestones & streaks',
-          icon: Trophy,
-          badge: xp !== undefined && xp > 0 ? `${xp} XP` : undefined
-        }
-      ]
-    },
-    {
-      title: 'Curriculum',
-      items: [
-        {
-          id: 'browser',
-          label: 'Question Library',
-          desc: 'Verified question bank',
-          icon: BookOpen,
-          badge: questionCounts && questionCounts[activeExam] ? `${questionCounts[activeExam]}` : undefined
-        }
-      ]
-    },
-    {
-      title: 'Examination Track',
+      title: 'Exam Track',
       items: [
         {
           id: 'studentSelect',
-          label: 'Switch Exam Track',
-          desc: 'Return to GAT, SAT, NAFS',
+          label: user?.studentLevel === 'High School' ? 'Switch Exam (GAT / SAT)' : 'My Track (NAFS)',
+          desc: user?.studentLevel === 'High School'
+            ? 'Change between GAT and SAT'
+            : `Assigned: ${user?.studentLevel || 'Grade 6'}`,
           icon: Compass,
-          badge: activeExam
+          badge: user?.studentLevel === 'High School' ? activeExam : (user?.studentLevel || 'NAFS')
         }
       ]
     }
@@ -210,26 +177,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            {/* Quick search input within the sidebar */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Filter tabs..."
-                className="w-full pl-7 pr-6 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] transition-all"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+            {/* Quick search input within the sidebar (only shown if many tabs) */}
+            {currentCategories.reduce((acc, cat) => acc + cat.items.length, 0) > 5 && (
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Filter tabs..."
+                  className="w-full pl-7 pr-6 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a] transition-all"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-1">

@@ -88,6 +88,8 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
         username: data.username,
         email: data.email,
         role: userRole,
+        studentLevel: data.studentLevel || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? 'Grade 6' : data.name?.toLowerCase().includes('omar') ? 'Grade 9' : 'High School') : undefined),
+        studentClass: data.studentClass || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? '6-A' : data.name?.toLowerCase().includes('omar') ? '9-B' : '11-A') : undefined),
         password: data.password,
         created: data.created || 'Oct 5'
       });
@@ -181,14 +183,17 @@ export async function saveUserToDb(account: UserAccount): Promise<void> {
   try {
     const docId = account.username.toLowerCase().trim().replace(/\//g, '_');
     const userDocRef = doc(db, 'users', docId);
-    await setDoc(userDocRef, {
+    const payload: Record<string, any> = {
       name: account.name,
       username: account.username,
       email: account.email || '',
       role: account.role,
       password: account.password,
       created: account.created || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }, { merge: true });
+    };
+    if (account.studentLevel) payload.studentLevel = account.studentLevel;
+    if (account.studentClass) payload.studentClass = account.studentClass;
+    await setDoc(userDocRef, payload, { merge: true });
     console.log(`User @${account.username} saved to Firestore database.`);
   } catch (err) {
     console.error(`Error saving user @${account.username} to Firestore:`, err);
@@ -203,14 +208,17 @@ export async function saveUsersBatchToDb(newAccounts: UserAccount[]): Promise<vo
     newAccounts.forEach(account => {
       const docId = account.username.toLowerCase().trim().replace(/\//g, '_');
       const userDocRef = doc(db, 'users', docId);
-      batch.set(userDocRef, {
+      const payload: Record<string, any> = {
         name: account.name,
         username: account.username,
         email: account.email || '',
         role: account.role,
         password: account.password,
         created: account.created || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      }, { merge: true });
+      };
+      if (account.studentLevel) payload.studentLevel = account.studentLevel;
+      if (account.studentClass) payload.studentClass = account.studentClass;
+      batch.set(userDocRef, payload, { merge: true });
     });
     await batch.commit();
     console.log(`Batch of ${newAccounts.length} users saved to Firestore database.`);

@@ -37,12 +37,15 @@ export interface QuestionDraft extends Omit<Question, 'id'> {
 }
 
 export type UserRole = 'Student' | 'Teacher' | 'Admin';
+export type StudentLevel = 'Grade 6' | 'Grade 9' | 'High School';
 
 export interface UserAccount {
   name: string;
   username: string;
   email?: string;
   role: UserRole;
+  studentLevel?: StudentLevel;
+  studentClass?: string;
   password?: string;
   created: string;
 }

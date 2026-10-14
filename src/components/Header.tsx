@@ -160,14 +160,16 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Live Firestore DB Indicator */}
-            <div
-              title={`Cloud Protection: Connected & Synchronized (${lastCloudSyncTime})`}
-              className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Cloud Protected</span>
-            </div>
+            {/* Live Firestore DB Indicator (Staff only) */}
+            {(isAdmin || isTeacher) && (
+              <div
+                title={`Cloud Protection: Connected & Synchronized (${lastCloudSyncTime})`}
+                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Cloud Protected</span>
+              </div>
+            )}
 
             {/* Track Indicator: Locked in Student View (Must return to Main Menu to switch) */}
             {currentScreen !== 'studentSelect' && (
@@ -181,6 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
                   }`}>
                     {activeExam}
+                    {user?.role === 'Student' && user?.studentLevel ? ` (${user.studentLevel})` : ''}
                   </span>
                 </div>
               ) : (
@@ -250,11 +253,16 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
               <div
-                title="Student Account · Student View Only"
-                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50/90 rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0 whitespace-nowrap"
+                title={`Student Account · ${user?.studentLevel || 'Student'}${user?.studentClass ? ` (Class ${user.studentClass})` : ''}`}
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50/90 rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0 whitespace-nowrap"
               >
                 <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Student View</span>
+                <span>{user?.studentLevel || 'Student'}</span>
+                {user?.studentClass && (
+                  <span className="px-1.5 py-0.2 bg-white rounded text-[10px] font-black text-slate-700 border border-slate-200">
+                    {user.studentClass}
+                  </span>
+                )}
               </div>
             )}
 

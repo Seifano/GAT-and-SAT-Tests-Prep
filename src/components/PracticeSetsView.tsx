@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { ExamType, Question } from '../types';
+import { ExamType, Question, UserAccount } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { ArrowRight, Check, Zap, Target, Sparkles, BookOpen } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 
 interface PracticeSetsViewProps {
   activeExam: ExamType;
   bank: Question[];
   mastery: Record<string, number>;
+  currentUser?: UserAccount | null;
   onStartMock: () => void;
   onStartFocus: (skills: string[]) => void;
   onStartQuick: () => void;
@@ -16,12 +17,26 @@ export const PracticeSetsView: React.FC<PracticeSetsViewProps> = ({
   activeExam,
   bank,
   mastery,
+  currentUser,
   onStartMock,
   onStartFocus,
   onStartQuick
 }) => {
   const conf = EXAM_CONFIGS[activeExam];
-  const allSkills = conf.sections.flatMap(s => s.skills);
+  const allSkills = (() => {
+    if (currentUser?.role === 'Student' && activeExam === 'NAFS') {
+      if (currentUser.studentLevel === 'Grade 6') {
+        const sec = conf.sections.find(s => s.name.includes('Grade 6') || s.name.includes('G6'));
+        return sec ? sec.skills : conf.sections.flatMap(s => s.skills);
+      }
+      if (currentUser.studentLevel === 'Grade 9') {
+        const sec = conf.sections.find(s => s.name.includes('Grade 9') || s.name.includes('G9'));
+        return sec ? sec.skills : conf.sections.flatMap(s => s.skills);
+      }
+    }
+    return conf.sections.flatMap(s => s.skills);
+  })();
+
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
   const toggleSkill = (sk: string) => {
@@ -38,10 +53,10 @@ export const PracticeSetsView: React.FC<PracticeSetsViewProps> = ({
       {/* Header Banner */}
       <div className="pb-6 border-b border-slate-300 min-w-0">
         <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
-          Gamified Training Grounds
+          {currentUser?.role === 'Student' && currentUser.studentLevel ? `${currentUser.studentLevel} Training Arena` : 'Gamified Training Grounds'}
         </div>
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
-          Choose Your {activeExam} Training Arena
+          Choose Your {activeExam}{currentUser?.role === 'Student' && currentUser.studentLevel ? ` (${currentUser.studentLevel})` : ''} Training Arena
         </h1>
         <p className="text-sm text-slate-600 max-w-xl mt-1.5 leading-relaxed break-words">
           From high-velocity warmup sprints to full-length timed simulations, earn XP and level up your mastery with every completed set.

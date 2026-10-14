@@ -3,7 +3,7 @@ import { AppSettings } from '../types';
 import { AHS_LOGO_SRC } from '../assets/logo';
 import { PRESET_LOGOS } from '../data/presetLogos';
 import { PRESET_BACKGROUNDS, DEFAULT_TECH_BACKGROUND_DATA_URL } from '../assets/background';
-import { Upload, RotateCcw, Check, Sparkles, Image, Eye, Type, CheckCircle2, Palette, Layers } from 'lucide-react';
+import { Upload, RotateCcw, Check, Sparkles, Image, Eye, Type, CheckCircle2, Palette } from 'lucide-react';
 
 interface AdminBrandingViewProps {
   settings: AppSettings;

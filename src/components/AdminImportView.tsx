@@ -3,7 +3,7 @@ import { QuestionDraft, Question, ExamType } from '../types';
 import { parseRawQuestionsText } from '../utils/questionParser';
 import { extractTextFromFile } from '../utils/documentParser';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { UploadCloud, FileText, Check, Trash2, Edit3, X, Sparkles, Loader2, FileCheck, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileText, Check, X, Loader2, FileCheck, AlertCircle } from 'lucide-react';
 
 interface AdminImportViewProps {
   onImportDrafts: (questions: Question[]) => void | Promise<void>;

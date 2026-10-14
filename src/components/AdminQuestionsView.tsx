@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Question, ExamType } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { Plus, Search, Filter, Trash2, Edit3, X, BookOpen, UploadCloud, Cloud, RefreshCw, ChevronDown } from 'lucide-react';
+import { Plus, Search, Filter, Trash2, Edit3, X, UploadCloud, Cloud, RefreshCw, ChevronDown } from 'lucide-react';
 
 interface AdminQuestionsViewProps {
   bank: Record<ExamType, Question[]>;

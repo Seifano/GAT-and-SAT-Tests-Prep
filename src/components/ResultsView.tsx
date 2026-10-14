@@ -1,29 +1,56 @@
 import React, { useState } from 'react';
 import { TestAttempt, Question, UserProfile } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { ArrowRight, ChevronDown, ChevronUp, RotateCcw, Award, CheckCircle2, XCircle, Clock, Zap, Target } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, RotateCcw, Award, CheckCircle2, XCircle } from 'lucide-react';
 
 interface ResultsViewProps {
-  attempt: TestAttempt;
+  attempt?: TestAttempt | null;
+  allAttempts?: TestAttempt[];
   allQuestions: Question[];
   profile: UserProfile;
   onRetake: () => void;
   onPracticeWeak: (skills: string[]) => void;
   onReturnDashboard: () => void;
   onRetakeMissed?: (qids: string[]) => void;
+  onSelectAttempt?: (att: TestAttempt) => void;
 }
 
 export const ResultsView: React.FC<ResultsViewProps> = ({
   attempt,
+  allAttempts = [],
   allQuestions,
   profile,
   onRetake,
   onPracticeWeak,
   onReturnDashboard,
-  onRetakeMissed
+  onRetakeMissed,
+  onSelectAttempt
 }) => {
   const [filterMode, setFilterMode] = useState<'missed' | 'all' | 'flagged'>('missed');
   const [openPassageId, setOpenPassageId] = useState<string | null>(null);
+
+  if (!attempt) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-6">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#1e3a8a] border border-blue-200 flex items-center justify-center mx-auto shadow-2xs">
+          <Award className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-slate-900">No Test Reports Yet</h2>
+          <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+            You haven't completed any test sessions yet. Take a timed mock exam or a 5-minute warmup to see your score, question-by-question breakdown, and explanations here.
+          </p>
+        </div>
+        <button
+          onClick={onReturnDashboard}
+          className="px-6 py-3 bg-[#1e3a8a] hover:bg-blue-800 text-white font-extrabold text-sm rounded-xl shadow-xs transition-colors cursor-pointer inline-flex items-center gap-2"
+        >
+          <span>Go to Practice Hub</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
 
   const conf = EXAM_CONFIGS[attempt.exam];
   const defaultTarget = attempt.exam === 'NAFS' ? 650 : attempt.exam === 'GAT' ? 88 : 1450;
@@ -112,7 +139,27 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const missedQIds = missedItems.map(item => item.q.id);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 font-sans">
+      {/* Test Attempt Switcher (if multiple attempts) */}
+      {allAttempts.length > 1 && onSelectAttempt && (
+        <div className="flex flex-wrap items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+          <span className="text-xs font-bold text-slate-500">Past Sessions:</span>
+          {allAttempts.slice(0, 6).map(att => (
+            <button
+              key={att.id}
+              onClick={() => onSelectAttempt(att)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                att.id === attempt.id
+                  ? 'bg-[#1e3a8a] text-white shadow-2xs'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              <span>{att.label || att.exam} · {att.score} pts ({att.date})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
         <div className="min-w-0">

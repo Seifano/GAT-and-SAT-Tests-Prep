@@ -7,7 +7,8 @@ import {
   TestAttempt,
   ActiveSession,
   AppSettings,
-  UserRole
+  UserRole,
+  StudentLevel
 } from './types';
 import {
   EXAM_CONFIGS,
@@ -66,13 +67,13 @@ const STORAGE_KEY = 'ahs_prepline_v5';
 const VAULT_STORAGE_KEY = 'ahs_immutable_account_vault_v1';
 
 export const ACTIVE_VIEW_INFO: Record<string, { title: string; subtitle: string; category: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Overview, diagnostic goals, score trends & daily targets', category: 'Study' },
-  practice: { title: 'Practice Sets', subtitle: 'Modular drill sets and timed domain questions', category: 'Study' },
+  dashboard: { title: 'Home & Practice', subtitle: 'Start mock tests, quick warmup, and check your progress', category: 'Study' },
+  practice: { title: 'Practice by Topic', subtitle: 'Drills for specific skills and curriculum domains', category: 'Study' },
   analytics: { title: 'Deep Analytics', subtitle: 'Diagnostic curves, standing & skill progression', category: 'Diagnostics' },
   skills: { title: 'Skill Matrix', subtitle: 'Domain-by-domain proficiency diagnostics & mastery', category: 'Diagnostics' },
   achievements: { title: 'Achievements & XP', subtitle: 'Earned scholar milestones, tier badges & active study streaks', category: 'Milestones' },
-  browser: { title: 'Question Library', subtitle: 'Browse verified questions, answer keys & passages', category: 'Curriculum' },
-  results: { title: 'Test Reports', subtitle: 'Diagnostic summary and detailed solution review', category: 'Diagnostics' },
+  browser: { title: 'Question Bank', subtitle: 'Grade-matched verified questions and answer explanations', category: 'Curriculum' },
+  results: { title: 'My Test History', subtitle: 'Review past test scores, question answers, and explanations', category: 'Diagnostics' },
   studentProgress: { title: 'Student Progress', subtitle: 'Roster diagnostic analytics, scores & attempt tracking', category: 'Academic' },
   adminQuestions: { title: 'Question Bank', subtitle: 'Create, edit, audit & manage test questions across tracks', category: 'Curriculum' },
   adminImport: { title: 'Word & PDF Importer', subtitle: 'Bulk convert exam documents into structured question items', category: 'Curriculum' },
@@ -466,10 +467,10 @@ export default function App() {
     return true;
   };
 
-  // Enforce strict Role-Based Access Control (RBAC):
+  // Enforce strict Role-Based Access Control (RBAC) and Student Grade Level Access:
   // - Student can ONLY see student view
-  // - Teacher can ONLY see teacher view
-  // - Admin has full access to everything
+  // - High School students have access ONLY to SAT and GAT (access denied to NAFS)
+  // - Grade 6 and Grade 9 students have access ONLY to NAFS (access denied to SAT and GAT)
   useEffect(() => {
     if (!user || currentScreen === 'login' || currentScreen === 'onboard') return;
 
@@ -480,12 +481,23 @@ export default function App() {
       if (!studentScreens.includes(currentScreen)) {
         setCurrentScreen('studentSelect');
       }
+
+      // Enforce grade pathway restrictions on activeExam
+      if (user.studentLevel === 'High School') {
+        if (activeExam === 'NAFS') {
+          setActiveExam('GAT');
+        }
+      } else if (user.studentLevel === 'Grade 6' || user.studentLevel === 'Grade 9') {
+        if (activeExam === 'GAT' || activeExam === 'SAT') {
+          setActiveExam('NAFS');
+        }
+      }
     } else if (user.role === 'Teacher') {
       if (!teacherScreens.includes(currentScreen)) {
         setCurrentScreen('studentProgress');
       }
     }
-  }, [user?.role, currentScreen]);
+  }, [user?.role, user?.studentLevel, currentScreen, activeExam]);
 
   const handleSignOut = () => {
     setUser(null);
@@ -523,6 +535,55 @@ export default function App() {
     showToast(`Updated @${username} to ${newRole} role.`);
   };
 
+  const handleUpdateStudentInfo = (username: string, studentLevel: StudentLevel, studentClass?: string) => {
+    setAccounts(prev => {
+      const updated = prev.map(a =>
+        a.username.toLowerCase() === username.toLowerCase()
+          ? { ...a, studentLevel, studentClass }
+          : a
+      );
+      const target = updated.find(a => a.username.toLowerCase() === username.toLowerCase());
+      if (target) {
+        saveUserToDb(target).catch(console.error);
+      }
+      return updated;
+    });
+
+    if (user && user.username.toLowerCase() === username.toLowerCase()) {
+      setUser(prev => (prev ? { ...prev, studentLevel, studentClass } : null));
+    }
+
+    showToast(`Updated @${username}: ${studentLevel} · Class ${studentClass || 'None'}`);
+  };
+
+  // Helper: Retrieve question bank accessible to the currently active user
+  // - Grade 6 students: only Grade 6 NAFS questions
+  // - Grade 9 students: only Grade 9 NAFS questions
+  // - High School students: only SAT and GAT questions (NAFS denied)
+  // - Faculty & Admin: full question bank
+  const getAccessibleBank = (exam: ExamType): Question[] => {
+    const list = bank[exam] || [];
+    if (!user || user.role !== 'Student') return list;
+
+    if (exam === 'NAFS') {
+      if (user.studentLevel === 'Grade 6') {
+        return list.filter(q => q.section.includes('Grade 6') || q.section.includes('G6'));
+      }
+      if (user.studentLevel === 'Grade 9') {
+        return list.filter(q => q.section.includes('Grade 9') || q.section.includes('G9'));
+      }
+      return []; // High School students denied NAFS
+    }
+
+    if (exam === 'GAT' || exam === 'SAT') {
+      if (user.studentLevel === 'Grade 6' || user.studentLevel === 'Grade 9') {
+        return []; // Grade 6 & 9 denied SAT & GAT
+      }
+    }
+
+    return list;
+  };
+
   const shuffle = <T,>(arr: T[]): T[] => {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -533,7 +594,8 @@ export default function App() {
   };
 
   const sampleQuestions = (exam: ExamType, targetSkills: string[], totalTarget: number): string[] => {
-    const currentList = bank[exam];
+    const currentList = getAccessibleBank(exam);
+    if (!currentList.length) return [];
     const seenMap = seen[exam] || {};
 
     let selectedIds: string[] = [];
@@ -560,14 +622,37 @@ export default function App() {
 
   const startMockExam = (examToUse?: ExamType) => {
     const ex = examToUse || activeExam;
-    const currentBank = bank[ex];
+
+    // Enforce student access control
+    if (user?.role === 'Student') {
+      if (user.studentLevel === 'High School' && ex === 'NAFS') {
+        showToast('Access Denied: High School students are assigned to SAT and GAT only.');
+        return;
+      }
+      if ((user.studentLevel === 'Grade 6' || user.studentLevel === 'Grade 9') && (ex === 'GAT' || ex === 'SAT')) {
+        showToast(`Access Denied: ${user.studentLevel} students are assigned to NAFS only.`);
+        return;
+      }
+    }
+
+    const currentBank = getAccessibleBank(ex);
     if (!currentBank.length) {
       showToast(`No questions loaded for ${ex}. Add questions in Admin view.`);
       return;
     }
 
     const conf = EXAM_CONFIGS[ex];
-    const allSkills = conf.sections.flatMap(s => s.skills);
+    let allSkills = conf.sections.flatMap(s => s.skills);
+    if (user?.role === 'Student' && ex === 'NAFS') {
+      if (user.studentLevel === 'Grade 6') {
+        const sec = conf.sections.find(s => s.name.includes('Grade 6') || s.name.includes('G6'));
+        if (sec) allSkills = sec.skills;
+      } else if (user.studentLevel === 'Grade 9') {
+        const sec = conf.sections.find(s => s.name.includes('Grade 9') || s.name.includes('G9'));
+        if (sec) allSkills = sec.skills;
+      }
+    }
+
     const mockCount = Math.min(currentBank.length, ex === 'GAT' ? 25 : 20);
     const qids = sampleQuestions(ex, allSkills, mockCount);
     const timeSeconds = Math.max(300, qids.length * 48);
@@ -575,7 +660,7 @@ export default function App() {
     setSession({
       exam: ex,
       kind: 'mock',
-      label: `Full ${ex} mock`,
+      label: `Full ${ex} mock${user?.role === 'Student' && user?.studentLevel ? ` (${user.studentLevel})` : ''}`,
       qids,
       answers: {},
       flagged: {},
@@ -589,7 +674,20 @@ export default function App() {
 
   const startFocusDrill = (skills: string[]) => {
     const ex = activeExam;
-    const currentBank = bank[ex];
+
+    // Enforce student access control
+    if (user?.role === 'Student') {
+      if (user.studentLevel === 'High School' && ex === 'NAFS') {
+        showToast('Access Denied: High School students are assigned to SAT and GAT only.');
+        return;
+      }
+      if ((user.studentLevel === 'Grade 6' || user.studentLevel === 'Grade 9') && (ex === 'GAT' || ex === 'SAT')) {
+        showToast(`Access Denied: ${user.studentLevel} students are assigned to NAFS only.`);
+        return;
+      }
+    }
+
+    const currentBank = getAccessibleBank(ex);
     if (!currentBank.length) {
       showToast(`No questions loaded for ${ex}.`);
       return;
@@ -615,11 +713,34 @@ export default function App() {
 
   const startQuickWarmup = () => {
     const ex = activeExam;
-    const currentBank = bank[ex];
+
+    // Enforce student access control
+    if (user?.role === 'Student') {
+      if (user.studentLevel === 'High School' && ex === 'NAFS') {
+        showToast('Access Denied: High School students are assigned to SAT and GAT only.');
+        return;
+      }
+      if ((user.studentLevel === 'Grade 6' || user.studentLevel === 'Grade 9') && (ex === 'GAT' || ex === 'SAT')) {
+        showToast(`Access Denied: ${user.studentLevel} students are assigned to NAFS only.`);
+        return;
+      }
+    }
+
+    const currentBank = getAccessibleBank(ex);
     if (!currentBank.length) return;
 
     const conf = EXAM_CONFIGS[ex];
-    const allSkills = conf.sections.flatMap(s => s.skills);
+    let allSkills = conf.sections.flatMap(s => s.skills);
+    if (user?.role === 'Student' && ex === 'NAFS') {
+      if (user.studentLevel === 'Grade 6') {
+        const sec = conf.sections.find(s => s.name.includes('Grade 6') || s.name.includes('G6'));
+        if (sec) allSkills = sec.skills;
+      } else if (user.studentLevel === 'Grade 9') {
+        const sec = conf.sections.find(s => s.name.includes('Grade 9') || s.name.includes('G9'));
+        if (sec) allSkills = sec.skills;
+      }
+    }
+
     const qids = sampleQuestions(ex, allSkills, Math.min(5, currentBank.length));
     const timeSeconds = qids.length * 50;
 
@@ -989,9 +1110,9 @@ export default function App() {
                 });
               }}
               questionCounts={{
-                NAFS: bank.NAFS?.length || 0,
-                GAT: bank.GAT?.length || 0,
-                SAT: bank.SAT?.length || 0
+                NAFS: getAccessibleBank('NAFS').length,
+                GAT: getAccessibleBank('GAT').length,
+                SAT: getAccessibleBank('SAT').length
               }}
               streak={authenticStreak}
               xp={studentGamification.xp}
@@ -1019,6 +1140,9 @@ export default function App() {
                           activeExam === 'NAFS' ? 'bg-emerald-600' : activeExam === 'GAT' ? 'bg-red-600' : 'bg-[#1e3a8a]'
                         }`} />
                         <span>{activeExam} Track</span>
+                        {user?.role === 'Student' && user?.studentLevel && (
+                          <span className="text-[11px] font-bold text-slate-500">({user.studentLevel})</span>
+                        )}
                       </div>
                     ) : (
                       <span className="font-bold text-slate-700">Staff Console</span>
@@ -1066,11 +1190,12 @@ export default function App() {
         {/* Student Gateway: Select GAT, SAT, or NAFS before any analytics/data is shown */}
         {currentScreen === 'studentSelect' && (
           <StudentExamGateway
+            user={user}
             userName={user?.name || 'Student'}
             questionsCount={{
-              NAFS: bank.NAFS?.length || 500,
-              GAT: bank.GAT?.length || 25,
-              SAT: bank.SAT?.length || 25
+              NAFS: getAccessibleBank('NAFS').length,
+              GAT: getAccessibleBank('GAT').length,
+              SAT: getAccessibleBank('SAT').length
             }}
             onSelectTrack={exam => {
               setActiveExam(exam);
@@ -1104,8 +1229,9 @@ export default function App() {
             history={authenticHistory}
             streak={authenticStreak}
             weekDone={weekDone}
-            bank={bank[activeExam]}
+            bank={getAccessibleBank(activeExam)}
             userName={user?.name || 'Student'}
+            currentUser={user}
             studentAttempts={currentExamAttempts}
             onStartMock={() => startMockExam(activeExam)}
             onStartFocus={skills => startFocusDrill(skills)}
@@ -1114,6 +1240,9 @@ export default function App() {
             onViewResults={() => setCurrentScreen('results')}
             onViewAnalytics={() => setCurrentScreen('analytics')}
             onViewAchievements={() => setCurrentScreen('achievements')}
+            onNavigateToPractice={() => setCurrentScreen('practice')}
+            onNavigateToBrowser={() => setCurrentScreen('browser')}
+            onRetakeMissed={startMissedDrill}
             hasPastResults={currentExamAttempts.length > 0 || !!lastAttempt}
             onUpdateTargetDate={handleUpdateTargetDate}
             onGoBackToMainMenu={() => setCurrentScreen('studentSelect')}
@@ -1141,7 +1270,7 @@ export default function App() {
             mastery={authenticMastery}
             history={authenticHistory}
             streak={authenticStreak}
-            bank={bank[activeExam]}
+            bank={getAccessibleBank(activeExam)}
             onStartFocus={skills => startFocusDrill(skills)}
             onStartMock={() => startMockExam(activeExam)}
           />
@@ -1153,7 +1282,8 @@ export default function App() {
             profile={profile}
             mastery={authenticMastery}
             history={authenticHistory}
-            bank={bank[activeExam]}
+            bank={getAccessibleBank(activeExam)}
+            currentUser={user}
             onStartFocus={skills => startFocusDrill(skills)}
           />
         )}
@@ -1161,8 +1291,9 @@ export default function App() {
         {currentScreen === 'practice' && (
           <PracticeSetsView
             activeExam={activeExam}
-            bank={bank[activeExam]}
+            bank={getAccessibleBank(activeExam)}
             mastery={authenticMastery}
+            currentUser={user}
             onStartMock={() => startMockExam(activeExam)}
             onStartFocus={skills => startFocusDrill(skills)}
             onStartQuick={startQuickWarmup}
@@ -1173,6 +1304,7 @@ export default function App() {
           <QuestionBrowserView
             activeExam={activeExam}
             bank={bank}
+            currentUser={user}
             isStudent={user?.role === 'Student' || ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen)}
             onGoBackToMainMenu={() => setCurrentScreen('studentSelect')}
             onSelectExam={user?.role === 'Admin' || user?.role === 'Teacher' ? ex => setActiveExam(ex) : undefined}
@@ -1221,16 +1353,18 @@ export default function App() {
           />
         )}
 
-        {currentScreen === 'results' && lastAttempt && (
+        {currentScreen === 'results' && (
           <ResultsView
-            attempt={lastAttempt}
-            allQuestions={bank[lastAttempt.exam]}
+            attempt={lastAttempt || (currentExamAttempts.length > 0 ? currentExamAttempts[0] : null)}
+            allAttempts={currentExamAttempts}
+            allQuestions={bank[activeExam]}
             profile={profile}
+            onSelectAttempt={att => setLastAttempt(att)}
             onRetake={() => {
-              if (lastAttempt.kind === 'mock') {
+              if (lastAttempt && lastAttempt.kind === 'mock') {
                 startMockExam(lastAttempt.exam);
               } else {
-                startFocusDrill(lastAttempt.bySkill.map(s => s.skill));
+                startMockExam(activeExam);
               }
             }}
             onPracticeWeak={skills => startFocusDrill(skills)}
@@ -1287,6 +1421,7 @@ export default function App() {
               onResetPassword={handleResetPassword}
               onDeleteAccount={handleDeleteAccount}
               onUpdateAccountRole={handleUpdateAccountRole}
+              onUpdateStudentInfo={handleUpdateStudentInfo}
               onSyncAllToCloud={handleSyncAllToCloud}
               cloudSyncStatus={cloudSyncStatus}
               lastCloudSyncTime={lastCloudSyncTime}

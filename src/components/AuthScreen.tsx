@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserAccount, ExamType, AppSettings } from '../types';
+import { UserAccount, ExamType, AppSettings, StudentLevel } from '../types';
 import { AHS_LOGO_SRC } from '../assets/logo';
-import { DEFAULT_TECH_BACKGROUND_DATA_URL } from '../assets/background';
-import { ArrowRight, UserPlus, LogIn, Check, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { ArrowRight, UserPlus, LogIn, Check, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 interface AuthScreenProps {
   onSignIn: (username: string, password: string) => Promise<boolean>;
@@ -31,8 +30,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
-  const [selectedExams, setSelectedExams] = useState<ExamType[]>(['NAFS', 'GAT', 'SAT']);
+  const [selectedExams, setSelectedExams] = useState<ExamType[]>(['NAFS']);
   const [newRole, setNewRole] = useState<'Student' | 'Teacher' | 'Admin'>('Student');
+  const [studentLevel, setStudentLevel] = useState<StudentLevel>('Grade 6');
+  const [studentClass, setStudentClass] = useState('6-A');
 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,7 +43,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   // Resolved branding settings
   const logo = settings?.logoUrl || AHS_LOGO_SRC;
-  const backgroundUrl = settings?.backgroundUrl || DEFAULT_TECH_BACKGROUND_DATA_URL;
   const loginTitle = settings?.loginTitle || 'AHS Exams Prepline';
   const loginHeadline = settings?.loginHeadline || 'GAT and SAT practice, in one place.';
   const loginDescription =
@@ -217,18 +217,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
 
     setError('');
-    setBusy(true);
+    const examsToEnroll = newRole === 'Student'
+      ? (studentLevel === 'High School' ? (['GAT', 'SAT'] as ExamType[]) : (['NAFS'] as ExamType[]))
+      : selectedExams;
 
     const newAccount: UserAccount = {
       name: name.trim(),
       username: cleanUser,
       email: email.trim() || undefined,
       role: newRole,
+      studentLevel: newRole === 'Student' ? studentLevel : undefined,
+      studentClass: newRole === 'Student' ? (studentClass.trim() || (studentLevel === 'Grade 6' ? '6-A' : studentLevel === 'Grade 9' ? '9-A' : '10-A')) : undefined,
       password: newPassword,
       created: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     };
 
-    const success = await onCreateAccount(newAccount, selectedExams);
+    const success = await onCreateAccount(newAccount, examsToEnroll);
     setBusy(false);
     if (!success) {
       setError('Could not create account. Please try again.');
@@ -236,15 +240,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col md:flex-row relative overflow-hidden bg-cover bg-center bg-no-repeat bg-fixed"
-      style={{ backgroundImage: `url(${backgroundUrl})` }}
-    >
-      {/* Deep Space STEM Overlay */}
-      <div className="absolute inset-0 bg-[#061022]/80 backdrop-blur-[2px] pointer-events-none" />
-
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#f3f2f2]">
       {/* Left Brand Showcase Panel */}
-      <div className="relative z-10 overflow-hidden md:w-1/2 lg:w-7/12 min-h-[420px] md:min-h-screen text-[#f3f2f2] p-8 sm:p-12 lg:p-14 flex flex-col justify-between border-b md:border-b-0 md:border-r border-white/10 bg-gradient-to-br from-black/40 via-transparent to-black/20">
+      <div className="relative overflow-hidden md:w-1/2 lg:w-7/12 min-h-[420px] md:min-h-screen bg-gradient-to-br from-[#0a1730] via-[#1f3d7a] to-[#3d63ad] text-[#f3f2f2] p-8 sm:p-12 lg:p-14 flex flex-col justify-between">
         <div
           className="absolute -left-36 -bottom-48 w-[560px] h-[560px] pointer-events-none rounded-full"
           style={{
@@ -276,9 +274,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
         {/* Hero Title & Pitch */}
         <div className="relative z-10 my-10 max-w-xl space-y-4">
-          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-300 border border-cyan-400/40 px-3 py-1 bg-cyan-950/40 backdrop-blur-xs rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span>Official Exam Prep Portal</span>
+          <div className="inline-block text-xs font-bold uppercase tracking-wider text-blue-300 border border-blue-400/30 px-3 py-1 bg-blue-900/30">
+            Official Exam Prep
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.05] tracking-tight text-white text-balance">
             {loginHeadline}
@@ -289,7 +286,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </div>
 
         {/* Footer Highlights */}
-        <div className="relative z-10 grid grid-cols-3 border-t-2 border-white/30 pt-4 gap-4 text-xs sm:text-sm text-slate-200">
+        <div className="relative z-10 grid grid-cols-3 border-t-2 border-white/60 pt-4 gap-4 text-xs sm:text-sm text-slate-200">
           {footnotes.map((fn, i) => (
             <div key={i}>
               <span className="text-slate-400 block text-xs">{fn.title}</span>
@@ -299,11 +296,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </div>
       </div>
 
-      {/* Right Form Panel: Sign In or Create Account (Glassmorphic card floating over the uploaded background) */}
-      <div className="relative z-10 md:w-1/2 lg:w-5/12 p-4 sm:p-8 lg:p-12 flex flex-col justify-center items-center">
-        <div className="w-full max-w-md bg-white/95 backdrop-blur-xl border-2 border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.4)] rounded-3xl p-6 sm:p-9 space-y-6">
+      {/* Right Form Panel: Sign In or Create Account */}
+      <div className="md:w-1/2 lg:w-5/12 p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-[#f3f2f2]">
+        <div className="w-full max-w-md mx-auto space-y-6">
           {/* Mode Switcher Tabs */}
-          <div className="flex border-b-2 border-[#201e1d]/20 gap-6 pb-2">
+          <div className="flex border-b-2 border-[#201e1d]/30 gap-6 pb-2">
             <button
               type="button"
               onClick={() => {
@@ -484,32 +481,117 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 </div>
               </div>
 
-              {/* Target Exams Toggle */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Which exams are you preparing for?
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(e => {
-                    const sel = selectedExams.includes(e);
-                    return (
-                      <button
-                        key={e}
-                        type="button"
-                        onClick={() => toggleExam(e)}
-                        className={`py-2 px-2 sm:px-3 border-2 font-black text-xs flex items-center justify-between cursor-pointer ${
-                          sel
-                            ? 'border-[#1f3d7a] bg-[#1f3d7a] text-white'
-                            : 'border-slate-300 bg-white text-[#201e1d]'
-                        }`}
-                      >
-                        <span>{e}</span>
-                        {sel && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </button>
-                    );
-                  })}
+              {/* Student Grade Level & Class Selection */}
+              {newRole === 'Student' ? (
+                <div className="p-3.5 bg-slate-50 border border-slate-300 rounded-none space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Student Grade Level <span className="text-red-600">*</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['Grade 6', 'Grade 9', 'High School'] as const).map(lvl => (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => {
+                            setStudentLevel(lvl);
+                            if (lvl === 'Grade 6') {
+                              setSelectedExams(['NAFS']);
+                              setStudentClass('6-A');
+                            } else if (lvl === 'Grade 9') {
+                              setSelectedExams(['NAFS']);
+                              setStudentClass('9-A');
+                            } else {
+                              setSelectedExams(['GAT', 'SAT']);
+                              setStudentClass('10-A');
+                            }
+                          }}
+                          className={`py-2 px-1 text-center font-black text-xs border-2 transition-all cursor-pointer ${
+                            studentLevel === lvl
+                              ? 'border-[#1f3d7a] bg-[#1f3d7a] text-white shadow-xs'
+                              : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                          }`}
+                        >
+                          <div>{lvl}</div>
+                          <div className={`text-[10px] font-normal ${studentLevel === lvl ? 'text-blue-100' : 'text-slate-500'}`}>
+                            {lvl === 'High School' ? 'SAT & GAT' : 'NAFS Only'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Assigned Class <span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={studentClass}
+                      onChange={e => setStudentClass(e.target.value)}
+                      placeholder="e.g. 6-A, 9-B, 11-A"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 text-xs font-bold text-[#201e1d]"
+                    />
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[10px] text-slate-500 font-bold">Quick pick:</span>
+                      {(studentLevel === 'Grade 6'
+                        ? ['6-A', '6-B', '6-C']
+                        : studentLevel === 'Grade 9'
+                        ? ['9-A', '9-B', '9-C']
+                        : ['10-A', '11-A', '12-A']
+                      ).map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setStudentClass(c)}
+                          className="px-2 py-0.5 text-[10px] font-bold bg-white border border-slate-300 hover:bg-slate-100 cursor-pointer"
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-2 bg-white border border-slate-200 text-[11px] text-slate-600 space-y-0.5">
+                    <div className="font-bold text-[#1f3d7a] flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Access Rule:</span>
+                    </div>
+                    {studentLevel === 'High School' ? (
+                      <div>Enrolled in SAT &amp; GAT pathways. NAFS primary/middle assessments restricted.</div>
+                    ) : (
+                      <div>Enrolled in NAFS {studentLevel} pathway. SAT &amp; GAT assessments restricted.</div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* Target Exams Toggle for Teachers/Admins */
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Managed Examination Pathways
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(e => {
+                      const sel = selectedExams.includes(e);
+                      return (
+                        <button
+                          key={e}
+                          type="button"
+                          onClick={() => toggleExam(e)}
+                          className={`py-2 px-2 sm:px-3 border-2 font-black text-xs flex items-center justify-between cursor-pointer ${
+                            sel
+                              ? 'border-[#1f3d7a] bg-[#1f3d7a] text-white'
+                              : 'border-slate-300 bg-white text-[#201e1d]'
+                          }`}
+                        >
+                          <span>{e}</span>
+                          {sel && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div className="p-3 bg-red-100 border border-red-300 text-red-900 font-bold">

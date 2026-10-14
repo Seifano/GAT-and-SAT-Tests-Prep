@@ -1,7 +1,7 @@
 import React from 'react';
-import { ExamType, UserProfile, Question } from '../types';
+import { ExamType, UserProfile, Question, UserAccount } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { TrendingUp, AlertTriangle, Zap, CheckCircle2, BookOpen } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Zap, BookOpen } from 'lucide-react';
 
 interface SkillsViewProps {
   activeExam: ExamType;
@@ -9,6 +9,7 @@ interface SkillsViewProps {
   mastery: Record<string, number>;
   history: Array<{ score: number; date: string; kind: string }>;
   bank: Question[];
+  currentUser?: UserAccount | null;
   onStartFocus: (skills: string[]) => void;
 }
 
@@ -18,12 +19,25 @@ export const SkillsView: React.FC<SkillsViewProps> = ({
   mastery,
   history,
   bank,
+  currentUser,
   onStartFocus
 }) => {
   const conf = EXAM_CONFIGS[activeExam];
   const target = profile.targets[activeExam];
 
-  const allSkills = conf.sections.flatMap(s => s.skills);
+  const visibleSections = (() => {
+    if (currentUser?.role === 'Student' && activeExam === 'NAFS') {
+      if (currentUser.studentLevel === 'Grade 6') {
+        return conf.sections.filter(s => s.name.includes('Grade 6') || s.name.includes('G6'));
+      }
+      if (currentUser.studentLevel === 'Grade 9') {
+        return conf.sections.filter(s => s.name.includes('Grade 9') || s.name.includes('G9'));
+      }
+    }
+    return conf.sections;
+  })();
+
+  const allSkills = visibleSections.flatMap(s => s.skills);
   const assessedSkills = allSkills.filter(sk => mastery[sk] !== undefined);
   const avgMastery = assessedSkills.length > 0
     ? Math.round(assessedSkills.reduce((acc, sk) => acc + (mastery[sk] || 0), 0) / assessedSkills.length)
@@ -70,7 +84,7 @@ export const SkillsView: React.FC<SkillsViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Skills by Section (8 cols) */}
         <div className="lg:col-span-8 space-y-8">
-          {conf.sections.map(section => {
+          {visibleSections.map(section => {
             const secAssessed = section.skills.filter(sk => mastery[sk] !== undefined);
             const sectionAvg = secAssessed.length > 0
               ? Math.round(secAssessed.reduce((acc, sk) => acc + (mastery[sk] || 0), 0) / secAssessed.length)
