@@ -26,8 +26,21 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
   const [classFilter, setClassFilter] = useState<string>('All');
   const [selectedStudent, setSelectedStudent] = useState<UserAccount | null>(null);
 
-  // Filter only student accounts
-  const studentAccounts = students.filter(a => a.role === 'Student');
+  const isTeacher = currentUser.role === 'Teacher';
+  const assignedGrades = isTeacher
+    ? (currentUser.assignedGrades && currentUser.assignedGrades.length > 0
+        ? currentUser.assignedGrades
+        : (currentUser.name?.toLowerCase().includes('houssem') ? ['Grade 9'] : ['Grade 6', 'High School']))
+    : null;
+
+  // Filter only student accounts, restricted to teacher's assigned grades if role is Teacher
+  const studentAccounts = students.filter(a => {
+    if (a.role !== 'Student') return false;
+    if (isTeacher && assignedGrades && assignedGrades.length > 0) {
+      return a.studentLevel && assignedGrades.includes(a.studentLevel);
+    }
+    return true;
+  });
 
   // Compute student stats based on real attempts
   const studentStats = studentAccounts.map(student => {
@@ -138,19 +151,47 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
             Student Progress &amp; Class Diagnostics
           </h1>
           <p className="text-sm text-slate-600 mt-1 max-w-xl break-words">
-            Track student performance by assigned grade level (Grade 6, Grade 9, High School) and classroom section across authentic attempts.
+            {isTeacher && assignedGrades
+              ? `Review diagnostics for your assigned students (${assignedGrades.join(', ')}). Other grades are restricted.`
+              : 'Track student performance by assigned grade level (Grade 6, Grade 9, High School) and classroom section across authentic attempts.'}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
           <div className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-[#201e1d] shrink-0">
-            {studentAccounts.length} Total Students
+            {studentAccounts.length} Students in Scope
           </div>
           <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 rounded-lg text-xs font-bold text-emerald-800 shrink-0">
             {activeStudentsCount} Active Test Takers
           </div>
         </div>
       </div>
+
+      {/* Teacher Scoped Grade Assignment Banner */}
+      {isTeacher && assignedGrades && (
+        <div className="p-4 bg-blue-50/90 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="font-extrabold text-blue-950 text-sm block">
+                Teacher Assigned Grade Scope: {assignedGrades.join(' & ')}
+              </span>
+              <span className="text-slate-600 text-[11px] block mt-0.5">
+                Per administration policy, your teacher account is restricted to evaluating students in your assigned grades only.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            {assignedGrades.map(g => (
+              <span key={g} className="px-2.5 py-1 bg-white border border-blue-300 rounded-lg text-[10px] font-black text-[#1e3a8a]">
+                {g}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -221,7 +262,12 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
         {/* Secondary Filters: Grade Level & Class Filter */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200 text-xs">
           <span className="text-[11px] font-bold text-slate-500">Filter Grade Level:</span>
-          {(['All', 'Grade 6', 'Grade 9', 'High School'] as const).map(lvl => (
+          {([
+            'All',
+            ...(isTeacher && assignedGrades && assignedGrades.length > 0
+              ? assignedGrades
+              : ['Grade 6', 'Grade 9', 'High School'] as StudentLevel[])
+          ] as ('All' | StudentLevel)[]).map(lvl => (
             <button
               key={lvl}
               type="button"

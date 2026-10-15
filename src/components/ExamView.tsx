@@ -223,12 +223,6 @@ export const ExamView: React.FC<ExamViewProps> = ({
               <span className="text-[10px] text-emerald-800 font-black bg-emerald-50 px-2 py-0.5 border border-emerald-200">
                 +25 XP for correct
               </span>
-              {currentQ.src && (
-                <>
-                  <span className="text-slate-400">·</span>
-                  <span className="text-slate-500 font-normal italic">{currentQ.src}</span>
-                </>
-              )}
             </div>
 
             {/* Prompt */}

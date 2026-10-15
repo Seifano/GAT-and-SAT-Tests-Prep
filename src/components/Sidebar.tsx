@@ -15,7 +15,9 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Calendar,
+  Flame
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -67,17 +69,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isAdmin = user?.role === 'Admin';
   const isTeacher = user?.role === 'Teacher';
   const isStaff = isAdmin || isTeacher;
-  const isViewingStudentSide = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
+  const isViewingStudentSide = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results', 'ksaBooking'].includes(currentScreen);
 
-  // Student navigation hierarchy: ultra-clean, straightforward, zero confusion
+  // Student navigation hierarchy: ultra-clean, straightforward, zero question bank leaks
   const studentCategories: NavCategory[] = [
     {
       title: 'Practice & Study',
       items: [
         { id: 'dashboard', label: 'Home & Practice', desc: 'Mock exams, warmup & progress', icon: LayoutGrid },
-        { id: 'practice', label: 'Practice by Topic', desc: 'Drills for specific skills', icon: Zap },
-        { id: 'browser', label: 'Question Bank', desc: 'Grade-matched verified questions', icon: BookOpen, badge: questionCounts && questionCounts[activeExam] ? `${questionCounts[activeExam]}` : undefined },
-        { id: 'results', label: 'My Test History', desc: 'Past scores & review answers', icon: Award }
+        { id: 'practice', label: 'Practice Drills', desc: 'Topic drills & question solving', icon: Zap },
+        { id: 'results', label: 'My Test History & Review', desc: 'Past scores & answer explanations', icon: BookOpen },
+        { id: 'achievements', label: 'Badges & XP', desc: `${streak || 0}d streak · Level rewards`, icon: Award },
+        { id: 'ksaBooking', label: 'Riyadh Test Dates', desc: 'Upcoming KSA testing sessions', icon: Calendar }
       ]
     },
     {
@@ -102,6 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Academic Progress',
       items: [
         { id: 'studentProgress', label: 'Student Progress', desc: 'Roster analytics & diagnostics', icon: Users },
+        { id: 'ksaBooking', label: 'Riyadh Test Dates', desc: 'Upcoming KSA testing sessions', icon: Calendar },
         { id: 'dashboard', label: 'Student View Preview', desc: 'Active student experience', icon: LayoutGrid }
       ]
     },

@@ -46,6 +46,9 @@ export interface UserAccount {
   role: UserRole;
   studentLevel?: StudentLevel;
   studentClass?: string;
+  assignedGrades?: StudentLevel[]; // For Teachers: restricted to reviewing only these assigned grades
+  status?: 'Active' | 'Inactive' | 'Pending'; // Activity status
+  lastLogin?: string; // ISO 8601 timestamp of last login
   password?: string;
   created: string;
 }

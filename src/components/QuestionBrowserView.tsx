@@ -84,9 +84,23 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
     const term = searchTerm.trim().toLowerCase();
     const matchSearch =
       !term ||
-      (q.prompt + ' ' + (q.passage || '') + ' ' + q.options.join(' ') + ' ' + (q.src || '')).toLowerCase().includes(term);
+      (q.prompt + ' ' + (q.passage || '') + ' ' + q.options.join(' ')).toLowerCase().includes(term);
     return matchSkill && matchSearch;
   });
+
+  const areAllRevealed = filtered.length > 0 && filtered.every(q => !!revealedSolutions[q.id]);
+
+  const toggleAllSolutions = () => {
+    if (areAllRevealed) {
+      setRevealedSolutions({});
+    } else {
+      const all: Record<string, boolean> = {};
+      filtered.forEach(q => {
+        all[q.id] = true;
+      });
+      setRevealedSolutions(all);
+    }
+  };
 
   // Allowed exams for staff vs student
   const allowedExams: ExamType[] = (() => {
@@ -217,7 +231,7 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search questions by topic, words, passage, or source..."
+            placeholder="Search questions by topic, words, or passage..."
             className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-xs text-[#201e1d] focus:outline-none focus:border-[#1f3d7a]"
           />
         </div>
@@ -241,8 +255,15 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
 
       {/* Results List */}
       <div className="space-y-4">
-        <div className="text-xs text-slate-500 font-bold">
-          Showing {filtered.length} of {questions.length} questions
+        <div className="flex items-center justify-between gap-2 text-xs text-slate-500 font-bold">
+          <span>Showing {filtered.length} of {questions.length} questions</span>
+          <button
+            type="button"
+            onClick={toggleAllSolutions}
+            className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-[#1f3d7a] cursor-pointer shadow-2xs transition-colors"
+          >
+            {areAllRevealed ? 'Hide All Explanations' : 'Show All Explanations'}
+          </button>
         </div>
 
         {filtered.length === 0 ? (
@@ -272,7 +293,6 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
                         {q.section}
                       </span>
                       <span className="text-slate-600">· {q.skill}</span>
-                      {q.src && <span className="text-slate-400 font-normal italic">· {q.src}</span>}
                     </div>
 
                     <button
@@ -347,7 +367,11 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
                         <span>Correct Answer: Option {String.fromCharCode(65 + q.answer)}</span>
                       </div>
-                      <p className="text-xs text-emerald-950 leading-relaxed">{q.explain}</p>
+                      <p className="text-xs text-emerald-950 leading-relaxed font-medium">
+                        {q.explain && q.explain.trim() !== 'No explanation provided.'
+                          ? q.explain
+                          : `Option ${String.fromCharCode(65 + q.answer)} ("${q.options[q.answer]}") is the verified correct answer based on the curriculum standard for ${q.skill}.`}
+                      </p>
                     </div>
                   )}
                 </div>

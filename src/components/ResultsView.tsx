@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TestAttempt, Question, UserProfile } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { ArrowRight, ChevronDown, ChevronUp, RotateCcw, Award, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, RotateCcw, Award, CheckCircle2, XCircle, Calendar } from 'lucide-react';
 
 interface ResultsViewProps {
   attempt?: TestAttempt | null;
@@ -13,6 +13,8 @@ interface ResultsViewProps {
   onReturnDashboard: () => void;
   onRetakeMissed?: (qids: string[]) => void;
   onSelectAttempt?: (att: TestAttempt) => void;
+  onNavigateToPractice?: () => void;
+  onCheckKsaBooking?: () => void;
 }
 
 export const ResultsView: React.FC<ResultsViewProps> = ({
@@ -24,7 +26,9 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   onPracticeWeak,
   onReturnDashboard,
   onRetakeMissed,
-  onSelectAttempt
+  onSelectAttempt,
+  onNavigateToPractice,
+  onCheckKsaBooking
 }) => {
   const [filterMode, setFilterMode] = useState<'missed' | 'all' | 'flagged'>('missed');
   const [openPassageId, setOpenPassageId] = useState<string | null>(null);
@@ -179,25 +183,44 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={onReturnDashboard}
-            className="px-4 py-2.5 border border-slate-400 bg-white hover:bg-slate-100 text-xs font-bold text-[#201e1d] cursor-pointer"
+            className="px-4 py-2.5 border border-slate-300 rounded-xl bg-white hover:bg-slate-100 text-xs font-bold text-[#201e1d] cursor-pointer shadow-2xs"
           >
-            Dashboard
+            Practice Hub
           </button>
           {missedQIds.length > 0 && onRetakeMissed && (
             <button
               onClick={() => onRetakeMissed(missedQIds)}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black flex items-center gap-2 cursor-pointer shadow-sm"
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Retake Missed ({missedQIds.length})</span>
+              <span>Practice Missed ({missedQIds.length})</span>
             </button>
           )}
           <button
             onClick={onRetake}
-            className="btn-primary px-5 py-2.5 text-white text-xs font-black cursor-pointer shadow-sm"
+            className="px-4 py-2.5 bg-[#1e3a8a] hover:bg-[#162c68] text-white text-xs font-black rounded-xl cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
           >
-            Retake Full Session
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Practice Session Again</span>
           </button>
+          {onNavigateToPractice && (
+            <button
+              onClick={onNavigateToPractice}
+              className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
+            >
+              <span>Move to Next Practice Drill</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onCheckKsaBooking && (
+            <button
+              onClick={onCheckKsaBooking}
+              className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#1e3a8a] border border-blue-200 text-xs font-black rounded-xl cursor-pointer shadow-2xs transition-colors flex items-center gap-1.5"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Riyadh Test Dates</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -443,6 +466,56 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             })}
           </div>
         )}
+
+        {/* Action Bar for Student after completing question review */}
+        <div className="mt-8 pt-6 border-t-2 border-slate-200 bg-slate-50 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h4 className="text-sm font-extrabold text-slate-900">
+              Finished reviewing your explanations?
+            </h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Reinforce what you learned right now or jump to the next curriculum topic.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onRetake}
+              className="px-4 py-2.5 bg-[#1e3a8a] hover:bg-[#162c68] text-white text-xs font-black rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Practice Again</span>
+            </button>
+            {onNavigateToPractice && (
+              <button
+                type="button"
+                onClick={onNavigateToPractice}
+                className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Move to Next Practice Drill</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onCheckKsaBooking && (
+              <button
+                type="button"
+                onClick={onCheckKsaBooking}
+                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#1e3a8a] border border-blue-200 text-xs font-black rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Riyadh Test Dates</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onReturnDashboard}
+              className="px-4 py-2.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

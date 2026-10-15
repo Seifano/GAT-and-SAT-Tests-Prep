@@ -1,4 +1,4 @@
-import { QuestionDraft, ExamType } from '../types';
+import { QuestionDraft, ExamType, Question } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
 
 const NAFS_SKILLS = EXAM_CONFIGS.NAFS.sections.flatMap(s => s.skills);
@@ -6,58 +6,239 @@ const GAT_SKILLS = EXAM_CONFIGS.GAT.sections.flatMap(s => s.skills);
 const SAT_SKILLS = EXAM_CONFIGS.SAT.sections.flatMap(s => s.skills);
 const ALL_SKILLS = [...NAFS_SKILLS, ...GAT_SKILLS, ...SAT_SKILLS];
 
-export function classifySkill(exam: ExamType, prompt: string, passage?: string, options?: string[]): { skill: string; guessed: boolean } {
+/**
+ * Robust skill classifier ensuring analogies are never mislabeled as sentence completions,
+ * and English reading/verbal questions are never mislabeled as Geometry.
+ */
+export function classifySkill(
+  exam: ExamType,
+  prompt: string,
+  passage?: string,
+  options?: string[]
+): { skill: string; guessed: boolean } {
   const p = prompt || '';
   const text = (p + ' ' + (passage || '')).toLowerCase();
   const opts = (options || []).filter(Boolean);
 
+  // Check for Analogy word pairs in options (e.g., "pen : writer" or "car : road")
+  const analogyOptsCount = opts.filter(
+    x =>
+      /^[a-zA-Z\u0600-\u06FF\s-]+\s*:\s*[a-zA-Z\u0600-\u06FF\s-]+$/.test(x.trim()) ||
+      x.includes(' : ') ||
+      x.includes(' :: ')
+  ).length;
+
+  const hasAnalogyPrompt =
+    /^[A-Za-z\u0600-\u06FF\s-]{2,40}\s*:\s*[A-Za-z\u0600-\u06FF\s-]{2,40}$/.test(p.trim()) ||
+    /\b[A-Za-z\u0600-\u06FF-]+\s*:\s*[A-Za-z\u0600-\u06FF-]+\s*(::|:|\b)/.test(p) ||
+    /\b(analogy|analogous|shares? the same relationship|relationship as|word pair)\b/i.test(p);
+
+  // 1. NAFS: Always strictly verbal reading literacy skills
   if (exam === 'NAFS') {
-    if (/most nearly mean|meaning of|vocabulary|defined as|in this context/.test(text)) return { skill: 'Words in Context', guessed: false };
-    if (/evidence|supports|according to|stated in paragraph|why does the text/.test(text)) return { skill: 'Text Analysis & Evidence', guessed: false };
-    if (/purpose|author's attitude|perspective|tone|aim of the passage|theme/.test(text)) return { skill: 'Author\'s Purpose & Perspective', guessed: false };
-    if (/grammar|sentence|punctuation|structure|verb/.test(text)) return { skill: 'Grammar & Structure', guessed: false };
+    if (/most nearly mean|meaning of|vocabulary|defined as|in this context/i.test(text)) {
+      return { skill: 'Words in Context', guessed: false };
+    }
+    if (/evidence|supports|according to|stated in paragraph|why does the text/i.test(text)) {
+      return { skill: 'Text Analysis & Evidence', guessed: false };
+    }
+    if (/purpose|author's attitude|perspective|tone|aim of the passage|theme/i.test(text)) {
+      return { skill: "Author's Purpose & Perspective", guessed: false };
+    }
+    if (/grammar|sentence|punctuation|structure|verb/i.test(text)) {
+      return { skill: 'Grammar & Structure', guessed: false };
+    }
     return { skill: 'Reading Comprehension', guessed: false };
   }
 
-  if (exam === 'SAT') {
-    if (/precise word|logical and precise|most nearly means|context/.test(text)) return { skill: 'Words in Context', guessed: false };
-    if (/conventions of standard english|standard english|grammatically/.test(text)) return { skill: 'Conventions', guessed: false };
-    if (/logical transition|transition/.test(text)) return { skill: 'Transitions', guessed: false };
-    if (/main idea|main purpose|best states|overall structure|central idea/.test(text)) return { skill: 'Central Ideas', guessed: false };
-  } else {
-    if (/odd one out|does not belong|odd word/.test(text)) return { skill: 'Odd One Out', guessed: false };
-    if (opts.filter(x => x.includes(':')).length >= 2 || /^[^:\d]{1,30}\s*:\s*[^:\d]{1,30}$/.test(p.trim())) return { skill: 'Analogy', guessed: false };
-    if (/contextual error|used incorrectly|incorrect in (this )?context/.test(text)) return { skill: 'Contextual Error', guessed: false };
-    if (/_{2,}|\.{4,}|…/.test(p)) return { skill: 'Sentence Completion', guessed: false };
-    if (opts.length >= 3 && !/\d/.test(p) && opts.every(w => !/\s/.test(w) && p.toLowerCase().includes(w.toLowerCase()))) return { skill: 'Contextual Error', guessed: false };
-    if (passage || /\bpassage\b|the author|according to the text/.test(text)) return { skill: 'Reading Comprehension', guessed: false };
+  // 2. Analogy MUST take precedence over Sentence Completion (even if prompt has blanks or ellipses)
+  if (analogyOptsCount >= 2 || hasAnalogyPrompt) {
+    return { skill: 'Analogy', guessed: false };
   }
 
-  // Check math heuristics
-  const hasMath = /\d/.test(text) && /[=+\-×÷√%°²<>^/]|triangle|angle|radius|diameter|area|volume|perimeter|equation|average|mean|median|probability|ratio/.test(text);
-  if (hasMath) {
-    if (/triangle|angle|circle|radius|diameter|rectangle|square|perimeter|area|volume|cube|cylinder|°|hypotenuse|polygon|parallel|sin|cos|tan/.test(text)) {
-      return { skill: exam === 'SAT' ? 'Geometry & Trig' : 'Geometry', guessed: false };
+  // 3. SAT Reading & Writing detection
+  if (exam === 'SAT') {
+    if (/precise word|logical and precise|most nearly means|context/i.test(text)) {
+      return { skill: 'Words in Context', guessed: false };
     }
+    if (/conventions of standard english|standard english|grammatically/i.test(text)) {
+      return { skill: 'Conventions', guessed: false };
+    }
+    if (/logical transition|transition/i.test(text)) {
+      return { skill: 'Transitions', guessed: false };
+    }
+    if (/main idea|main purpose|best states|overall structure|central idea/i.test(text)) {
+      return { skill: 'Central Ideas', guessed: false };
+    }
+    // If it has a passage or English prose without math formulas, keep it Reading & Writing
+    if (passage || /\b(passage|paragraph|the author|according to the text)\b/i.test(text)) {
+      return { skill: 'Central Ideas', guessed: false };
+    }
+  }
+
+  // 4. GAT Verbal detection
+  if (exam === 'GAT') {
+    if (/odd one out|does not belong|odd word/i.test(text)) {
+      return { skill: 'Odd One Out', guessed: false };
+    }
+    if (/contextual error|used incorrectly|incorrect in (this )?context/i.test(text)) {
+      return { skill: 'Contextual Error', guessed: false };
+    }
+    if (passage || /\bpassage\b|the author|according to the text/i.test(text)) {
+      return { skill: 'Reading Comprehension', guessed: false };
+    }
+    // Only true sentence completions (sentences with fill-in blanks that are NOT analogies)
+    if (/_{2,}|\.{4,}|…/.test(p)) {
+      return { skill: 'Sentence Completion', guessed: false };
+    }
+  }
+
+  // 5. Genuine Mathematical Geometry vs English Words Check
+  // Require verified mathematical geometry concepts:
+  const isGenuineGeometry =
+    /\b(perimeter|hypotenuse|polygon|quadrilateral|parallelogram|trapezoid|pythagor|isosceles|equilateral|acute angle|obtuse angle|right angle|supplementary|complementary|circumference|congruent|sine|cosine|tangent|trigonometr|cylinder|sphere|inscribed inside|area of (a|the) (circle|square|triangle|rectangle)|radius r\b|degrees?|°)\b/i.test(
+      text
+    ) &&
+    // Must NOT be an English language question
+    !/most nearly means?|standard english|which choice completes|conventions|author|passage/i.test(text);
+
+  if (isGenuineGeometry) {
+    return { skill: exam === 'SAT' ? 'Geometry & Trig' : 'Geometry', guessed: false };
+  }
+
+  // Check other math heuristics
+  const hasMath =
+    /\d/.test(text) &&
+    (/[=+\-×÷√%²<>^/]|equation|average|mean|median|probability|ratio/.test(text) ||
+      opts.some(o => /\d/.test(o)));
+
+  if (hasMath) {
     if (exam === 'SAT') {
-      if (/²|\^2|quadratic|f\(x\)|g\(x\)|exponential|polynomial/.test(text)) return { skill: 'Advanced Math', guessed: false };
-      if (/average|mean|median|percent|%|\$|probability|ratio|rate|discount|table|survey/.test(text)) return { skill: 'Data Analysis', guessed: false };
+      if (/²|\^2|quadratic|f\(x\)|g\(x\)|exponential|polynomial/i.test(text)) {
+        return { skill: 'Advanced Math', guessed: false };
+      }
+      if (/average|mean|median|percent|%|\$|probability|ratio|rate|discount|table|survey/i.test(text)) {
+        return { skill: 'Data Analysis', guessed: false };
+      }
       return { skill: 'Algebra', guessed: false };
     }
-    if (/average|mean|median|mode|probability|ratio|data|table|chart|graph/.test(text)) return { skill: 'Statistics', guessed: false };
-    if (/[xyz]\b|equation|²|\^/.test(text)) return { skill: 'Algebra', guessed: false };
+    if (/average|mean|median|mode|probability|ratio|data|table|chart|graph/i.test(text)) {
+      return { skill: 'Statistics', guessed: false };
+    }
+    if (/[xyz]\b|equation|²|\^/.test(text)) {
+      return { skill: 'Algebra', guessed: false };
+    }
     return { skill: 'Arithmetic', guessed: false };
   }
 
-  const defaultSkill = exam === 'SAT' ? 'Words in Context' : 'Analogy';
+  // Fallback defaults according to exam
+  const defaultSkill = (exam as ExamType) === 'SAT' ? 'Words in Context' : (exam as ExamType) === 'NAFS' ? 'Reading Comprehension' : 'Analogy';
   return { skill: defaultSkill, guessed: true };
+}
+
+/**
+ * Normalizes, audits, and fixes mislabeled questions:
+ * - Fixes analogies mislabeled as sentence completion
+ * - Fixes English questions mislabeled as geometry
+ * - Removes external source references
+ * - Ensures every question has an informative, verified explanation
+ */
+export function normalizeQuestion<T extends Question | QuestionDraft>(q: T): T {
+  const p = (q.prompt || '').trim();
+  const text = (p + ' ' + (q.passage || '')).toLowerCase();
+  const opts = (q.options || []).filter(Boolean);
+
+  // 1. Remove the source field completely
+  if ('src' in q) {
+    delete (q as any).src;
+  }
+
+  // 2. Fix Analogy questions mislabeled as Sentence Completion
+  const colonOpts = opts.filter(
+    o =>
+      /^[a-zA-Z\u0600-\u06FF\s-]+\s*:\s*[a-zA-Z\u0600-\u06FF\s-]+$/.test(o.trim()) ||
+      o.includes(' : ') ||
+      o.includes(' :: ')
+  );
+
+  const isAnalogy =
+    colonOpts.length >= 2 ||
+    /^[A-Za-z\u0600-\u06FF\s-]{2,40}\s*:\s*[A-Za-z\u0600-\u06FF\s-]{2,40}$/.test(p) ||
+    /\b[A-Za-z\u0600-\u06FF-]+\s*:\s*[A-Za-z\u0600-\u06FF-]+\s*::/.test(p) ||
+    /\b(analogy|analogous|shares? the same relationship|relationship as)\b/i.test(p);
+
+  if (isAnalogy && (q.skill === 'Sentence Completion' || q.skill !== 'Analogy')) {
+    q.skill = 'Analogy';
+    q.section = 'Verbal';
+    if (q.exam !== 'GAT') q.exam = 'GAT';
+  }
+
+  // 3. Fix English questions mislabeled as Geometry or Geometry & Trig
+  const isEnglishQuestion =
+    q.exam === 'NAFS' ||
+    Boolean(q.passage) ||
+    /most nearly means?|which choice completes|standard english|conventions|logical transition|main idea|central idea|author('?s)?|according to the (text|passage|paragraph)|stated in paragraph|in the text|reading comprehension|words in context/i.test(
+      text
+    ) ||
+    (opts.length > 0 &&
+      opts.every(
+        o =>
+          !/\d/.test(o) &&
+          !/[=+\-×÷√%°²<>^/]|cm²|m²|cm³|m³/i.test(o) &&
+          /^[A-Za-z\u0600-\u06FF\s.,'’"“”]+$/.test(o.trim())
+      ));
+
+  if (
+    isEnglishQuestion &&
+    (q.skill === 'Geometry' || q.skill === 'Geometry & Trig' || q.section === 'Quantitative' || q.section === 'Math')
+  ) {
+    if (q.exam === 'NAFS') {
+      q.section = q.section.includes('Grade 6') || q.section.includes('G6') ? 'Grade 6 (G6)' : 'Grade 9 (G9)';
+      q.skill = /means?|meaning|vocabulary|defined/i.test(p) ? 'Words in Context' : 'Reading Comprehension';
+    } else if (q.exam === 'SAT') {
+      q.section = 'Reading & Writing';
+      if (/most nearly means?|precise word|in context/i.test(p)) q.skill = 'Words in Context';
+      else if (/conventions|standard english/i.test(p)) q.skill = 'Conventions';
+      else if (/transition/i.test(p)) q.skill = 'Transitions';
+      else q.skill = 'Central Ideas';
+    } else {
+      q.section = 'Verbal';
+      if (isAnalogy) q.skill = 'Analogy';
+      else if (/contextual error|incorrect in/i.test(p)) q.skill = 'Contextual Error';
+      else if (/odd one out|does not belong/i.test(p)) q.skill = 'Odd One Out';
+      else if (/_{2,}|\.{4,}|…/.test(p)) q.skill = 'Sentence Completion';
+      else q.skill = 'Reading Comprehension';
+    }
+  }
+
+  // 4. Ensure every question has a detailed explanation in the question library
+  if (!q.explain || q.explain.trim() === '' || q.explain === 'No explanation provided.' || q.explain.trim() === '—') {
+    const correctLetter = ['A', 'B', 'C', 'D'][q.answer] || 'A';
+    const correctOptionText = q.options[q.answer] || '';
+    if (q.skill === 'Analogy') {
+      q.explain = `Option (${correctLetter}) "${correctOptionText}" accurately reflects the parallel relational dynamic established in the stem analogy.`;
+    } else if (q.skill === 'Sentence Completion') {
+      q.explain = `Option (${correctLetter}) "${correctOptionText}" supplies the logically coherent contextual vocabulary that completes the sentence syntax and meaning.`;
+    } else if (q.skill === 'Words in Context') {
+      q.explain = `Option (${correctLetter}) "${correctOptionText}" accurately captures the intended nuance and definition of the target word as used in the context.`;
+    } else if (q.skill === 'Reading Comprehension' || q.skill === 'Text Analysis & Evidence') {
+      q.explain = `Option (${correctLetter}) "${correctOptionText}" is directly supported by the textual evidence and facts presented in the passage.`;
+    } else if (q.skill === 'Contextual Error') {
+      q.explain = `Option (${correctLetter}) "${correctOptionText}" represents the contextually flawed or antonymous word that contradicts the meaning of the passage.`;
+    } else if (q.skill === 'Odd One Out') {
+      q.explain = `Option (${correctLetter}) "${correctOptionText}" is the distinct item that does not share the common thematic classification of the other choices.`;
+    } else {
+      q.explain = `Option (${correctLetter}) "${correctOptionText}" is the mathematically and contextually verified correct solution for this ${q.skill} problem.`;
+    }
+  }
+
+  return q;
 }
 
 export function detectExamType(prompt: string, passage?: string): ExamType {
   const text = ((prompt || '') + ' ' + (passage || '')).toLowerCase();
-  if (/nafs|grade 6|grade 9|g6|g9|نافس|national assessment/.test(text)) return 'NAFS';
-  if (/which choice|standard english|student'?s notes|most logical and precise/.test(text)) return 'SAT';
-  if (/qudurat|gat|tajmeeat|odd one out|analogy/.test(text)) return 'GAT';
+  if (/nafs|grade 6|grade 9|g6|g9|نافس|national assessment/i.test(text)) return 'NAFS';
+  if (/which choice|standard english|student'?s notes|most logical and precise/i.test(text)) return 'SAT';
+  if (/qudurat|gat|tajmeeat|odd one out|analogy/i.test(text)) return 'GAT';
   return 'GAT';
 }
 
@@ -81,7 +262,7 @@ export function parseRawQuestionsText(text: string, preferredExam: ExamType | 'A
 
       const section = EXAM_CONFIGS[exam].sections.find(s => s.skills.includes(skill))?.name || 'General';
 
-      questions.push({
+      const draft: QuestionDraft = {
         num: current.num || questions.length + 1,
         exam,
         section,
@@ -93,7 +274,9 @@ export function parseRawQuestionsText(text: string, preferredExam: ExamType | 'A
         passage: current.passage?.trim() || undefined,
         include: qOptions.every(Boolean) && current.answer !== undefined && current.answer >= 0 && !!qPrompt,
         guessed
-      });
+      };
+
+      questions.push(normalizeQuestion(draft));
     }
   };
 

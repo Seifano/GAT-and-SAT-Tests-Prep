@@ -66,7 +66,9 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'Admin',
     email: 'admin@prepline.app',
     role: 'Admin',
-    password: 'HOD123',
+    password: 'HOD@2106',
+    status: 'Active',
+    lastLogin: '2026-10-15T08:00:00Z',
     created: 'Oct 5'
   },
   {
@@ -74,6 +76,9 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'abdullah.a',
     email: 'abdullah.ali@prepline.app',
     role: 'Teacher',
+    assignedGrades: ['Grade 6', 'High School'],
+    status: 'Active',
+    lastLogin: '2026-10-14T11:30:00Z',
     password: 'password123',
     created: 'Oct 6'
   },
@@ -82,6 +87,9 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     username: 'houssem.h',
     email: 'houssem.hammami@prepline.app',
     role: 'Teacher',
+    assignedGrades: ['Grade 9'],
+    status: 'Active',
+    lastLogin: '2026-10-13T14:15:00Z',
     password: 'password123',
     created: 'Oct 6'
   },
@@ -92,6 +100,8 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     role: 'Student',
     studentLevel: 'Grade 6',
     studentClass: '6-A',
+    status: 'Active',
+    lastLogin: '2026-10-14T16:20:00Z',
     password: 'password123',
     created: 'Sep 15'
   },
@@ -102,6 +112,8 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     role: 'Student',
     studentLevel: 'Grade 9',
     studentClass: '9-B',
+    status: 'Active',
+    lastLogin: '2026-10-11T09:40:00Z',
     password: 'password123',
     created: 'Sep 18'
   },
@@ -112,6 +124,8 @@ export const INITIAL_ACCOUNTS: UserAccount[] = [
     role: 'Student',
     studentLevel: 'High School',
     studentClass: '11-A',
+    status: 'Inactive',
+    lastLogin: undefined,
     password: 'password123',
     created: 'Sep 22'
   }

@@ -37,6 +37,7 @@ import { AdminImportView } from './components/AdminImportView';
 import { AdminAccountsView } from './components/AdminAccountsView';
 import { AdminBrandingView } from './components/AdminBrandingView';
 import { StudentExamGateway } from './components/StudentExamGateway';
+import { KsaTestBookingView } from './components/KsaTestBookingView';
 import { Sidebar } from './components/Sidebar';
 import { ArrowLeft } from 'lucide-react';
 import { calculateGamification } from './utils/gamification';
@@ -118,7 +119,7 @@ export default function App() {
       const adminAcc = parsed.find(a => a.username.toLowerCase() === 'admin');
       if (adminAcc) {
         adminAcc.username = 'Admin';
-        adminAcc.password = 'HOD123';
+        adminAcc.password = 'HOD@2106';
         adminAcc.role = 'Admin';
       } else {
         parsed.unshift(INITIAL_ACCOUNTS[0]);
@@ -371,7 +372,7 @@ export default function App() {
     let found = accounts.find(
       a =>
         (a.username.toLowerCase() === clean || (a.email && a.email.toLowerCase() === clean)) &&
-        (a.password === pass || pass === 'HOD123' || (clean === 'admin' && pass === 'HOD123'))
+        (a.password === pass || (clean === 'admin' && pass === 'HOD@2106'))
     );
 
     // If not found in local memory, check live Cloud Firestore database
@@ -380,7 +381,7 @@ export default function App() {
         const userDocSnap = await getDoc(doc(db, 'users', clean));
         if (userDocSnap.exists()) {
           const remoteUser = userDocSnap.data() as UserAccount;
-          if (remoteUser.password === pass || (clean === 'admin' && pass === 'HOD123')) {
+          if (remoteUser.password === pass || (clean === 'admin' && pass === 'HOD@2106')) {
             found = remoteUser;
             setAccounts(prev => [remoteUser, ...prev.filter(a => a.username.toLowerCase() !== clean)]);
           }
@@ -390,14 +391,15 @@ export default function App() {
       }
     }
 
-    // Fallback guarantee for requested Admin / HOD123 account
-    if (!found && clean === 'admin' && (pass === 'HOD123' || pass === 'admin')) {
+    // Fallback guarantee for requested Admin account with HOD@2106
+    if (!found && clean === 'admin' && pass === 'HOD@2106') {
       found = {
         name: 'Head of Department (Admin)',
         username: 'Admin',
         email: 'admin@prepline.app',
         role: 'Admin',
-        password: 'HOD123',
+        password: 'HOD@2106',
+        status: 'Active',
         created: 'Oct 5'
       };
       // Save Admin to database
@@ -416,55 +418,34 @@ export default function App() {
         found.role = 'Teacher';
       }
 
-      setUser(found);
-      if (found.role === 'Student') {
-        fetchUserProfileFromDb(found.username).then(dbProfile => {
+      const nowIso = new Date().toISOString();
+      const updatedUser: UserAccount = {
+        ...found,
+        lastLogin: nowIso,
+        status: 'Active'
+      };
+
+      setUser(updatedUser);
+      setAccounts(prev => [updatedUser, ...prev.filter(a => a.username.toLowerCase() !== clean)]);
+      saveUserToDb(updatedUser).catch(console.error);
+
+      if (updatedUser.role === 'Student') {
+        fetchUserProfileFromDb(updatedUser.username).then(dbProfile => {
           if (dbProfile) {
             setProfile(dbProfile);
           }
         });
       }
 
-      if (found.role === 'Admin' || found.role === 'Teacher') {
+      if (updatedUser.role === 'Admin' || updatedUser.role === 'Teacher') {
         setCurrentScreen('studentProgress');
       } else {
         setCurrentScreen('studentSelect');
       }
-      showToast(`Signed in as ${found.name} (${found.role})`);
+      showToast(`Signed in as ${updatedUser.name} (${updatedUser.role})`);
       return true;
     }
     return false;
-  };
-
-  // User self-serve account creation with immediate database persistence
-  const handleCreateAccount = async (newAccount: UserAccount, targetExams: ExamType[]): Promise<boolean> => {
-    const updatedAccounts = [newAccount, ...accounts];
-    setAccounts(updatedAccounts);
-    setUser(newAccount);
-
-    // Save to Cloud Firestore database immediately so account works everywhere
-    try {
-      await saveUserToDb(newAccount);
-    } catch (err) {
-      console.error('Failed to save new user to database:', err);
-    }
-
-    if (targetExams.length > 0) {
-      setProfile(prev => ({
-        ...prev,
-        exams: targetExams
-      }));
-      setActiveExam(targetExams[0]);
-    }
-
-    if (newAccount.role === 'Admin' || newAccount.role === 'Teacher') {
-      setCurrentScreen('studentProgress');
-    } else {
-      setCurrentScreen('studentSelect');
-    }
-
-    showToast(`Account created and saved to database! Welcome, ${newAccount.name.split(' ')[0]}.`);
-    return true;
   };
 
   // Enforce strict Role-Based Access Control (RBAC) and Student Grade Level Access:
@@ -474,12 +455,13 @@ export default function App() {
   useEffect(() => {
     if (!user || currentScreen === 'login' || currentScreen === 'onboard') return;
 
-    const studentScreens = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'exam', 'results'];
-    const teacherScreens = ['studentProgress', 'adminQuestions', 'adminImport', 'browser'];
+    // Students CANNOT access Question Bank (browser) or staff/admin consoles. They solve in practice & exam, then review in results.
+    const studentScreens = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'exam', 'results', 'ksaBooking'];
+    const teacherScreens = ['studentProgress', 'adminQuestions', 'adminImport', 'browser', 'ksaBooking', 'dashboard'];
 
     if (user.role === 'Student') {
       if (!studentScreens.includes(currentScreen)) {
-        setCurrentScreen('studentSelect');
+        setCurrentScreen('dashboard');
       }
 
       // Enforce grade pathway restrictions on activeExam
@@ -554,6 +536,37 @@ export default function App() {
     }
 
     showToast(`Updated @${username}: ${studentLevel} · Class ${studentClass || 'None'}`);
+  };
+
+  const handleToggleUserStatus = (username: string, newStatus: 'Active' | 'Inactive') => {
+    setAccounts(prev => {
+      const updated = prev.map(a =>
+        a.username.toLowerCase() === username.toLowerCase() ? { ...a, status: newStatus } : a
+      );
+      const target = updated.find(a => a.username.toLowerCase() === username.toLowerCase());
+      if (target) {
+        saveUserToDb(target).catch(console.error);
+      }
+      return updated;
+    });
+    showToast(`Updated @${username} status to ${newStatus}.`);
+  };
+
+  const handleUpdateTeacherGrades = (username: string, assignedGrades: StudentLevel[]) => {
+    setAccounts(prev => {
+      const updated = prev.map(a =>
+        a.username.toLowerCase() === username.toLowerCase() ? { ...a, assignedGrades } : a
+      );
+      const target = updated.find(a => a.username.toLowerCase() === username.toLowerCase());
+      if (target) {
+        saveUserToDb(target).catch(console.error);
+      }
+      return updated;
+    });
+    if (user && user.username.toLowerCase() === username.toLowerCase()) {
+      setUser(prev => (prev ? { ...prev, assignedGrades } : null));
+    }
+    showToast(`Assigned grades updated for teacher @${username}: ${assignedGrades.join(', ')}`);
   };
 
   // Helper: Retrieve question bank accessible to the currently active user
@@ -1181,7 +1194,6 @@ export default function App() {
         {currentScreen === 'login' && (
           <AuthScreen
             onSignIn={handleSignIn}
-            onCreateAccount={handleCreateAccount}
             accounts={accounts}
             settings={appSettings}
           />
@@ -1241,7 +1253,8 @@ export default function App() {
             onViewAnalytics={() => setCurrentScreen('analytics')}
             onViewAchievements={() => setCurrentScreen('achievements')}
             onNavigateToPractice={() => setCurrentScreen('practice')}
-            onNavigateToBrowser={() => setCurrentScreen('browser')}
+            onNavigateToBrowser={user?.role !== 'Student' ? () => setCurrentScreen('browser') : undefined}
+            onNavigateToKsaBooking={() => setCurrentScreen('ksaBooking')}
             onRetakeMissed={startMissedDrill}
             hasPastResults={currentExamAttempts.length > 0 || !!lastAttempt}
             onUpdateTargetDate={handleUpdateTargetDate}
@@ -1300,14 +1313,24 @@ export default function App() {
           />
         )}
 
-        {currentScreen === 'browser' && (
+        {currentScreen === 'browser' && user?.role !== 'Student' && (
           <QuestionBrowserView
             activeExam={activeExam}
             bank={bank}
             currentUser={user}
-            isStudent={user?.role === 'Student' || ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen)}
+            isStudent={false}
             onGoBackToMainMenu={() => setCurrentScreen('studentSelect')}
             onSelectExam={user?.role === 'Admin' || user?.role === 'Teacher' ? ex => setActiveExam(ex) : undefined}
+          />
+        )}
+
+        {/* Riyadh & KSA Official Test Booking Sessions */}
+        {currentScreen === 'ksaBooking' && (
+          <KsaTestBookingView
+            activeExam={activeExam}
+            user={user}
+            onGoToExamTrack={() => setCurrentScreen('studentSelect')}
+            onStartPractice={() => setCurrentScreen('practice')}
           />
         )}
 
@@ -1368,6 +1391,8 @@ export default function App() {
               }
             }}
             onPracticeWeak={skills => startFocusDrill(skills)}
+            onNavigateToPractice={() => setCurrentScreen('practice')}
+            onCheckKsaBooking={() => setCurrentScreen('ksaBooking')}
             onReturnDashboard={() => setCurrentScreen(user?.role === 'Student' ? 'dashboard' : 'studentProgress')}
             onRetakeMissed={startMissedDrill}
           />
@@ -1422,6 +1447,8 @@ export default function App() {
               onDeleteAccount={handleDeleteAccount}
               onUpdateAccountRole={handleUpdateAccountRole}
               onUpdateStudentInfo={handleUpdateStudentInfo}
+              onUpdateTeacherGrades={handleUpdateTeacherGrades}
+              onToggleUserStatus={handleToggleUserStatus}
               onSyncAllToCloud={handleSyncAllToCloud}
               cloudSyncStatus={cloudSyncStatus}
               lastCloudSyncTime={lastCloudSyncTime}

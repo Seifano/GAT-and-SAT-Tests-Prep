@@ -12,7 +12,8 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
-  Layers
+  Layers,
+  Calendar
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -35,6 +36,7 @@ interface DashboardViewProps {
   onViewAchievements?: () => void;
   onNavigateToPractice?: () => void;
   onNavigateToBrowser?: () => void;
+  onNavigateToKsaBooking?: () => void;
   onRetakeMissed?: (qids: string[]) => void;
   hasPastResults: boolean;
   onUpdateTargetDate?: (exam: ExamType, date: string) => void;
@@ -65,6 +67,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onViewAchievements,
   onNavigateToPractice,
   onNavigateToBrowser,
+  onNavigateToKsaBooking,
   onRetakeMissed,
   hasPastResults,
   onUpdateTargetDate,
@@ -201,6 +204,51 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
         </div>
+      </section>
+
+      {/* Riyadh & KSA Test Booking Sessions Card */}
+      <section className="bg-gradient-to-r from-[#172554] via-[#1e3a8a] to-blue-900 text-white p-5 sm:p-6 rounded-2xl shadow-xs border border-blue-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start md:items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-amber-300 shrink-0">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-sky-200 bg-sky-950/60 px-2 py-0.5 rounded border border-sky-400/30">
+                Riyadh Booking Session
+              </span>
+              <span className="text-xs font-bold text-emerald-300 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Slots Open
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-white mt-1">
+              {activeExam === 'GAT'
+                ? 'Next GAT Computer-Based (CBT) Session in Riyadh'
+                : activeExam === 'SAT'
+                ? 'Next Digital SAT Test Date in Riyadh (Nov 7 / Dec 5)'
+                : 'Next NAFS National Assessment Window in Riyadh'}
+            </h3>
+            <p className="text-xs text-blue-100/90 mt-0.5 max-w-xl">
+              {activeExam === 'GAT'
+                ? 'Continuous booking available at King Saud Univ & Imam Univ centers in Riyadh with immediate score reporting.'
+                : activeExam === 'SAT'
+                ? 'Authorized test centers in Riyadh: AISR, King Faisal School Diplomatic Quarter & Riyadh Schools.'
+                : 'School-supervised assessment in reading literacy and mathematical reasoning for Riyadh campuses.'}
+            </p>
+          </div>
+        </div>
+
+        {onNavigateToKsaBooking && (
+          <button
+            type="button"
+            onClick={onNavigateToKsaBooking}
+            className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-900 font-black text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+          >
+            <span>View Riyadh Dates &amp; Centers</span>
+            <ArrowRight className="w-4 h-4 text-[#1e3a8a]" />
+          </button>
+        )}
       </section>
 
       {/* 2. Primary Action Cards ("What would you like to do?") */}

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { UserAccount, UserRole, StudentLevel } from '../types';
+import { UserAccount, UserRole, StudentLevel, AppSettings } from '../types';
+import { StudentCardsModal } from './StudentCardsModal';
 import {
   Search,
   X,
@@ -18,7 +19,9 @@ import {
   Layers,
   Edit2,
   BookOpen,
-  Target
+  Target,
+  QrCode,
+  Printer
 } from 'lucide-react';
 
 interface AdminAccountsViewProps {
@@ -29,9 +32,12 @@ interface AdminAccountsViewProps {
   onDeleteAccount: (username: string) => void;
   onUpdateAccountRole?: (username: string, newRole: UserRole) => void;
   onUpdateStudentInfo?: (username: string, studentLevel: StudentLevel, studentClass?: string) => void;
+  onUpdateTeacherGrades?: (username: string, assignedGrades: StudentLevel[]) => void;
+  onToggleUserStatus?: (username: string, status: 'Active' | 'Inactive') => void;
   onSyncAllToCloud?: () => Promise<void> | void;
   cloudSyncStatus?: 'synced' | 'syncing' | 'idle';
   lastCloudSyncTime?: string;
+  settings?: AppSettings;
 }
 
 export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
@@ -42,16 +48,22 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   onDeleteAccount,
   onUpdateAccountRole,
   onUpdateStudentInfo,
+  onUpdateTeacherGrades,
+  onToggleUserStatus,
   onSyncAllToCloud,
   cloudSyncStatus = 'idle',
-  lastCloudSyncTime = 'Connected'
+  lastCloudSyncTime = 'Connected',
+  settings
 }) => {
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'All' | UserRole>('All');
   const [levelFilter, setLevelFilter] = useState<'All' | StudentLevel>('All');
   const [classFilter, setClassFilter] = useState<string>('All');
+  const [activityFilter, setActivityFilter] = useState<'All' | 'Active' | 'Inactive' | 'Never'>('All');
   const [showCommandCenter, setShowCommandCenter] = useState(false);
+  const [isStudentCardsOpen, setIsStudentCardsOpen] = useState(false);
+  const [cardsTargetClass, setCardsTargetClass] = useState<string>('All');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
@@ -62,6 +74,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const [role, setRole] = useState<UserRole>('Student');
   const [studentLevel, setStudentLevel] = useState<StudentLevel>('Grade 6');
   const [studentClass, setStudentClass] = useState<string>('6-A');
+  const [teacherGrades, setTeacherGrades] = useState<StudentLevel[]>(['Grade 6', 'High School']);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
@@ -86,6 +99,13 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
     name: string;
     level: StudentLevel;
     class: string;
+  } | null>(null);
+
+  // Edit Teacher Assigned Grades modal
+  const [editingTeacher, setEditingTeacher] = useState<{
+    username: string;
+    name: string;
+    assignedGrades: StudentLevel[];
   } | null>(null);
 
   const generatePassword = () => {
@@ -138,6 +158,10 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
       setFormError('Enter a username.');
       return;
     }
+    if (cleanUser === 'admin') {
+      setFormError('The Administrator account is permanent and cannot be modified.');
+      return;
+    }
     if (accounts.some(a => a.username.toLowerCase() === cleanUser)) {
       setFormError(`Username @${cleanUser} is already in use.`);
       return;
@@ -145,6 +169,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
 
     const pass = password.trim() || generatePassword();
     const isStudentRole = role === 'Student';
+    const isTeacherRole = role === 'Teacher';
     const finalClass = isStudentRole ? (studentClass.trim() || (studentLevel === 'Grade 6' ? '6-A' : studentLevel === 'Grade 9' ? '9-A' : '10-A')) : undefined;
 
     const newAcc: UserAccount = {
@@ -154,6 +179,8 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
       role,
       studentLevel: isStudentRole ? studentLevel : undefined,
       studentClass: finalClass,
+      assignedGrades: isTeacherRole ? (teacherGrades.length ? teacherGrades : ['Grade 6', 'High School']) : undefined,
+      status: 'Active',
       password: pass,
       created: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     };
@@ -257,6 +284,9 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   };
 
   const handleReset = (targetUser: UserAccount) => {
+    if (targetUser.role === 'Admin' || targetUser.username.toLowerCase() === 'admin') {
+      return; // Admin password is permanently protected and immutable
+    }
     const newPass = generatePassword();
     onResetPassword(targetUser.username, newPass);
     setIssuedList([{
@@ -270,7 +300,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
 
   const handleCopyIssued = () => {
     const text = issuedList
-      .map(item => `${item.name} (${item.level || 'Student'}${item.class ? ` · ${item.class}` : ''}) — @${item.username} / ${item.pass}`)
+      .map(item => `${item.name} (${item.level || 'Student'}${item.class ? ` · ${item.class}` : ''}) — @${item.username}`)
       .join('\n');
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -278,9 +308,9 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   };
 
   const handleDownloadCsv = () => {
-    const csvHeader = 'Name,Username,Role,Grade Level,Class,Temporary Password\n';
+    const csvHeader = 'Name,Username,Role,Grade Level,Class\n';
     const csvRows = issuedList
-      .map(item => `"${item.name}","${item.username}","Student","${item.level || ''}","${item.class || ''}","${item.pass}"`)
+      .map(item => `"${item.name}","${item.username}","Student","${item.level || ''}","${item.class || ''}"`)
       .join('\n');
     const blob = new Blob([csvHeader + csvRows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -292,7 +322,14 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   };
 
   const handleDownloadBackupJson = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(accounts, null, 2));
+    // Sanitize export so Admin credentials are permanently protected and never exposed
+    const sanitized = accounts.map(a => {
+      if (a.role === 'Admin' || a.username.toLowerCase() === 'admin') {
+        return { ...a, password: '••••••••' };
+      }
+      return a;
+    });
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(sanitized, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute('href', dataStr);
     dlAnchorElem.setAttribute('download', `ahs_accounts_safety_vault_${new Date().toISOString().slice(0, 10)}.json`);
@@ -338,6 +375,42 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
     )
   ).sort();
 
+  const isAccountActive = (a: UserAccount): boolean => {
+    if (a.status === 'Inactive') return false;
+    if (!a.lastLogin) return false;
+    try {
+      const diffDays = (new Date().getTime() - new Date(a.lastLogin).getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays <= 14;
+    } catch {
+      return false;
+    }
+  };
+
+  const formatLastLogin = (iso?: string) => {
+    if (!iso) return { label: 'Never logged in', isRecent: false, relative: 'Never' };
+    try {
+      const d = new Date(iso);
+      const now = new Date();
+      const diffMs = now.getTime() - d.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      let relative = '';
+      if (diffHours < 1) relative = 'Just now';
+      else if (diffHours < 24) relative = `${diffHours}h ago`;
+      else if (diffDays === 1) relative = 'Yesterday';
+      else if (diffDays < 14) relative = `${diffDays}d ago`;
+      else relative = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const isRecent = diffDays <= 14;
+
+      return { label: formatted, isRecent, relative };
+    } catch {
+      return { label: 'Never', isRecent: false, relative: 'Never' };
+    }
+  };
+
   const filteredAccounts = accounts.filter(a => {
     const term = searchTerm.trim().toLowerCase();
     const matchTerm =
@@ -354,7 +427,16 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
       classFilter === 'All' ||
       (a.role === 'Student' && a.studentClass === classFilter);
 
-    return matchTerm && matchRole && matchLevel && matchClass;
+    const matchActivity =
+      activityFilter === 'All'
+        ? true
+        : activityFilter === 'Active'
+        ? isAccountActive(a)
+        : activityFilter === 'Inactive'
+        ? !isAccountActive(a)
+        : !a.lastLogin;
+
+    return matchTerm && matchRole && matchLevel && matchClass && matchActivity;
   });
 
   const studentCount = accounts.filter(a => a.role === 'Student').length;
@@ -363,6 +445,8 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const hsCount = accounts.filter(a => a.role === 'Student' && a.studentLevel === 'High School').length;
   const adminCount = accounts.filter(a => a.role === 'Admin').length;
   const teacherCount = accounts.filter(a => a.role === 'Teacher').length;
+  const activeCount = accounts.filter(isAccountActive).length;
+  const inactiveCount = accounts.length - activeCount;
   const bulkLinesCount = bulkText.split(/\r?\n/).filter(l => l.trim()).length;
 
   return (
@@ -381,21 +465,60 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
           </p>
         </div>
 
-        {onSyncAllToCloud && (
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={onSyncAllToCloud}
-            disabled={cloudSyncStatus === 'syncing'}
-            className="px-5 py-2.5 bg-[#1e3a8a] hover:bg-[#162c68] text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5"
+            onClick={() => {
+              setCardsTargetClass(classFilter !== 'All' ? classFilter : 'All');
+              setIsStudentCardsOpen(true);
+            }}
+            className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5 active:translate-y-0"
+            title="Generate student examination cards with username, password, and QR code to login page"
           >
-            {cloudSyncStatus === 'syncing' ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Cloud className="w-4 h-4 text-sky-300" />
-            )}
-            <span>{cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Sync All Accounts to Cloud'}</span>
+            <QrCode className="w-4 h-4 text-emerald-200" />
+            <span>Generate Student Cards by Class</span>
           </button>
-        )}
+
+          {onSyncAllToCloud && (
+            <button
+              type="button"
+              onClick={onSyncAllToCloud}
+              disabled={cloudSyncStatus === 'syncing'}
+              className="px-5 py-2.5 bg-[#1e3a8a] hover:bg-[#162c68] text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0 hover:-translate-y-0.5"
+            >
+              {cloudSyncStatus === 'syncing' ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Cloud className="w-4 h-4 text-sky-300" />
+              )}
+              <span>{cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Sync All Accounts to Cloud'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Activity Status & Last Login Tracking Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Total Roster</span>
+          <span className="text-2xl font-black text-slate-900 tabular-nums block mt-1">{accounts.length}</span>
+          <span className="text-[10px] text-slate-500 font-semibold">{studentCount} Students · {teacherCount} Teachers</span>
+        </div>
+        <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl shadow-2xs">
+          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">Active Users</span>
+          <span className="text-2xl font-black text-emerald-700 tabular-nums block mt-1">{activeCount}</span>
+          <span className="text-[10px] text-emerald-700 font-semibold">Active within 14 days</span>
+        </div>
+        <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl shadow-2xs">
+          <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 block">Inactive / Never</span>
+          <span className="text-2xl font-black text-amber-700 tabular-nums block mt-1">{inactiveCount}</span>
+          <span className="text-[10px] text-amber-700 font-semibold">No recent activity</span>
+        </div>
+        <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl shadow-2xs">
+          <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 block">Teacher Accounts</span>
+          <span className="text-2xl font-black text-[#1e3a8a] tabular-nums block mt-1">{teacherCount}</span>
+          <span className="text-[10px] text-blue-700 font-semibold">Grade-scoped access</span>
+        </div>
       </div>
 
       {/* Grade Level Distribution Summary Pills */}
@@ -710,6 +833,57 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               </div>
             )}
 
+            {/* If Role is Teacher: Grade Scope Selection */}
+            {role === 'Teacher' && (
+              <div className="p-4 bg-blue-50/90 rounded-xl border border-blue-200 space-y-3">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-extrabold text-[#1e3a8a]">
+                    Assigned Teacher Grades <span className="text-red-600">*</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Roster Scope
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Select which grades this teacher can review. The teacher can ONLY review performance and diagnostic reports for students in these assigned grades.
+                </p>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Grade 6', 'Grade 9', 'High School'] as StudentLevel[]).map(lvl => {
+                    const isChecked = teacherGrades.includes(lvl);
+                    return (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => {
+                          if (isChecked) {
+                            if (teacherGrades.length > 1) {
+                              setTeacherGrades(teacherGrades.filter(g => g !== lvl));
+                            }
+                          } else {
+                            setTeacherGrades([...teacherGrades, lvl]);
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-[#1e3a8a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300'
+                            : 'bg-white text-slate-700 border-slate-300 hover:border-blue-400'
+                        }`}
+                      >
+                        <div className="font-black text-xs">{lvl}</div>
+                        <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-500'}`}>
+                          {lvl === 'High School' ? 'SAT & GAT' : 'NAFS'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="text-[11px] text-slate-600 font-bold">
+                  Assigned Scope: <span className="text-[#1e3a8a]">{teacherGrades.join(', ')}</span>
+                </div>
+              </div>
+            )}
+
             {mode === 'single' ? (
               <form onSubmit={handleCreateSingle} className="space-y-3.5 text-xs">
                 <div>
@@ -870,13 +1044,6 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                 <span className="font-extrabold text-xs text-[#201e1d]">Sign-in Credentials Handout</span>
                 <div className="flex items-center gap-2">
                   <button
-                    type="button"
-                    onClick={() => setShowIssuedPass(!showIssuedPass)}
-                    className="text-xs text-[#1f3d7a] hover:underline cursor-pointer font-bold"
-                  >
-                    {showIssuedPass ? 'Hide passwords' : 'Show passwords'}
-                  </button>
-                  <button
                     onClick={() => setIssuedList([])}
                     className="text-xs text-slate-600 hover:text-black cursor-pointer font-bold"
                   >
@@ -886,29 +1053,41 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               </div>
 
               <div className="text-[11px] text-slate-600">
-                Student name, grade level, assigned class, username, and temporary password.
+                Student name, grade level, assigned class, and username. Passcodes are safeguarded and encoded into official student access cards.
               </div>
 
               <div className="bg-[#f3f2f2] p-2.5 rounded-lg font-mono text-xs leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap text-[#201e1d]">
                 {issuedList.map(item => (
-                  `${item.name} (${item.level || 'Student'}${item.class ? ` · ${item.class}` : ''}) — @${item.username} / ${showIssuedPass ? item.pass : '••••••••'}`
+                  `${item.name} (${item.level || 'Student'}${item.class ? ` · ${item.class}` : ''}) — @${item.username} / ••••••••`
                 )).join('\n')}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const firstClass = issuedList[0]?.class || 'All';
+                    setCardsTargetClass(firstClass);
+                    setIsStudentCardsOpen(true);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <QrCode className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Generate Student Cards (QR + Passwords)</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleCopyIssued}
                   className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-[#201e1d] cursor-pointer"
                 >
-                  {copied ? 'Copied!' : 'Copy List'}
+                  {copied ? 'Copied!' : 'Copy Roster'}
                 </button>
                 <button
                   type="button"
                   onClick={handleDownloadCsv}
                   className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-[#201e1d] cursor-pointer"
                 >
-                  Download CSV Handout
+                  Download CSV
                 </button>
               </div>
             </div>
@@ -954,9 +1133,9 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                 </div>
               </div>
 
-              {/* Secondary Student Filters: Grade Level & Class Filter */}
+              {/* Secondary Student Filters: Grade Level, Class & Activity Filter */}
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-[11px] font-bold text-slate-500">Filter by Grade:</span>
+                <span className="text-[11px] font-bold text-slate-500">Grade:</span>
                 {(['All', 'Grade 6', 'Grade 9', 'High School'] as const).map(lvl => (
                   <button
                     key={lvl}
@@ -969,6 +1148,23 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                     }`}
                   >
                     {lvl}
+                  </button>
+                ))}
+
+                <span className="text-slate-300 mx-1">|</span>
+                <span className="text-[11px] font-bold text-slate-500">Activity:</span>
+                {(['All', 'Active', 'Inactive', 'Never'] as const).map(act => (
+                  <button
+                    key={act}
+                    type="button"
+                    onClick={() => setActivityFilter(act)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      activityFilter === act
+                        ? 'bg-emerald-800 text-white shadow-2xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {act === 'Never' ? 'Never Logged In' : act}
                   </button>
                 ))}
 
@@ -985,6 +1181,19 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCardsTargetClass(classFilter !== 'All' ? classFilter : 'All');
+                        setIsStudentCardsOpen(true);
+                      }}
+                      className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 text-[#1f3d7a] rounded-lg text-[11px] font-black flex items-center gap-1 cursor-pointer shadow-2xs hover:border-[#1f3d7a]"
+                      title="Print student login cards with QR codes and credentials for this class"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-[#1e3a8a]" />
+                      <span>{classFilter !== 'All' ? `Print Class ${classFilter} Cards` : 'Print Student Cards'}</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -999,6 +1208,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                     <th className="py-2.5 px-2">Role</th>
                     <th className="py-2.5 px-2">Grade Level &amp; Access</th>
                     <th className="py-2.5 px-2">Class</th>
+                    <th className="py-2.5 px-2">Last Login &amp; Status</th>
                     <th className="py-2.5 px-2 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1023,7 +1233,11 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                           </td>
 
                           <td className="py-3 px-2">
-                            {isCurrent ? (
+                            {acc.role === 'Admin' || acc.username.toLowerCase() === 'admin' ? (
+                              <span className="font-extrabold text-[11px] text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                                Admin (Protected)
+                              </span>
+                            ) : isCurrent ? (
                               <span className="font-bold text-[11px] text-[#1f3d7a] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                                 {acc.role} (You)
                               </span>
@@ -1036,7 +1250,6 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                               >
                                 <option value="Student">Student</option>
                                 <option value="Teacher">Teacher</option>
-                                <option value="Admin">Admin</option>
                               </select>
                             )}
                           </td>
@@ -1061,8 +1274,32 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                                   </span>
                                 )}
                               </div>
+                            ) : acc.role === 'Teacher' ? (
+                              <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {(acc.assignedGrades && acc.assignedGrades.length > 0 ? acc.assignedGrades : ['Grade 6', 'High School']).map(g => (
+                                    <span key={g} className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 border border-blue-200 text-[10px] font-black">
+                                      {g}
+                                    </span>
+                                  ))}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingTeacher({
+                                    username: acc.username,
+                                    name: acc.name,
+                                    assignedGrades: acc.assignedGrades && acc.assignedGrades.length > 0 ? acc.assignedGrades : ['Grade 6', 'High School']
+                                  })}
+                                  className="text-[10px] font-bold text-[#1f3d7a] hover:underline flex items-center gap-0.5 cursor-pointer mt-0.5"
+                                >
+                                  <Edit2 className="w-2.5 h-2.5" />
+                                  <span>Assign Grades</span>
+                                </button>
+                              </div>
                             ) : (
-                              <span className="text-[11px] text-slate-400 italic">Full Access</span>
+                              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                All Grades &amp; Admin
+                              </span>
                             )}
                           </td>
 
@@ -1071,47 +1308,102 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                               <span className="inline-block px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-[11px] font-black text-slate-800">
                                 {acc.studentClass || 'Unassigned'}
                               </span>
+                            ) : acc.role === 'Teacher' ? (
+                              <span className="text-[11px] font-bold text-blue-900">Faculty Scope</span>
                             ) : (
                               <span className="text-slate-400">—</span>
                             )}
                           </td>
 
+                          {/* Last Login & Activity Tracking Column */}
+                          <td className="py-3 px-2">
+                            {(() => {
+                              const info = formatLastLogin(acc.lastLogin);
+                              const active = isAccountActive(acc);
+                              return (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`w-2 h-2 rounded-full ${active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-black ${
+                                      active ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                    }`}>
+                                      {active ? 'Active' : 'Inactive'}
+                                    </span>
+                                    {onToggleUserStatus && !isCurrent && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onToggleUserStatus(acc.username, acc.status === 'Inactive' ? 'Active' : 'Inactive')}
+                                        className="text-[9px] text-slate-500 hover:text-slate-900 underline ml-0.5 cursor-pointer"
+                                        title="Toggle active status"
+                                      >
+                                        {acc.status === 'Inactive' ? 'Activate' : 'Deactivate'}
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 font-mono" title={acc.lastLogin || 'Never logged in'}>
+                                    {info.relative !== 'Never' ? `${info.relative} (${info.label})` : 'Never logged in'}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </td>
+
                           <td className="py-3 px-2 text-right">
                             <div className="flex items-center justify-end gap-2">
                               {isStudent && (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingStudent({
-                                    username: acc.username,
-                                    name: acc.name,
-                                    level: acc.studentLevel || 'Grade 6',
-                                    class: acc.studentClass || '6-A'
-                                  })}
-                                  className="text-xs font-bold text-[#1f3d7a] hover:underline flex items-center gap-1 cursor-pointer"
-                                  title="Change grade level or assigned class"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                  <span>Edit Class</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCardsTargetClass(acc.studentClass || 'All');
+                                      setIsStudentCardsOpen(true);
+                                    }}
+                                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+                                    title="View & print student access card with QR code"
+                                  >
+                                    <QrCode className="w-3 h-3 text-emerald-700" />
+                                    <span>Card</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingStudent({
+                                      username: acc.username,
+                                      name: acc.name,
+                                      level: acc.studentLevel || 'Grade 6',
+                                      class: acc.studentClass || '6-A'
+                                    })}
+                                    className="text-xs font-bold text-[#1f3d7a] hover:underline flex items-center gap-1 cursor-pointer"
+                                    title="Change grade level or assigned class"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                    <span>Edit Class</span>
+                                  </button>
+                                </>
                               )}
 
-                              <button
-                                type="button"
-                                onClick={() => handleReset(acc)}
-                                className="text-xs font-bold text-slate-600 hover:text-black hover:underline cursor-pointer"
-                              >
-                                Reset Pass
-                              </button>
+                              {acc.role === 'Admin' || acc.username.toLowerCase() === 'admin' ? (
+                                <span className="text-[11px] font-bold text-slate-400 italic">Protected</span>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReset(acc)}
+                                    className="text-xs font-bold text-slate-600 hover:text-black hover:underline cursor-pointer"
+                                  >
+                                    Reset Pass
+                                  </button>
 
-                              {!isCurrent && (
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmDeleteTarget(acc)}
-                                  className="text-xs font-bold text-red-600 hover:text-red-800 cursor-pointer ml-1"
-                                  title="Delete account"
-                                >
-                                  Remove
-                                </button>
+                                  {!isCurrent && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteTarget(acc)}
+                                      className="text-xs font-bold text-red-600 hover:text-red-800 cursor-pointer ml-1"
+                                      title="Delete account"
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -1235,6 +1527,100 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
         </div>
       )}
 
+      {/* Edit Teacher Assigned Grades Modal */}
+      {editingTeacher && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-[#1e3a8a] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  Assign Teacher Grades
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {editingTeacher.name} (@{editingTeacher.username})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTeacher(null)}
+                className="text-slate-400 hover:text-black p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Select which grades this teacher can review. In the Student Progress hub, this teacher will only see performance and test scores for students in these grades.
+              </p>
+
+              <div className="grid grid-cols-3 gap-2">
+                {(['Grade 6', 'Grade 9', 'High School'] as StudentLevel[]).map(lvl => {
+                  const isChecked = editingTeacher.assignedGrades.includes(lvl);
+                  return (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => {
+                        const cur = editingTeacher.assignedGrades;
+                        let updated: StudentLevel[];
+                        if (isChecked) {
+                          if (cur.length > 1) {
+                            updated = cur.filter(g => g !== lvl);
+                          } else {
+                            updated = cur;
+                          }
+                        } else {
+                          updated = [...cur, lvl];
+                        }
+                        setEditingTeacher({ ...editingTeacher, assignedGrades: updated });
+                      }}
+                      className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                        isChecked
+                          ? 'bg-[#1e3a8a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300 font-black'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="text-xs font-black">{lvl}</div>
+                      <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-500'}`}>
+                        {lvl === 'High School' ? 'SAT & GAT' : 'NAFS'}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs text-slate-700">
+                Current Assigned Scope: <strong className="text-[#1e3a8a]">{editingTeacher.assignedGrades.join(', ')}</strong>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setEditingTeacher(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateTeacherGrades?.(
+                    editingTeacher.username,
+                    editingTeacher.assignedGrades
+                  );
+                  setEditingTeacher(null);
+                }}
+                className="px-5 py-2 bg-[#1e3a8a] hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md cursor-pointer"
+              >
+                Save Assigned Grades
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Safety Modal */}
       {confirmDeleteTarget && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1271,6 +1657,15 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Student Examination Access Cards Modal */}
+      <StudentCardsModal
+        isOpen={isStudentCardsOpen}
+        onClose={() => setIsStudentCardsOpen(false)}
+        accounts={accounts}
+        defaultClass={cardsTargetClass}
+        settings={settings}
+      />
     </div>
   );
 };

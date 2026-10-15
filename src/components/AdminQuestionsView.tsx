@@ -40,7 +40,6 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
   const [formOptions, setFormOptions] = useState<string[]>(['', '', '', '']);
   const [formAnswer, setFormAnswer] = useState<number>(0);
   const [formExplain, setFormExplain] = useState('');
-  const [formSrc, setFormSrc] = useState('Admin');
   const [formError, setFormError] = useState('');
 
   const conf = EXAM_CONFIGS[activeExam];
@@ -52,7 +51,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
     const term = searchTerm.trim().toLowerCase();
     const matchSearch =
       !term ||
-      (q.prompt + ' ' + (q.passage || '') + ' ' + q.options.join(' ') + ' ' + (q.src || '')).toLowerCase().includes(term);
+      (q.prompt + ' ' + (q.passage || '') + ' ' + q.options.join(' ') + ' ' + (q.explain || '')).toLowerCase().includes(term);
     return matchSkill && matchSearch;
   });
 
@@ -64,7 +63,6 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
     setFormOptions(['', '', '', '']);
     setFormAnswer(0);
     setFormExplain('');
-    setFormSrc('Admin');
     setFormError('');
     setIsNewModalOpen(true);
   };
@@ -78,7 +76,6 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
     setFormOptions([...q.options]);
     setFormAnswer(q.answer);
     setFormExplain(q.explain || '');
-    setFormSrc(q.src || '');
     setFormError('');
   };
 
@@ -106,8 +103,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
       prompt: formPrompt.trim(),
       options: formOptions.map(o => o.trim()),
       answer: formAnswer,
-      explain: formExplain.trim() || 'No explanation provided.',
-      src: formSrc.trim() || undefined,
+      explain: formExplain.trim() || `Option ${['A', 'B', 'C', 'D'][formAnswer]} is the verified correct answer.`,
       passage: formPassage.trim() || undefined
     };
 
@@ -291,7 +287,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
               <th className="py-2.5 px-3">Question</th>
               <th className="py-2.5 px-3 w-40">Skill</th>
               <th className="py-2.5 px-3 w-16">Key</th>
-              <th className="py-2.5 px-3 w-32">Source</th>
+              <th className="py-2.5 px-3">Explanation</th>
               <th className="py-2.5 px-3 w-28 text-right"></th>
             </tr>
           </thead>
@@ -318,7 +314,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                     </td>
                     <td className="py-3 px-3 text-[#201e1d] font-semibold">{q.skill}</td>
                     <td className="py-3 px-3 font-extrabold text-[#1f3d7a] text-sm">{keyLetter}</td>
-                    <td className="py-3 px-3 text-slate-500 truncate">{q.src || '—'}</td>
+                    <td className="py-3 px-3 text-slate-600 text-xs truncate max-w-xs" title={q.explain}>{q.explain || '—'}</td>
                     <td className="py-3 px-3 text-right">
                       {isConfirming ? (
                         <div className="flex items-center justify-end gap-1">
@@ -479,22 +475,11 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Explanation</label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={formExplain}
                   onChange={e => setFormExplain(e.target.value)}
                   placeholder="Explain why the answer is correct..."
-                  className="w-full p-2.5 bg-white border border-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Source</label>
-                <input
-                  type="text"
-                  value={formSrc}
-                  onChange={e => setFormSrc(e.target.value)}
-                  placeholder="e.g. Tajmeeat 2025"
-                  className="w-full p-2.5 bg-white border border-slate-300 text-xs"
+                  className="w-full p-2.5 bg-white border border-slate-300 text-xs rounded"
                 />
               </div>
 
