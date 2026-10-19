@@ -32,6 +32,11 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
         ? currentUser.assignedGrades
         : (currentUser.name?.toLowerCase().includes('houssem') ? ['Grade 9'] : ['Grade 6', 'High School']))
     : null;
+  const assignedPathways = isTeacher
+    ? (currentUser.assignedPathways && currentUser.assignedPathways.length > 0
+        ? currentUser.assignedPathways
+        : (assignedGrades?.includes('High School') ? ['GAT', 'SAT'] : ['NAFS']))
+    : null;
 
   // Filter only student accounts, restricted to teacher's assigned grades if role is Teacher
   const studentAccounts = students.filter(a => {
@@ -167,8 +172,8 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
         </div>
       </div>
 
-      {/* Teacher Scoped Grade Assignment Banner */}
-      {isTeacher && assignedGrades && (
+      {/* Teacher Scoped Grade & Pathway Assignment Banner */}
+      {isTeacher && (assignedGrades || assignedPathways) && (
         <div className="p-4 bg-blue-50/90 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">
@@ -176,15 +181,22 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
             </div>
             <div>
               <span className="font-extrabold text-blue-950 text-sm block">
-                Teacher Assigned Grade Scope: {assignedGrades.join(' & ')}
+                Teacher Assigned Scope: {assignedPathways ? `[${assignedPathways.join(' & ')}]` : ''} {assignedGrades ? `· Grades: ${assignedGrades.join(' & ')}` : ''}
               </span>
               <span className="text-slate-600 text-[11px] block mt-0.5">
-                Per administration policy, your teacher account is restricted to evaluating students in your assigned grades only.
+                Per institutional policy, your faculty account is authorized to evaluate student analytics within your assigned pathways and grade levels.
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 self-start sm:self-auto">
-            {assignedGrades.map(g => (
+          <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+            {assignedPathways?.map(pw => (
+              <span key={pw} className={`px-2.5 py-1 rounded-lg text-[10px] font-black text-white ${
+                pw === 'NAFS' ? 'bg-emerald-700' : pw === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
+              }`}>
+                {pw} Track
+              </span>
+            ))}
+            {assignedGrades?.map(g => (
               <span key={g} className="px-2.5 py-1 bg-white border border-blue-300 rounded-lg text-[10px] font-black text-[#1e3a8a]">
                 {g}
               </span>
@@ -243,19 +255,26 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
           </div>
 
           <div className="inline-flex p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] gap-1">
-            {(['All', 'NAFS', 'GAT', 'SAT'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setExamFilter(tab)}
-                className={`px-3 py-1 text-xs font-black rounded-lg transition-all duration-200 cursor-pointer ${
-                  examFilter === tab
-                    ? 'bg-white text-[#1f3d7a] shadow-[0_2px_0_0_#1f3d7a,0_2px_4px_rgba(0,0,0,0.1)] -translate-y-0.5'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+            {(() => {
+              const availableTabs: ('All' | 'NAFS' | 'GAT' | 'SAT')[] =
+                isTeacher && assignedPathways && assignedPathways.length > 0
+                  ? ['All', ...(assignedPathways as ('NAFS' | 'GAT' | 'SAT')[])]
+                  : ['All', 'NAFS', 'GAT', 'SAT'];
+
+              return availableTabs.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setExamFilter(tab)}
+                  className={`px-3 py-1 text-xs font-black rounded-lg transition-all duration-200 cursor-pointer ${
+                    examFilter === tab
+                      ? 'bg-white text-[#1f3d7a] shadow-[0_2px_0_0_#1f3d7a,0_2px_4px_rgba(0,0,0,0.1)] -translate-y-0.5'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ));
+            })()}
           </div>
         </div>
 

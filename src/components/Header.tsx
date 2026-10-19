@@ -69,12 +69,12 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Left: Sidebar Toggle Button + School Logo & Name */}
           <div className="flex items-center shrink-0 z-10 gap-2 sm:gap-3">
             {/* Sidebar toggle button (opens/toggles the left navigation list) */}
-            {onToggleSidebar && currentScreen !== 'studentSelect' && (
+            {onToggleSidebar && (
               <button
                 type="button"
                 onClick={onToggleSidebar}
-                className="p-2 -ml-1 text-slate-700 hover:text-[#1e3a8a] hover:bg-slate-200/70 rounded-xl transition-colors cursor-pointer"
-                title="Toggle Left Navigation Menu"
+                className="p-2 -ml-1 text-slate-700 hover:text-[#1e3a8a] hover:bg-slate-200/70 active:scale-90 rounded-xl transition-all cursor-pointer"
+                title="Toggle Left Navigation Menu (Expand / Collapse)"
                 aria-label="Toggle navigation list"
               >
                 <Menu className="w-5 h-5" />
@@ -187,24 +187,32 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </div>
               ) : (
-                /* Admin/Teacher console track switcher */
+                /* Admin/Teacher console track switcher: respects teacher's assigned pathways e.g. both GAT & SAT */
                 <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
-                  {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(exam => {
-                    const isActive = activeExam === exam;
-                    return (
-                      <button
-                        key={exam}
-                        onClick={() => onSelectExam(exam)}
-                        className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
-                          isActive
-                            ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
-                            : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
-                        }`}
-                      >
-                        {exam}
-                      </button>
-                    );
-                  })}
+                  {(() => {
+                    const tracksToRender: ExamType[] = isTeacher
+                      ? (user?.assignedPathways && user.assignedPathways.length > 0
+                          ? (user.assignedPathways as ExamType[])
+                          : (user?.assignedGrades?.includes('High School') ? ['GAT', 'SAT'] : ['NAFS']))
+                      : (['NAFS', 'GAT', 'SAT'] as ExamType[]);
+
+                    return tracksToRender.map(exam => {
+                      const isActive = activeExam === exam;
+                      return (
+                        <button
+                          key={exam}
+                          onClick={() => onSelectExam(exam)}
+                          className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
+                            isActive
+                              ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
+                              : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
+                          }`}
+                        >
+                          {exam}
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
               )
             )}

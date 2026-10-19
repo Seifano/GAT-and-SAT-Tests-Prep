@@ -24,6 +24,7 @@ interface StudentCardsModalProps {
   settings?: AppSettings;
   defaultClass?: string;
   defaultGrade?: StudentLevel;
+  selectedUsernames?: string[];
 }
 
 export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
@@ -32,7 +33,8 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
   onClose,
   settings,
   defaultClass = 'All',
-  defaultGrade
+  defaultGrade,
+  selectedUsernames
 }) => {
   const [selectedClass, setSelectedClass] = useState<string>(defaultClass);
   const [selectedGrade, setSelectedGrade] = useState<string>(defaultGrade || 'All');
@@ -64,10 +66,15 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
       });
   }, [loginUrl]);
 
-  // Extract all student accounts
+  // Extract all student accounts (or optionally restricted to selectedUsernames)
   const studentAccounts = useMemo(() => {
-    return accounts.filter(a => a.role === 'Student');
-  }, [accounts]);
+    let list = accounts.filter(a => a.role === 'Student');
+    if (selectedUsernames && selectedUsernames.length > 0) {
+      const set = new Set(selectedUsernames.map(u => u.toLowerCase()));
+      list = list.filter(a => set.has(a.username.toLowerCase()));
+    }
+    return list;
+  }, [accounts, selectedUsernames]);
 
   // Available classes list
   const availableClasses = useMemo(() => {
@@ -106,11 +113,41 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
     window.print();
   };
 
-  const logo = settings?.logoUrl || AHS_LOGO_SRC;
-  const appName = settings?.appName || 'AHS Exams Prepline';
+  // Resiliently resolve uploaded school logo from props or localStorage settings vault
+  const resolvedSettings = useMemo(() => {
+    if (settings?.logoUrl) return settings;
+    try {
+      const keys = ['ahs_prep_v2_settings', 'ahs_exams_prepline_settings', 'ahs_settings', 'react-example_settings'];
+      for (const k of keys) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (parsed && (parsed.logoUrl || parsed.appName)) return parsed;
+        }
+      }
+    } catch {}
+    return settings;
+  }, [settings]);
+
+  const logo = resolvedSettings?.logoUrl || settings?.logoUrl || AHS_LOGO_SRC;
+  const appName = resolvedSettings?.appName || settings?.appName || 'AHS Exams Prepline';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:overflow-visible">
+      {/* Print color-adjust and visibility preservation style */}
+      <style>{`
+        @media print {
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          img {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            max-width: 100% !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}</style>
       <div className="relative w-full max-w-6xl bg-white border-2 border-slate-300 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:rounded-none">
         
         {/* Modal Controls Header (Hidden in Print) */}
@@ -248,9 +285,17 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
                     <div className="flex items-center justify-between pb-3 border-b border-slate-200 gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <img
+                          key={logo}
                           src={logo}
                           alt="School Emblem"
-                          className="h-9 w-auto max-w-[70px] object-contain shrink-0"
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            if ((e.currentTarget as HTMLImageElement).src !== AHS_LOGO_SRC) {
+                              (e.currentTarget as HTMLImageElement).src = AHS_LOGO_SRC;
+                            }
+                          }}
+                          className="h-10 sm:h-11 w-auto max-w-[95px] object-contain shrink-0 print:block"
+                          style={{ printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}
                         />
                         <div className="min-w-0">
                           <span className="text-[11px] font-black tracking-tight text-slate-900 block truncate leading-tight uppercase">

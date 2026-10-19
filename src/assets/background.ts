@@ -32,6 +32,10 @@ export const DEFAULT_TECH_BACKGROUND_DATA_URL =
 </svg>
 `.trim());
 
+// User-specified flowing gray waves lines vector background
+export const WAVES_LINES_GRAY_BG_URL =
+  'https://img.magnific.com/premium-psd/waves-lines-gray-vector-background_657155-2089.jpg?semt=ais_hybrid&w=740&q=80';
+
 export interface BackgroundPreset {
   id: string;
   name: string;
@@ -40,6 +44,12 @@ export interface BackgroundPreset {
 }
 
 export const PRESET_BACKGROUNDS: BackgroundPreset[] = [
+  {
+    id: 'waves_lines_gray',
+    name: 'Waves Lines Gray Vector',
+    desc: 'Subtle gray architectural vector wave lines - flowing elegance for all portal views.',
+    dataUrl: WAVES_LINES_GRAY_BG_URL,
+  },
   {
     id: 'cyber_vector_18129294',
     name: 'Cyber Vector Tech',

@@ -131,7 +131,7 @@ export const StudentExamGateway: React.FC<StudentExamGatewayProps> = ({
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 font-sans">
       {/* Central Hero Container */}
-      <div className="bg-white border-2 border-slate-200/90 rounded-3xl p-6 sm:p-10 md:p-12 shadow-md relative overflow-hidden text-center">
+      <div className="bg-white/95 backdrop-blur-md border-2 border-slate-200/90 rounded-3xl p-6 sm:p-10 md:p-12 shadow-lg relative overflow-hidden text-center">
         {/* Heritage Tri-Color Accent Line */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-600 via-red-700 to-[#1e3a8a]" />
 

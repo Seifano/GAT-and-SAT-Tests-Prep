@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UserAccount, UserRole, StudentLevel, AppSettings } from '../types';
+import { UserAccount, UserRole, StudentLevel, PathwayType, AppSettings } from '../types';
 import { StudentCardsModal } from './StudentCardsModal';
 import {
   Search,
@@ -21,7 +21,13 @@ import {
   BookOpen,
   Target,
   QrCode,
-  Printer
+  Printer,
+  Trash2,
+  CheckSquare,
+  Square,
+  MinusSquare,
+  Users,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface AdminAccountsViewProps {
@@ -30,9 +36,11 @@ interface AdminAccountsViewProps {
   onCreateAccounts: (accounts: UserAccount[]) => void;
   onResetPassword: (username: string, newPass: string) => void;
   onDeleteAccount: (username: string) => void;
+  onDeleteAccounts?: (usernames: string[]) => void;
   onUpdateAccountRole?: (username: string, newRole: UserRole) => void;
   onUpdateStudentInfo?: (username: string, studentLevel: StudentLevel, studentClass?: string) => void;
   onUpdateTeacherGrades?: (username: string, assignedGrades: StudentLevel[]) => void;
+  onUpdateTeacherAssignments?: (username: string, assignedGrades: StudentLevel[], assignedPathways?: PathwayType[]) => void;
   onToggleUserStatus?: (username: string, status: 'Active' | 'Inactive') => void;
   onSyncAllToCloud?: () => Promise<void> | void;
   cloudSyncStatus?: 'synced' | 'syncing' | 'idle';
@@ -46,9 +54,11 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   onCreateAccounts,
   onResetPassword,
   onDeleteAccount,
+  onDeleteAccounts,
   onUpdateAccountRole,
   onUpdateStudentInfo,
   onUpdateTeacherGrades,
+  onUpdateTeacherAssignments,
   onToggleUserStatus,
   onSyncAllToCloud,
   cloudSyncStatus = 'idle',
@@ -64,8 +74,13 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const [showCommandCenter, setShowCommandCenter] = useState(false);
   const [isStudentCardsOpen, setIsStudentCardsOpen] = useState(false);
   const [cardsTargetClass, setCardsTargetClass] = useState<string>('All');
+  const [cardsSelectedUsernames, setCardsSelectedUsernames] = useState<string[] | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
+
+  // Multi-account selection state
+  const [selectedUsernames, setSelectedUsernames] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState<boolean>(false);
 
   // Single form
   const [name, setName] = useState('');
@@ -75,6 +90,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const [studentLevel, setStudentLevel] = useState<StudentLevel>('Grade 6');
   const [studentClass, setStudentClass] = useState<string>('6-A');
   const [teacherGrades, setTeacherGrades] = useState<StudentLevel[]>(['Grade 6', 'High School']);
+  const [teacherPathways, setTeacherPathways] = useState<PathwayType[]>(['GAT', 'SAT']);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
@@ -101,11 +117,12 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
     class: string;
   } | null>(null);
 
-  // Edit Teacher Assigned Grades modal
+  // Edit Teacher Assigned Pathways & Grades modal
   const [editingTeacher, setEditingTeacher] = useState<{
     username: string;
     name: string;
     assignedGrades: StudentLevel[];
+    assignedPathways: PathwayType[];
   } | null>(null);
 
   const generatePassword = () => {
@@ -180,6 +197,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
       studentLevel: isStudentRole ? studentLevel : undefined,
       studentClass: finalClass,
       assignedGrades: isTeacherRole ? (teacherGrades.length ? teacherGrades : ['Grade 6', 'High School']) : undefined,
+      assignedPathways: isTeacherRole ? (teacherPathways.length ? teacherPathways : ['GAT', 'SAT']) : undefined,
       status: 'Active',
       password: pass,
       created: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -448,6 +466,106 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const activeCount = accounts.filter(isAccountActive).length;
   const inactiveCount = accounts.length - activeCount;
   const bulkLinesCount = bulkText.split(/\r?\n/).filter(l => l.trim()).length;
+
+  // Multi-select helpers
+  const selectableAccounts = filteredAccounts.filter(
+    a => a.role !== 'Admin' && a.username.toLowerCase() !== 'admin'
+  );
+  const selectableUsernames = selectableAccounts.map(a => a.username);
+  const allSelectableVisibleSelected =
+    selectableUsernames.length > 0 &&
+    selectableUsernames.every(u => selectedUsernames.has(u));
+  const hasSomeSelected =
+    selectableUsernames.some(u => selectedUsernames.has(u)) && !allSelectableVisibleSelected;
+
+  const toggleSelectOne = (uname: string) => {
+    if (uname.toLowerCase() === 'admin') return;
+    setSelectedUsernames(prev => {
+      const next = new Set(prev);
+      if (next.has(uname)) next.delete(uname);
+      else next.add(uname);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelectableVisibleSelected) {
+      setSelectedUsernames(prev => {
+        const next = new Set(prev);
+        selectableUsernames.forEach(u => next.delete(u));
+        return next;
+      });
+    } else {
+      setSelectedUsernames(prev => {
+        const next = new Set(prev);
+        selectableUsernames.forEach(u => next.add(u));
+        return next;
+      });
+    }
+  };
+
+  const selectedAccounts = accounts.filter(a => selectedUsernames.has(a.username));
+  const selectedStudentCount = selectedAccounts.filter(a => a.role === 'Student').length;
+
+  const handleBulkResetPasswords = () => {
+    if (selectedUsernames.size === 0) return;
+    const newIssued: Array<{ name: string; username: string; pass: string; level?: string; class?: string }> = [];
+    selectedAccounts.forEach(acc => {
+      if (acc.role === 'Admin' || acc.username.toLowerCase() === 'admin') return;
+      const newPass = generatePassword();
+      onResetPassword(acc.username, newPass);
+      newIssued.push({
+        name: acc.name,
+        username: acc.username,
+        pass: newPass,
+        level: acc.studentLevel,
+        class: acc.studentClass
+      });
+    });
+    setIssuedList(newIssued);
+    setShowIssuedPass(true);
+  };
+
+  const handleExportSelectedCsv = () => {
+    if (selectedAccounts.length === 0) return;
+    const headers = ['Full Name', 'Username', 'Email', 'Role', 'Grade Level', 'Class', 'Status', 'Last Login'];
+    const rows = selectedAccounts.map(a => [
+      `"${a.name.replace(/"/g, '""')}"`,
+      `"${a.username}"`,
+      `"${a.email || ''}"`,
+      `"${a.role}"`,
+      `"${a.studentLevel || ''}"`,
+      `"${a.studentClass || ''}"`,
+      `"${a.status || 'Active'}"`,
+      `"${a.lastLogin || 'Never'}"`
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `ahs_selected_accounts_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleConfirmBulkDelete = () => {
+    const targets = Array.from(selectedUsernames).filter(u => u.toLowerCase() !== 'admin');
+    if (targets.length === 0) return;
+    if (onDeleteAccounts) {
+      onDeleteAccounts(targets);
+    } else {
+      targets.forEach(u => onDeleteAccount(u));
+    }
+    setSelectedUsernames(new Set());
+    setConfirmBulkDelete(false);
+  };
+
+  const handleBulkChangeRole = (newRole: UserRole) => {
+    if (!onUpdateAccountRole) return;
+    const targets = Array.from(selectedUsernames).filter(u => u.toLowerCase() !== 'admin');
+    targets.forEach(u => onUpdateAccountRole(u, newRole));
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
@@ -879,7 +997,56 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                   })}
                 </div>
                 <div className="text-[11px] text-slate-600 font-bold">
-                  Assigned Scope: <span className="text-[#1e3a8a]">{teacherGrades.join(', ')}</span>
+                  Assigned Grade Scope: <span className="text-[#1e3a8a]">{teacherGrades.join(', ')}</span>
+                </div>
+
+                {/* Assigned Exam Pathways (e.g. both GAT & SAT) */}
+                <div className="pt-2 border-t border-blue-200/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-extrabold text-[#1e3a8a]">
+                      Assigned Exam Pathways <span className="text-red-600">*</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Subject Pathways
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Assign one or multiple exam pathways (e.g. both GAT and SAT, or NAFS) for this faculty member to monitor and review.
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['GAT', 'SAT', 'NAFS'] as PathwayType[]).map(pw => {
+                      const isChecked = teacherPathways.includes(pw);
+                      return (
+                        <button
+                          key={pw}
+                          type="button"
+                          onClick={() => {
+                            if (isChecked) {
+                              if (teacherPathways.length > 1) {
+                                setTeacherPathways(teacherPathways.filter(p => p !== pw));
+                              }
+                            } else {
+                              setTeacherPathways([...teacherPathways, pw]);
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                            isChecked
+                              ? 'bg-[#1e3a8a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300 font-black'
+                              : 'bg-white text-slate-700 border-slate-300 hover:border-blue-400'
+                          }`}
+                        >
+                          <div className="font-black text-xs">{pw}</div>
+                          <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-500'}`}>
+                            {pw === 'GAT' ? 'Verbal & Quant' : pw === 'SAT' ? 'R&W & Math' : 'Saudi National'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-bold">
+                    Assigned Pathways: <span className="text-[#1e3a8a]">{teacherPathways.join(', ')}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1199,11 +1366,130 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               </div>
             </div>
 
+            {/* Bulk Actions Floating Toolbar */}
+            {selectedUsernames.size > 0 && (
+              <div className="mb-4 p-3.5 bg-slate-900 text-white rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-xl border border-slate-700 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center font-black text-sm text-white shadow-sm">
+                    {selectedUsernames.size}
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-white">
+                      {selectedUsernames.size} account{selectedUsernames.size > 1 ? 's' : ''} selected
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      Take simultaneous action across all selected accounts
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Delete Selected Button */}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmBulkDelete(true)}
+                    className="px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                    title="Delete all selected accounts permanently"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Selected ({selectedUsernames.size})</span>
+                  </button>
+
+                  {/* Print Cards for Selected Students */}
+                  {selectedStudentCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCardsSelectedUsernames(Array.from(selectedUsernames));
+                        setCardsTargetClass('All');
+                        setIsStudentCardsOpen(true);
+                      }}
+                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                      title="Generate and print login cards for selected students"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print Cards ({selectedStudentCount})</span>
+                    </button>
+                  )}
+
+                  {/* Bulk Reset Passwords */}
+                  <button
+                    type="button"
+                    onClick={handleBulkResetPasswords}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
+                    title="Generate new secure passwords and credential slips for selected accounts"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Reset Passwords</span>
+                  </button>
+
+                  {/* Bulk Role Quick Dropdown */}
+                  <div className="flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-xl border border-slate-700">
+                    <span className="text-[10px] font-bold text-slate-400">Role:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkChangeRole('Student')}
+                      className="text-[11px] font-bold text-sky-400 hover:text-sky-300 px-1.5 py-0.5 rounded hover:bg-slate-700 cursor-pointer"
+                      title="Set all selected to Student"
+                    >
+                      Student
+                    </button>
+                    <span className="text-slate-600">|</span>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkChangeRole('Teacher')}
+                      className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 px-1.5 py-0.5 rounded hover:bg-slate-700 cursor-pointer"
+                      title="Set all selected to Teacher"
+                    >
+                      Teacher
+                    </button>
+                  </div>
+
+                  {/* Export Selected CSV */}
+                  <button
+                    type="button"
+                    onClick={handleExportSelectedCsv}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
+                    title="Export selected accounts as a spreadsheet CSV"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Export CSV</span>
+                  </button>
+
+                  {/* Clear Selection */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUsernames(new Set())}
+                    className="px-2.5 py-1.5 text-slate-400 hover:text-white text-xs font-bold rounded-xl transition-colors cursor-pointer ml-1"
+                  >
+                    Deselect
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Accounts Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b-2 border-slate-200 text-slate-500 uppercase tracking-wider font-extrabold">
+                    <th className="py-2.5 px-3 w-10 text-center">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className="p-1 rounded cursor-pointer hover:bg-slate-100 transition-colors"
+                        title={allSelectableVisibleSelected ? 'Deselect all accounts' : 'Select all visible accounts'}
+                        aria-label="Select all"
+                      >
+                        {allSelectableVisibleSelected ? (
+                          <CheckSquare className="w-4 h-4 text-blue-600" />
+                        ) : hasSomeSelected ? (
+                          <MinusSquare className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-400" />
+                        )}
+                      </button>
+                    </th>
                     <th className="py-2.5 px-2">Student / Name</th>
                     <th className="py-2.5 px-2">Role</th>
                     <th className="py-2.5 px-2">Grade Level &amp; Access</th>
@@ -1215,7 +1501,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                 <tbody className="divide-y divide-slate-200">
                   {filteredAccounts.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-500">
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
                         No accounts match your search or filter criteria.
                       </td>
                     </tr>
@@ -1223,9 +1509,40 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                     filteredAccounts.map(acc => {
                       const isCurrent = currentUser?.username === acc.username;
                       const isStudent = acc.role === 'Student';
+                      const isSelected = selectedUsernames.has(acc.username);
+                      const isProtectedAdmin = acc.role === 'Admin' || acc.username.toLowerCase() === 'admin';
 
                       return (
-                        <tr key={acc.username} className="hover:bg-slate-50/80 transition-colors">
+                        <tr
+                          key={acc.username}
+                          className={`transition-colors ${
+                            isSelected
+                              ? 'bg-blue-50/80 border-l-4 border-l-blue-600'
+                              : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          {/* Checkbox column */}
+                          <td className="py-3 px-3 w-10 text-center">
+                            {isProtectedAdmin ? (
+                              <span title="Administrator account is permanently protected and cannot be selected or deleted">
+                                <Lock className="w-3.5 h-3.5 text-slate-300 mx-auto" />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => toggleSelectOne(acc.username)}
+                                className="p-1 rounded cursor-pointer transition-colors hover:bg-slate-200/60"
+                                title={isSelected ? `Deselect @${acc.username}` : `Select @${acc.username}`}
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-blue-600" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-400 hover:text-slate-600" />
+                                )}
+                              </button>
+                            )}
+                          </td>
+
                           <td className="py-3 px-2">
                             <div className="font-bold text-[#201e1d]">{acc.name}</div>
                             <div className="text-[11px] text-slate-500 font-mono">@{acc.username}</div>
@@ -1233,7 +1550,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                           </td>
 
                           <td className="py-3 px-2">
-                            {acc.role === 'Admin' || acc.username.toLowerCase() === 'admin' ? (
+                            {isProtectedAdmin ? (
                               <span className="font-extrabold text-[11px] text-red-800 bg-red-50 px-2 py-0.5 rounded border border-red-200">
                                 Admin (Protected)
                               </span>
@@ -1276,24 +1593,50 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                               </div>
                             ) : acc.role === 'Teacher' ? (
                               <div className="space-y-1">
+                                {/* Assigned Pathways Badges */}
                                 <div className="flex flex-wrap items-center gap-1">
+                                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Pathways:</span>
+                                  {(acc.assignedPathways && acc.assignedPathways.length > 0
+                                    ? acc.assignedPathways
+                                    : (acc.assignedGrades?.includes('High School') ? ['GAT', 'SAT'] : ['NAFS']) as PathwayType[]
+                                  ).map(pw => (
+                                    <span
+                                      key={pw}
+                                      className={`px-1.5 py-0.2 rounded text-[10px] font-black ${
+                                        pw === 'NAFS' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                                        pw === 'GAT' ? 'bg-red-100 text-red-800 border border-red-300' :
+                                        'bg-blue-100 text-blue-800 border border-blue-300'
+                                      }`}
+                                    >
+                                      {pw}
+                                    </span>
+                                  ))}
+                                </div>
+
+                                {/* Assigned Grades */}
+                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Grades:</span>
                                   {(acc.assignedGrades && acc.assignedGrades.length > 0 ? acc.assignedGrades : ['Grade 6', 'High School']).map(g => (
-                                    <span key={g} className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 border border-blue-200 text-[10px] font-black">
+                                    <span key={g} className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-bold">
                                       {g}
                                     </span>
                                   ))}
                                 </div>
+
                                 <button
                                   type="button"
                                   onClick={() => setEditingTeacher({
                                     username: acc.username,
                                     name: acc.name,
-                                    assignedGrades: acc.assignedGrades && acc.assignedGrades.length > 0 ? acc.assignedGrades : ['Grade 6', 'High School']
+                                    assignedGrades: acc.assignedGrades && acc.assignedGrades.length > 0 ? acc.assignedGrades : ['Grade 6', 'High School'],
+                                    assignedPathways: acc.assignedPathways && acc.assignedPathways.length > 0
+                                      ? acc.assignedPathways
+                                      : (acc.assignedGrades?.includes('High School') ? ['GAT', 'SAT'] : ['NAFS']) as PathwayType[]
                                   })}
                                   className="text-[10px] font-bold text-[#1f3d7a] hover:underline flex items-center gap-0.5 cursor-pointer mt-0.5"
                                 >
                                   <Edit2 className="w-2.5 h-2.5" />
-                                  <span>Assign Grades</span>
+                                  <span>Assign Pathways &amp; Grades</span>
                                 </button>
                               </div>
                             ) : (
@@ -1527,71 +1870,134 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
         </div>
       )}
 
-      {/* Edit Teacher Assigned Grades Modal */}
+      {/* Edit Teacher Assigned Pathways & Grades Modal */}
       {editingTeacher && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-[#1e3a8a] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white border-2 border-[#1e3a8a] rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <div>
                 <h3 className="text-lg font-black text-slate-900">
-                  Assign Teacher Grades
+                  Assign Teacher Pathways &amp; Grades
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 font-mono">
                   {editingTeacher.name} (@{editingTeacher.username})
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingTeacher(null)}
-                className="text-slate-400 hover:text-black p-1"
+                className="text-slate-400 hover:text-black p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Select which grades this teacher can review. In the Student Progress hub, this teacher will only see performance and test scores for students in these grades.
-              </p>
+            <div className="space-y-4">
+              {/* Section 1: Assigned Exam Pathways */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black text-slate-800 uppercase tracking-wider">
+                    1. Assigned Exam Pathways (Subject Scope)
+                  </label>
+                  <span className="text-[10px] text-blue-700 font-bold">Select one or more</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Assign one or multiple tracks (e.g. <strong>both GAT and SAT</strong>, or NAFS) to this faculty member.
+                </p>
 
-              <div className="grid grid-cols-3 gap-2">
-                {(['Grade 6', 'Grade 9', 'High School'] as StudentLevel[]).map(lvl => {
-                  const isChecked = editingTeacher.assignedGrades.includes(lvl);
-                  return (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => {
-                        const cur = editingTeacher.assignedGrades;
-                        let updated: StudentLevel[];
-                        if (isChecked) {
-                          if (cur.length > 1) {
-                            updated = cur.filter(g => g !== lvl);
+                <div className="grid grid-cols-3 gap-2">
+                  {(['GAT', 'SAT', 'NAFS'] as PathwayType[]).map(pw => {
+                    const isChecked = (editingTeacher.assignedPathways || []).includes(pw);
+                    return (
+                      <button
+                        key={pw}
+                        type="button"
+                        onClick={() => {
+                          const cur = editingTeacher.assignedPathways || [];
+                          let updated: PathwayType[];
+                          if (isChecked) {
+                            if (cur.length > 1) {
+                              updated = cur.filter(p => p !== pw);
+                            } else {
+                              updated = cur; // Keep at least one
+                            }
                           } else {
-                            updated = cur;
+                            updated = [...cur, pw];
                           }
-                        } else {
-                          updated = [...cur, lvl];
-                        }
-                        setEditingTeacher({ ...editingTeacher, assignedGrades: updated });
-                      }}
-                      className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                        isChecked
-                          ? 'bg-[#1e3a8a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300 font-black'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="text-xs font-black">{lvl}</div>
-                      <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-500'}`}>
-                        {lvl === 'High School' ? 'SAT & GAT' : 'NAFS'}
-                      </div>
-                    </button>
-                  );
-                })}
+                          setEditingTeacher({ ...editingTeacher, assignedPathways: updated });
+                        }}
+                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-[#1e3a8a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300 font-black'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="text-sm font-black">{pw}</div>
+                        <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-500'}`}>
+                          {pw === 'GAT' ? 'Verbal & Quant' : pw === 'SAT' ? 'R&W & Math' : 'Saudi National'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs text-slate-700">
-                Current Assigned Scope: <strong className="text-[#1e3a8a]">{editingTeacher.assignedGrades.join(', ')}</strong>
+              {/* Section 2: Assigned Student Grade Levels */}
+              <div className="space-y-2 pt-2 border-t border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black text-slate-800 uppercase tracking-wider">
+                    2. Assigned Student Grade Levels (Roster Scope)
+                  </label>
+                  <span className="text-[10px] text-blue-700 font-bold">Roster Filter</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Select which grades this teacher can review in the Student Progress hub.
+                </p>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Grade 6', 'Grade 9', 'High School'] as StudentLevel[]).map(lvl => {
+                    const isChecked = editingTeacher.assignedGrades.includes(lvl);
+                    return (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => {
+                          const cur = editingTeacher.assignedGrades;
+                          let updated: StudentLevel[];
+                          if (isChecked) {
+                            if (cur.length > 1) {
+                              updated = cur.filter(g => g !== lvl);
+                            } else {
+                              updated = cur;
+                            }
+                          } else {
+                            updated = [...cur, lvl];
+                          }
+                          setEditingTeacher({ ...editingTeacher, assignedGrades: updated });
+                        }}
+                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-[#1e3a8a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300 font-black'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="text-xs font-black">{lvl}</div>
+                        <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-500'}`}>
+                          {lvl === 'High School' ? 'SAT & GAT' : 'NAFS'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-2xl border border-blue-200 text-xs space-y-1">
+                <div>
+                  Pathways: <strong className="text-[#1e3a8a]">{(editingTeacher.assignedPathways || []).join(', ')}</strong>
+                </div>
+                <div>
+                  Grades: <strong className="text-slate-800">{editingTeacher.assignedGrades.join(', ')}</strong>
+                </div>
               </div>
             </div>
 
@@ -1606,22 +2012,75 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onUpdateTeacherGrades?.(
-                    editingTeacher.username,
-                    editingTeacher.assignedGrades
-                  );
+                  if (onUpdateTeacherAssignments) {
+                    onUpdateTeacherAssignments(
+                      editingTeacher.username,
+                      editingTeacher.assignedGrades,
+                      editingTeacher.assignedPathways
+                    );
+                  } else {
+                    onUpdateTeacherGrades?.(
+                      editingTeacher.username,
+                      editingTeacher.assignedGrades
+                    );
+                  }
                   setEditingTeacher(null);
                 }}
                 className="px-5 py-2 bg-[#1e3a8a] hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md cursor-pointer"
               >
-                Save Assigned Grades
+                Save Teacher Scope
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Safety Modal */}
+      {/* Bulk Delete Confirmation Safety Modal */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-red-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 bg-red-50 text-red-700 border-2 border-red-200 rounded-2xl mx-auto flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900">
+              Delete {selectedUsernames.size} Selected Account{selectedUsernames.size > 1 ? 's' : ''}?
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Are you sure you want to delete all <strong className="text-slate-900">{selectedUsernames.size} selected accounts</strong>?
+              This will permanently revoke login access and remove these accounts from Cloud Firestore and the offline safety vault.
+            </p>
+            <div className="max-h-36 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-left text-xs font-mono text-slate-700 space-y-1">
+              {Array.from(selectedUsernames).map(u => (
+                <div key={u} className="flex items-center justify-between">
+                  <span>@{u}</span>
+                  <span className="text-[10px] text-slate-400">
+                    {accounts.find(a => a.username === u)?.name || ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmBulkDelete(false)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cancel &amp; Keep
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBulkDelete}
+                className="px-5 py-2.5 bg-red-700 hover:bg-red-800 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Yes, Delete All Selected</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Single Confirmation Safety Modal */}
       {confirmDeleteTarget && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border-2 border-red-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
@@ -1661,10 +2120,14 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
       {/* Student Examination Access Cards Modal */}
       <StudentCardsModal
         isOpen={isStudentCardsOpen}
-        onClose={() => setIsStudentCardsOpen(false)}
+        onClose={() => {
+          setIsStudentCardsOpen(false);
+          setCardsSelectedUsernames(undefined);
+        }}
         accounts={accounts}
         defaultClass={cardsTargetClass}
         settings={settings}
+        selectedUsernames={cardsSelectedUsernames}
       />
     </div>
   );

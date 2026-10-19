@@ -8,7 +8,8 @@ import {
   ActiveSession,
   AppSettings,
   UserRole,
-  StudentLevel
+  StudentLevel,
+  PathwayType
 } from './types';
 import {
   EXAM_CONFIGS,
@@ -569,6 +570,29 @@ export default function App() {
     showToast(`Assigned grades updated for teacher @${username}: ${assignedGrades.join(', ')}`);
   };
 
+  const handleUpdateTeacherAssignments = (
+    username: string,
+    assignedGrades: StudentLevel[],
+    assignedPathways?: PathwayType[]
+  ) => {
+    setAccounts(prev => {
+      const updated = prev.map(a =>
+        a.username.toLowerCase() === username.toLowerCase()
+          ? { ...a, assignedGrades, assignedPathways: assignedPathways || a.assignedPathways }
+          : a
+      );
+      const target = updated.find(a => a.username.toLowerCase() === username.toLowerCase());
+      if (target) {
+        saveUserToDb(target).catch(console.error);
+      }
+      return updated;
+    });
+    if (user && user.username.toLowerCase() === username.toLowerCase()) {
+      setUser(prev => (prev ? { ...prev, assignedGrades, assignedPathways: assignedPathways || prev.assignedPathways } : null));
+    }
+    showToast(`Updated scope for @${username}: [${(assignedPathways || []).join(', ')}]`);
+  };
+
   // Helper: Retrieve question bank accessible to the currently active user
   // - Grade 6 students: only Grade 6 NAFS questions
   // - Grade 9 students: only Grade 9 NAFS questions
@@ -992,6 +1016,13 @@ export default function App() {
     showToast(`Account @${username} removed from database.`);
   };
 
+  const handleDeleteAccounts = (usernames: string[]) => {
+    const set = new Set(usernames.map(u => u.toLowerCase()));
+    setAccounts(prev => prev.filter(a => !set.has(a.username.toLowerCase())));
+    usernames.forEach(u => deleteUserFromDb(u).catch(console.error));
+    showToast(`Successfully deleted ${usernames.length} selected accounts.`);
+  };
+
   // Authentic test history for the current user and active exam (no fabricated data)
   const currentStudentAttempts = attempts.filter(
     a => (a.username || '').toLowerCase() === (user?.username || '').toLowerCase()
@@ -1062,8 +1093,33 @@ export default function App() {
     showToast(`Updated official ${exam} target date to ${newDate}`);
   };
 
+  const handleToggleSidebar = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarMobileOpen(prev => !prev);
+    } else {
+      setSidebarCollapsed(prev => {
+        const next = !prev;
+        try {
+          localStorage.setItem('ahs_sidebar_collapsed', String(next));
+        } catch {}
+        return next;
+      });
+    }
+  };
+
+  const postLoginBackgroundStyle: React.CSSProperties =
+    currentScreen !== 'login' && currentScreen !== 'onboard'
+      ? {
+          backgroundImage: `url('https://img.magnific.com/premium-psd/waves-lines-gray-vector-background_657155-2089.jpg?semt=ais_hybrid&w=740&q=80')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+          backgroundRepeat: 'no-repeat'
+        }
+      : {};
+
   return (
-    <div className="min-h-screen bg-[#f3f2f2] text-[#201e1d] flex flex-col font-sans">
+    <div className="min-h-screen text-[#201e1d] flex flex-col font-sans" style={postLoginBackgroundStyle}>
       {/* Toast Alert */}
       {toast && (
         <div className="fixed bottom-5 right-5 z-50 bg-[#201e1d] text-white px-4 py-2.5 shadow-md text-xs font-bold border border-slate-700">
@@ -1089,7 +1145,7 @@ export default function App() {
           onSyncAllToCloud={handleSyncAllToCloud}
           cloudSyncStatus={cloudSyncStatus}
           lastCloudSyncTime={lastCloudSyncTime}
-          onToggleSidebar={() => setSidebarMobileOpen(prev => !prev)}
+          onToggleSidebar={handleToggleSidebar}
         />
       )}
 
@@ -1133,7 +1189,7 @@ export default function App() {
         )}
 
         {/* Right / Main Content Column */}
-        <div className="flex-1 min-w-0 flex flex-col bg-[#f3f2f2]">
+        <div className="flex-1 min-w-0 flex flex-col bg-slate-100/60 backdrop-blur-[1px]">
           {/* Active View Header & Breadcrumb Bar (Appears across all active module screens) */}
           {currentScreen !== 'login' &&
             currentScreen !== 'onboard' &&
@@ -1445,13 +1501,16 @@ export default function App() {
               onCreateAccounts={handleCreateAccounts}
               onResetPassword={handleResetPassword}
               onDeleteAccount={handleDeleteAccount}
+              onDeleteAccounts={handleDeleteAccounts}
               onUpdateAccountRole={handleUpdateAccountRole}
               onUpdateStudentInfo={handleUpdateStudentInfo}
               onUpdateTeacherGrades={handleUpdateTeacherGrades}
+              onUpdateTeacherAssignments={handleUpdateTeacherAssignments}
               onToggleUserStatus={handleToggleUserStatus}
               onSyncAllToCloud={handleSyncAllToCloud}
               cloudSyncStatus={cloudSyncStatus}
               lastCloudSyncTime={lastCloudSyncTime}
+              settings={appSettings}
             />
           )
         )}

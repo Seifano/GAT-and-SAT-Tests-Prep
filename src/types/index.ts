@@ -38,6 +38,7 @@ export interface QuestionDraft extends Omit<Question, 'id'> {
 
 export type UserRole = 'Student' | 'Teacher' | 'Admin';
 export type StudentLevel = 'Grade 6' | 'Grade 9' | 'High School';
+export type PathwayType = 'GAT' | 'SAT' | 'NAFS';
 
 export interface UserAccount {
   name: string;
@@ -47,6 +48,7 @@ export interface UserAccount {
   studentLevel?: StudentLevel;
   studentClass?: string;
   assignedGrades?: StudentLevel[]; // For Teachers: restricted to reviewing only these assigned grades
+  assignedPathways?: PathwayType[]; // Teachers/Students can be assigned multiple pathways e.g. both GAT and SAT
   status?: 'Active' | 'Inactive' | 'Pending'; // Activity status
   lastLogin?: string; // ISO 8601 timestamp of last login
   password?: string;

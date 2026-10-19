@@ -91,6 +91,7 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
         studentLevel: data.studentLevel || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? 'Grade 6' : data.name?.toLowerCase().includes('omar') ? 'Grade 9' : 'High School') : undefined),
         studentClass: data.studentClass || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? '6-A' : data.name?.toLowerCase().includes('omar') ? '9-B' : '11-A') : undefined),
         assignedGrades: data.assignedGrades || (userRole === 'Teacher' ? (data.name?.toLowerCase().includes('houssem') ? ['Grade 9'] : ['Grade 6', 'High School']) : undefined),
+        assignedPathways: data.assignedPathways || (userRole === 'Teacher' ? (data.assignedGrades?.includes('High School') ? ['GAT', 'SAT'] : ['NAFS']) : undefined),
         lastLogin: data.lastLogin,
         status: data.status || 'Active',
         password: data.password,
@@ -197,6 +198,7 @@ export async function saveUserToDb(account: UserAccount): Promise<void> {
     if (account.studentLevel) payload.studentLevel = account.studentLevel;
     if (account.studentClass) payload.studentClass = account.studentClass;
     if (account.assignedGrades) payload.assignedGrades = account.assignedGrades;
+    if (account.assignedPathways) payload.assignedPathways = account.assignedPathways;
     if (account.lastLogin) payload.lastLogin = account.lastLogin;
     if (account.status) payload.status = account.status;
     await setDoc(userDocRef, payload, { merge: true });
@@ -225,6 +227,7 @@ export async function saveUsersBatchToDb(newAccounts: UserAccount[]): Promise<vo
       if (account.studentLevel) payload.studentLevel = account.studentLevel;
       if (account.studentClass) payload.studentClass = account.studentClass;
       if (account.assignedGrades) payload.assignedGrades = account.assignedGrades;
+      if (account.assignedPathways) payload.assignedPathways = account.assignedPathways;
       if (account.lastLogin) payload.lastLogin = account.lastLogin;
       if (account.status) payload.status = account.status;
       batch.set(userDocRef, payload, { merge: true });
