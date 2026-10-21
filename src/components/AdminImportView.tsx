@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { QuestionDraft, Question, ExamType } from '../types';
 import { parseRawQuestionsText } from '../utils/questionParser';
 import { extractTextFromFile } from '../utils/documentParser';
@@ -410,7 +411,7 @@ Explanation: A palm is a kind of tree.`}
       )}
 
       {/* Draft Review Modal */}
-      {editingDraftIndex !== null && drafts[editingDraftIndex] && (
+      {editingDraftIndex !== null && drafts[editingDraftIndex] && createPortal(
         <div className="fixed inset-0 z-50 bg-[#201e1d]/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-[#f3f2f2] max-w-xl w-full p-6 border-2 border-[#201e1d] max-h-[90vh] overflow-y-auto space-y-4 text-xs">
             <div className="flex items-center justify-between pb-2 border-b-2 border-[#201e1d]/30">
@@ -520,7 +521,8 @@ Explanation: A palm is a kind of tree.`}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, BookOpen } from 'lucide-react';
 import { ExamType } from '../../types';
 
@@ -15,7 +16,7 @@ export const ReferenceSheetModal: React.FC<ReferenceSheetModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
       <div className="bg-white border-2 border-[#201e1d] w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
@@ -185,6 +186,7 @@ export const ReferenceSheetModal: React.FC<ReferenceSheetModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

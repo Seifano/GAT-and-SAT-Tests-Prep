@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { UserAccount, AppSettings, StudentLevel } from '../types';
 import { AHS_LOGO_SRC } from '../assets/logo';
@@ -132,26 +133,89 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:overflow-visible">
-      {/* Print color-adjust and visibility preservation style */}
+  return createPortal(
+    <div
+      id="student-cards-print-portal"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:overflow-visible"
+    >
+      {/* Strict Print isolation: hides all website elements so ONLY student cards are printed */}
       <style>{`
         @media print {
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          /* HIDE the entire website DOM outside of this print portal */
+          body > *:not(#student-cards-print-portal) {
+            display: none !important;
+          }
+          html, body {
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+          }
+          #student-cards-print-portal {
+            display: block !important;
+            position: static !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+          }
+          #student-cards-print-portal .print-controls-bar {
+            display: none !important;
+          }
+          #student-cards-print-portal .print-filter-bar {
+            display: none !important;
+          }
+          #student-cards-print-portal .print-footer-bar {
+            display: none !important;
+          }
+          #student-cards-print-portal .print-modal-container {
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+          }
+          #student-cards-print-portal .print-cards-scroll {
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 0 !important;
+          }
+          #student-cards-print-portal .print-cards-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 16px !important;
+            width: 100% !important;
+          }
+          #student-cards-print-portal .print-card-item {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            border: 2px solid #94a3b8 !important;
+            border-radius: 16px !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           img {
             display: inline-block !important;
             visibility: visible !important;
             opacity: 1 !important;
             max-width: 100% !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
         }
       `}</style>
-      <div className="relative w-full max-w-6xl bg-white border-2 border-slate-300 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:rounded-none">
+      <div className="print-modal-container relative w-full max-w-6xl bg-white border-2 border-slate-300 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:border-none print:shadow-none print:rounded-none">
         
         {/* Modal Controls Header (Hidden in Print) */}
-        <div className="p-4 sm:p-6 bg-slate-900 text-white border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden shrink-0">
+        <div className="print-controls-bar p-4 sm:p-6 bg-slate-900 text-white border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-sky-300">
               <QrCode className="w-5 h-5" />
@@ -253,7 +317,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
         </div>
 
         {/* Print Layout & Cards Sheet */}
-        <div className="flex-1 p-6 overflow-y-auto bg-slate-100/70 print:p-0 print:bg-white print:overflow-visible">
+        <div className="print-cards-scroll flex-1 p-6 overflow-y-auto bg-slate-100/70 print:p-0 print:bg-white print:overflow-visible">
           {filteredStudents.length === 0 ? (
             <div className="p-12 text-center bg-white border-2 border-dashed border-slate-300 rounded-2xl space-y-2">
               <School className="w-10 h-10 text-slate-400 mx-auto" />
@@ -261,7 +325,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
               <p className="text-xs text-slate-500">Select a different class or grade level to view and print student cards.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 print:grid print:grid-cols-2 print:gap-3 print:m-0">
+            <div className="print-cards-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 print:grid print:grid-cols-2 print:gap-3 print:m-0">
               {filteredStudents.map((student, idx) => {
                 const gradeLabel = student.studentLevel || 'Grade 6';
                 const classLabel = student.studentClass || '6-A';
@@ -275,7 +339,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
                 return (
                   <div
                     key={student.username || idx}
-                    className="relative bg-white border-2 border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between overflow-hidden print:border-2 print:border-slate-800 print:rounded-xl print:p-4 print:break-inside-avoid print:shadow-none"
+                    className="print-card-item relative bg-white border-2 border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between overflow-hidden print:border-2 print:border-slate-800 print:rounded-xl print:p-4 print:break-inside-avoid print:shadow-none"
                     style={{ pageBreakInside: 'avoid' }}
                   >
                     {/* Top Tri-Color Accent Line */}
@@ -387,7 +451,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
         </div>
 
         {/* Modal Bottom Footer (Hidden in Print) */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 print:hidden shrink-0">
+        <div className="print-footer-bar p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 print:hidden shrink-0">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
@@ -415,6 +479,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

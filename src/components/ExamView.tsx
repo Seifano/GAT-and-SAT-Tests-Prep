@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ActiveSession, Question } from '../types';
 import { Clock, X, ArrowRight, Bookmark, BookOpen, Calculator, Strikethrough } from 'lucide-react';
 import { ReferenceSheetModal } from './tools/ReferenceSheetModal';
@@ -119,14 +120,28 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Built-in Exam Tools */}
-            <button
-              onClick={() => setShowCalculator(true)}
-              title="Open Scientific Calculator"
-              className="px-2.5 py-1 text-xs font-bold border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
-            >
-              <Calculator className="w-3.5 h-3.5 text-[#1f3d7a]" />
-              <span className="hidden sm:inline">Calculator</span>
-            </button>
+            {session.exam === 'SAT' ? (
+              <button
+                onClick={() => setShowCalculator(true)}
+                title="Open Official Desmos Graphing Calculator for SAT Math"
+                className="px-2.5 py-1 text-xs font-black border border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 cursor-pointer flex items-center gap-1.5 shadow-2xs rounded-lg transition-all"
+              >
+                <div className="w-4 h-4 rounded bg-[#135a39] text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                  D
+                </div>
+                <span className="hidden sm:inline">Desmos Calculator</span>
+                <span className="sm:hidden">Desmos</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowCalculator(true)}
+                title="Open Scientific Calculator"
+                className="px-2.5 py-1 text-xs font-bold border border-slate-300 bg-white hover:bg-slate-100 cursor-pointer flex items-center gap-1.5 rounded-lg"
+              >
+                <Calculator className="w-3.5 h-3.5 text-[#1f3d7a]" />
+                <span className="hidden sm:inline">Calculator</span>
+              </button>
+            )}
 
             <button
               onClick={() => setShowRefSheet(true)}
@@ -223,6 +238,20 @@ export const ExamView: React.FC<ExamViewProps> = ({
               <span className="text-[10px] text-emerald-800 font-black bg-emerald-50 px-2 py-0.5 border border-emerald-200">
                 +25 XP for correct
               </span>
+
+              {session.exam === 'SAT' && (
+                <button
+                  type="button"
+                  onClick={() => setShowCalculator(true)}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-black text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-400 px-2.5 py-0.5 rounded-full cursor-pointer transition-all shadow-2xs hover:scale-102"
+                  title="Open Desmos Graphing Calculator to graph equations or solve this question"
+                >
+                  <span className="w-3.5 h-3.5 rounded bg-[#135a39] text-white text-[9px] font-black flex items-center justify-center">
+                    D
+                  </span>
+                  <span>Use Desmos Graphing</span>
+                </button>
+              )}
             </div>
 
             {/* Prompt */}
@@ -404,10 +433,11 @@ export const ExamView: React.FC<ExamViewProps> = ({
       <CalculatorModal
         isOpen={showCalculator}
         onClose={() => setShowCalculator(false)}
+        exam={session.exam}
       />
 
       {/* Submit Confirmation Modal */}
-      {showSubmitModal && (
+      {showSubmitModal && createPortal(
         <div className="fixed inset-0 z-50 bg-[#201e1d]/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-[#f3f2f2] max-w-md w-full p-6 border-2 border-[#201e1d] space-y-4 shadow-2xl">
             <h3 className="text-xl font-black text-[#201e1d]">
@@ -437,7 +467,8 @@ export const ExamView: React.FC<ExamViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

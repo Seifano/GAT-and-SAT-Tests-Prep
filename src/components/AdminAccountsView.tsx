@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { UserAccount, UserRole, StudentLevel, PathwayType, AppSettings } from '../types';
 import { StudentCardsModal } from './StudentCardsModal';
 import {
@@ -1762,7 +1763,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
       </div>
 
       {/* Edit Student Grade & Class Assignment Modal */}
-      {editingStudent && (
+      {editingStudent && createPortal(
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border-2 border-[#1f3d7a] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
@@ -1867,11 +1868,12 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Teacher Assigned Pathways & Grades Modal */}
-      {editingTeacher && (
+      {editingTeacher && createPortal(
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border-2 border-[#1e3a8a] rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
@@ -2032,11 +2034,12 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Bulk Delete Confirmation Safety Modal */}
-      {confirmBulkDelete && (
+      {confirmBulkDelete && createPortal(
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border-2 border-red-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
             <div className="w-14 h-14 bg-red-50 text-red-700 border-2 border-red-200 rounded-2xl mx-auto flex items-center justify-center">
@@ -2077,11 +2080,12 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Single Confirmation Safety Modal */}
-      {confirmDeleteTarget && (
+      {confirmDeleteTarget && createPortal(
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border-2 border-red-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
             <div className="w-14 h-14 bg-red-50 text-red-700 border-2 border-red-200 rounded-2xl mx-auto flex items-center justify-center">
@@ -2114,7 +2118,8 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Student Examination Access Cards Modal */}

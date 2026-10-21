@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { UserAccount, TestAttempt, ExamType, StudentLevel } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
 import {
@@ -450,7 +451,7 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
       </div>
 
       {/* Student Inspector Drawer / Modal */}
-      {selectedStudent && activeDetail && (
+      {selectedStudent && activeDetail && createPortal(
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border-2 border-[#1f3d7a] rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
@@ -584,7 +585,8 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

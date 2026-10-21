@@ -26,12 +26,20 @@
           "type": "string",
           "description": "User login password or temporary password"
         },
+        "passwordHash": {
+          "type": "string",
+          "description": "Cryptographic salted SHA-256 password hash"
+        },
+        "encryptedPassword": {
+          "type": "string",
+          "description": "AES-GCM 256-bit encrypted credential for institutional cards"
+        },
         "created": {
           "type": "string",
           "description": "Date account was created"
         }
       },
-      "required": ["name", "username", "role", "password"]
+      "required": ["name", "username", "role"]
     },
     "Question": {
       "title": "Question",
@@ -125,7 +133,7 @@
         },
         "exam": {
           "type": "string",
-          "enum": ["GAT", "SAT"],
+          "enum": ["NAFS", "GAT", "SAT"],
           "description": "Exam type"
         },
         "kind": {

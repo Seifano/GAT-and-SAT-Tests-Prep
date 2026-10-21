@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Question, ExamType } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
 import { Plus, Search, Filter, Trash2, Edit3, X, UploadCloud, Cloud, RefreshCw, ChevronDown } from 'lucide-react';
@@ -360,7 +361,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
       </div>
 
       {/* Add / Edit Question Modal */}
-      {(isNewModalOpen || editingQuestion) && (
+      {(isNewModalOpen || editingQuestion) && createPortal(
         <div className="fixed inset-0 z-50 bg-[#201e1d]/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-[#f3f2f2] max-w-2xl w-full p-6 sm:p-8 border-2 border-[#201e1d] max-h-[90vh] overflow-y-auto space-y-4">
             <div className="flex items-center justify-between pb-2 border-b-2 border-[#201e1d]/30">
@@ -510,7 +511,8 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

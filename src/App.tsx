@@ -62,8 +62,14 @@ import {
   fetchUserProfileFromDb,
   backupAccountsVaultToDb,
   fetchAccountsVaultFromDb,
-  saveAllChangesToCloud
+  saveAllChangesToCloud,
+  subscribeToUsers,
+  subscribeToSettings,
+  subscribeToAttempts,
+  subscribeToQuestions,
+  parseUserDoc
 } from './firebase';
+import { verifyUserPassword } from './utils/security';
 
 const STORAGE_KEY = 'ahs_prepline_v5';
 const VAULT_STORAGE_KEY = 'ahs_immutable_account_vault_v1';
@@ -245,69 +251,62 @@ export default function App() {
     } catch (e) {}
   }, [bank, accounts, user, profile, attempts, appSettings]);
 
-  // Initial load & connection to Cloud Firestore database
+  // Real-time synchronization & connection to Cloud Firestore database across all devices
   useEffect(() => {
     testFirestoreConnection();
 
-    // Fetch live user accounts from Firestore without destroying local accounts
+    // 1. Live real-time subscription for accounts across all devices
+    const unsubUsers = subscribeToUsers((cloudAccounts) => {
+      if (cloudAccounts && cloudAccounts.length) {
+        setAccounts(cloudAccounts);
+        setCloudSyncStatus('synced');
+        setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
+    });
+
+    // 2. Live real-time subscription for branding & settings across all devices
+    const unsubSettings = subscribeToSettings((cloudSettings) => {
+      if (cloudSettings) {
+        setAppSettings(cloudSettings);
+      }
+    });
+
+    // 3. Live real-time subscription for test attempts across all devices
+    const unsubAttempts = subscribeToAttempts((cloudAttempts) => {
+      if (cloudAttempts && cloudAttempts.length) {
+        setAttempts(cloudAttempts);
+      }
+    });
+
+    // 4. Live real-time subscription for questions bank across all devices
+    const unsubQuestions = subscribeToQuestions((cloudBank) => {
+      if (cloudBank && (cloudBank.NAFS?.length || cloudBank.GAT?.length || cloudBank.SAT?.length)) {
+        setBank(prev => ({
+          NAFS: cloudBank.NAFS?.length ? cloudBank.NAFS : prev.NAFS,
+          GAT: cloudBank.GAT?.length ? cloudBank.GAT : prev.GAT,
+          SAT: cloudBank.SAT?.length ? cloudBank.SAT : prev.SAT
+        }));
+      }
+    });
+
+    // Initial load: ensure questions bank and default accounts are populated
     fetchUsersFromDb().then(dbAccounts => {
       if (dbAccounts && dbAccounts.length) {
-        setAccounts(prev => {
-          const map = new Map<string, UserAccount>();
-          // Put existing local accounts first
-          prev.forEach(a => map.set(a.username.toLowerCase().trim(), a));
-          // Overlay cloud accounts
-          dbAccounts.forEach(a => map.set(a.username.toLowerCase().trim(), a));
-          const merged = Array.from(map.values());
-
-          // Detect any accounts that only existed locally and sync them to Firestore
-          const cloudSet = new Set(dbAccounts.map(a => a.username.toLowerCase().trim()));
-          const localOnly = prev.filter(a => !cloudSet.has(a.username.toLowerCase().trim()));
-          if (localOnly.length > 0) {
-            saveUsersBatchToDb(localOnly).catch(console.error);
-            backupAccountsVaultToDb(merged).catch(console.error);
-          }
-          return merged;
-        });
+        setAccounts(dbAccounts);
       }
     });
-
-    // Fetch live test attempts from Firestore
-    fetchAllAttemptsFromDb().then(dbAttempts => {
-      if (dbAttempts && dbAttempts.length) {
-        setAttempts(dbAttempts);
-      }
-    });
-
-    // Fetch live app branding & settings from Firestore
-    fetchAppSettingsFromDb().then(dbSettings => {
-      if (dbSettings) {
-        setAppSettings(dbSettings);
-      }
-    });
-
-    // Fetch live questions from Firestore
     fetchQuestionsFromDb(initialGATQuestions, initialSATQuestions, initialNAFSQuestions).then(dbBank => {
       if (dbBank && (dbBank.NAFS?.length || dbBank.GAT?.length || dbBank.SAT?.length)) {
-        setBank(prev => {
-          const merged: Record<ExamType, Question[]> = {
-            NAFS: [...(dbBank.NAFS || [])],
-            GAT: [...(dbBank.GAT || [])],
-            SAT: [...(dbBank.SAT || [])]
-          };
-          // Preserve any local questions that haven't synced yet and sync them to Firestore
-          (['NAFS', 'GAT', 'SAT'] as ExamType[]).forEach(ex => {
-            const dbIds = new Set(merged[ex].map(q => q.id));
-            const localOnly = (prev[ex] || []).filter(q => !dbIds.has(q.id));
-            if (localOnly.length > 0) {
-              merged[ex].push(...localOnly);
-              saveQuestionsBatchToDb(localOnly).catch(console.error);
-            }
-          });
-          return merged;
-        });
+        setBank(dbBank);
       }
     });
+
+    return () => {
+      unsubUsers();
+      unsubSettings();
+      unsubAttempts();
+      unsubQuestions();
+    };
   }, []);
 
   // Background Cloud Shield: auto-syncs and protects data integrity when entering dashboard
@@ -367,24 +366,21 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session, currentScreen]);
 
-  // Sign In handler (checks memory + queries Firestore database)
+  // Sign In handler (verifies cryptographic hash + queries Firestore database)
   const handleSignIn = async (login: string, pass: string): Promise<boolean> => {
     const clean = login.toLowerCase().trim();
-    let found = accounts.find(
-      a =>
-        (a.username.toLowerCase() === clean || (a.email && a.email.toLowerCase() === clean)) &&
-        (a.password === pass || (clean === 'admin' && pass === 'HOD@2106'))
+    let candidate = accounts.find(
+      a => a.username.toLowerCase() === clean || (a.email && a.email.toLowerCase() === clean)
     );
 
     // If not found in local memory, check live Cloud Firestore database
-    if (!found) {
+    if (!candidate) {
       try {
         const userDocSnap = await getDoc(doc(db, 'users', clean));
         if (userDocSnap.exists()) {
-          const remoteUser = userDocSnap.data() as UserAccount;
-          if (remoteUser.password === pass || (clean === 'admin' && pass === 'HOD@2106')) {
-            found = remoteUser;
-            setAccounts(prev => [remoteUser, ...prev.filter(a => a.username.toLowerCase() !== clean)]);
+          candidate = await parseUserDoc(userDocSnap.data());
+          if (candidate) {
+            setAccounts(prev => [candidate!, ...prev.filter(a => a.username.toLowerCase() !== clean)]);
           }
         }
       } catch (err) {
@@ -393,8 +389,8 @@ export default function App() {
     }
 
     // Fallback guarantee for requested Admin account with HOD@2106
-    if (!found && clean === 'admin' && pass === 'HOD@2106') {
-      found = {
+    if (!candidate && clean === 'admin') {
+      candidate = {
         name: 'Head of Department (Admin)',
         username: 'Admin',
         email: 'admin@prepline.app',
@@ -403,48 +399,52 @@ export default function App() {
         status: 'Active',
         created: 'Oct 5'
       };
-      // Save Admin to database
-      saveUserToDb(found).catch(console.error);
     }
 
-    if (found) {
-      // Enforce Abdullah Ali and Houssem Hammami are Teachers
-      const isAbdullah =
-        found.username.toLowerCase() === 'abdullah.a' ||
-        found.name.toLowerCase().includes('abdullah ali');
-      const isHoussem =
-        found.username.toLowerCase() === 'houssem.h' ||
-        found.name.toLowerCase().includes('houssem hammami');
-      if (isAbdullah || isHoussem) {
-        found.role = 'Teacher';
+    if (candidate) {
+      const isMatch = await verifyUserPassword(pass, candidate);
+      if (isMatch) {
+        const found = { ...candidate };
+
+        // Enforce Abdullah Ali and Houssem Hammami are Teachers
+        const isAbdullah =
+          found.username.toLowerCase() === 'abdullah.a' ||
+          found.name.toLowerCase().includes('abdullah ali');
+        const isHoussem =
+          found.username.toLowerCase() === 'houssem.h' ||
+          found.name.toLowerCase().includes('houssem hammami');
+        if (isAbdullah || isHoussem) {
+          found.role = 'Teacher';
+        }
+
+        const nowIso = new Date().toISOString();
+        const updatedUser: UserAccount = {
+          ...found,
+          lastLogin: nowIso,
+          status: 'Active'
+        };
+
+        setUser(updatedUser);
+        setAccounts(prev => [updatedUser, ...prev.filter(a => a.username.toLowerCase() !== clean)]);
+        // Automatically save back to Firestore with encrypted credentials so plain text is not stored
+        saveUserToDb(updatedUser).catch(console.error);
+
+        if (updatedUser.role === 'Student') {
+          fetchUserProfileFromDb(updatedUser.username).then(dbProfile => {
+            if (dbProfile) {
+              setProfile(dbProfile);
+            }
+          });
+        }
+
+        if (updatedUser.role === 'Admin' || updatedUser.role === 'Teacher') {
+          setCurrentScreen('studentProgress');
+        } else {
+          setCurrentScreen('studentSelect');
+        }
+        showToast(`Signed in as ${updatedUser.name} (${updatedUser.role})`);
+        return true;
       }
-
-      const nowIso = new Date().toISOString();
-      const updatedUser: UserAccount = {
-        ...found,
-        lastLogin: nowIso,
-        status: 'Active'
-      };
-
-      setUser(updatedUser);
-      setAccounts(prev => [updatedUser, ...prev.filter(a => a.username.toLowerCase() !== clean)]);
-      saveUserToDb(updatedUser).catch(console.error);
-
-      if (updatedUser.role === 'Student') {
-        fetchUserProfileFromDb(updatedUser.username).then(dbProfile => {
-          if (dbProfile) {
-            setProfile(dbProfile);
-          }
-        });
-      }
-
-      if (updatedUser.role === 'Admin' || updatedUser.role === 'Teacher') {
-        setCurrentScreen('studentProgress');
-      } else {
-        setCurrentScreen('studentSelect');
-      }
-      showToast(`Signed in as ${updatedUser.name} (${updatedUser.role})`);
-      return true;
     }
     return false;
   };
@@ -1189,7 +1189,7 @@ export default function App() {
         )}
 
         {/* Right / Main Content Column */}
-        <div className="flex-1 min-w-0 flex flex-col bg-slate-100/60 backdrop-blur-[1px]">
+        <div className="flex-1 min-w-0 flex flex-col bg-slate-100/90">
           {/* Active View Header & Breadcrumb Bar (Appears across all active module screens) */}
           {currentScreen !== 'login' &&
             currentScreen !== 'onboard' &&

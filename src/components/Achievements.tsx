@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { TestAttempt, AchievementBadge } from '../types';
 import { calculateGamification } from '../utils/gamification';
 import {
@@ -352,7 +353,7 @@ export const Achievements: React.FC<AchievementsProps> = ({
       </div>
 
       {/* Badge Inspection Modal / Details Drawer */}
-      {selectedBadge && (
+      {selectedBadge && createPortal(
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-200 space-y-5 animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
@@ -463,7 +464,8 @@ export const Achievements: React.FC<AchievementsProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

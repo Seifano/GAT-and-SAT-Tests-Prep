@@ -52,6 +52,8 @@ export interface UserAccount {
   status?: 'Active' | 'Inactive' | 'Pending'; // Activity status
   lastLogin?: string; // ISO 8601 timestamp of last login
   password?: string;
+  passwordHash?: string; // Cryptographic SHA-256 salted hash for verification
+  encryptedPassword?: string; // AES-GCM 256-bit encrypted credential for institutional card handouts
   created: string;
 }
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Question, ExamType, UserAccount } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { Search, Filter, BookOpen, ChevronDown, ChevronUp, CheckCircle2, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Search, Filter, BookOpen, ChevronDown, ChevronUp, CheckCircle2, ArrowLeft, ShieldCheck, Calculator } from 'lucide-react';
+import { CalculatorModal } from './tools/CalculatorModal';
 
 interface QuestionBrowserViewProps {
   activeExam: ExamType;
@@ -24,6 +25,7 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [openPassageId, setOpenPassageId] = useState<string | null>(null);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const studentLevel = currentUser?.studentLevel;
   const isActualStudent = currentUser?.role === 'Student' || isStudent;
@@ -255,15 +257,28 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
 
       {/* Results List */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-500 font-bold">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 font-bold">
           <span>Showing {filtered.length} of {questions.length} questions</span>
-          <button
-            type="button"
-            onClick={toggleAllSolutions}
-            className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-[#1f3d7a] cursor-pointer shadow-2xs transition-colors"
-          >
-            {areAllRevealed ? 'Hide All Explanations' : 'Show All Explanations'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCalculator(true)}
+              className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 rounded-lg text-xs font-black text-emerald-950 cursor-pointer shadow-2xs transition-colors flex items-center gap-1.5"
+              title="Open Desmos Graphing Calculator to help with SAT math problems"
+            >
+              <div className="w-3.5 h-3.5 rounded bg-[#135a39] text-white text-[9px] font-black flex items-center justify-center">
+                D
+              </div>
+              <span>{activeExam === 'SAT' ? 'Desmos SAT Calculator' : 'Calculator'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleAllSolutions}
+              className="px-3 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-[#1f3d7a] cursor-pointer shadow-2xs transition-colors"
+            >
+              {areAllRevealed ? 'Hide All Explanations' : 'Show All Explanations'}
+            </button>
+          </div>
         </div>
 
         {filtered.length === 0 ? (
@@ -380,6 +395,13 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Built-in Calculator / Desmos Modal */}
+      <CalculatorModal
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        exam={activeExam}
+      />
     </div>
   );
 };

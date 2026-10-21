@@ -8,11 +8,14 @@ import {
   deleteDoc,
   collection,
   getDocs,
-  writeBatch
+  writeBatch,
+  onSnapshot,
+  Unsubscribe
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { UserAccount, Question, AppSettings, TestAttempt, ExamType, UserProfile } from './types';
 import { INITIAL_ACCOUNTS, DEFAULT_APP_SETTINGS } from './data/mockData';
+import { hashPassword, encryptCredential, decryptCredential } from './utils/security';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -38,9 +41,71 @@ export async function testFirestoreConnection(): Promise<boolean> {
   }
 }
 
+/**
+ * Recursively removes all undefined fields from objects and arrays so Firestore never
+ * throws "Unsupported field value: undefined" errors.
+ */
+export function sanitizeForFirestore<T>(val: T): T {
+  if (val === undefined) return null as unknown as T;
+  if (val === null || typeof val !== 'object') return val;
+  if (Array.isArray(val)) {
+    return val.filter(item => item !== undefined).map(sanitizeForFirestore) as unknown as T;
+  }
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(val)) {
+    if (value !== undefined) {
+      result[key] = sanitizeForFirestore(value);
+    }
+  }
+  return result as T;
+}
+
 // ----------------------------------------------------
-// USER ACCOUNTS DATABASE OPERATIONS
+// USER ACCOUNTS DATABASE OPERATIONS & SECURITY
 // ----------------------------------------------------
+
+export async function parseUserDoc(data: any): Promise<UserAccount> {
+  let userRole = data.role;
+
+  // Enforce: Abdullah Ali and Houssem Hammami are Teacher accounts (not Admin)
+  const isAbdullah =
+    data.username?.toLowerCase() === 'abdullah.a' ||
+    data.username?.toLowerCase() === 'abdullah' ||
+    data.name?.toLowerCase().includes('abdullah ali');
+  const isHoussem =
+    data.username?.toLowerCase() === 'houssem.h' ||
+    data.username?.toLowerCase() === 'houssem' ||
+    data.name?.toLowerCase().includes('houssem hammami');
+
+  if (isAbdullah || isHoussem) {
+    userRole = 'Teacher';
+  }
+
+  // Decrypt password if it was stored encrypted
+  let plainPassword = data.password;
+  if (data.encryptedPassword && data.encryptedPassword.startsWith('enc:')) {
+    plainPassword = await decryptCredential(data.encryptedPassword);
+  } else if (data.password && data.password.startsWith('enc:')) {
+    plainPassword = await decryptCredential(data.password);
+  }
+
+  return {
+    name: data.name,
+    username: data.username,
+    email: data.email,
+    role: userRole,
+    studentLevel: data.studentLevel || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? 'Grade 6' : data.name?.toLowerCase().includes('omar') ? 'Grade 9' : 'High School') : undefined),
+    studentClass: data.studentClass || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? '6-A' : data.name?.toLowerCase().includes('omar') ? '9-B' : '11-A') : undefined),
+    assignedGrades: data.assignedGrades || (userRole === 'Teacher' ? (data.name?.toLowerCase().includes('houssem') ? ['Grade 9'] : ['Grade 6', 'High School']) : undefined),
+    assignedPathways: data.assignedPathways || (userRole === 'Teacher' ? (data.assignedGrades?.includes('High School') ? ['GAT', 'SAT'] : ['NAFS']) : undefined),
+    lastLogin: data.lastLogin,
+    status: data.status || 'Active',
+    password: plainPassword,
+    passwordHash: data.passwordHash,
+    encryptedPassword: data.encryptedPassword,
+    created: data.created || 'Oct 5'
+  };
+}
 
 export async function fetchUsersFromDb(): Promise<UserAccount[]> {
   try {
@@ -60,44 +125,11 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
       await backupAccountsVaultToDb(INITIAL_ACCOUNTS);
       return INITIAL_ACCOUNTS;
     }
-    const accounts: UserAccount[] = [];
+    const promises: Promise<UserAccount>[] = [];
     snapshot.forEach(docSnap => {
-      const data = docSnap.data() as UserAccount;
-      let userRole = data.role;
-
-      // Enforce: Abdullah Ali and Houssem Hammami are Teacher accounts (not Admin)
-      const isAbdullah =
-        data.username.toLowerCase() === 'abdullah.a' ||
-        data.username.toLowerCase() === 'abdullah' ||
-        data.name.toLowerCase().includes('abdullah ali');
-      const isHoussem =
-        data.username.toLowerCase() === 'houssem.h' ||
-        data.username.toLowerCase() === 'houssem' ||
-        data.name.toLowerCase().includes('houssem hammami');
-
-      if (isAbdullah || isHoussem) {
-        userRole = 'Teacher';
-        if (data.role !== 'Teacher') {
-          // Sync correction directly to Firestore
-          saveUserToDb({ ...data, role: 'Teacher' }).catch(console.error);
-        }
-      }
-
-      accounts.push({
-        name: data.name,
-        username: data.username,
-        email: data.email,
-        role: userRole,
-        studentLevel: data.studentLevel || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? 'Grade 6' : data.name?.toLowerCase().includes('omar') ? 'Grade 9' : 'High School') : undefined),
-        studentClass: data.studentClass || (userRole === 'Student' ? (data.name?.toLowerCase().includes('sara') ? '6-A' : data.name?.toLowerCase().includes('omar') ? '9-B' : '11-A') : undefined),
-        assignedGrades: data.assignedGrades || (userRole === 'Teacher' ? (data.name?.toLowerCase().includes('houssem') ? ['Grade 9'] : ['Grade 6', 'High School']) : undefined),
-        assignedPathways: data.assignedPathways || (userRole === 'Teacher' ? (data.assignedGrades?.includes('High School') ? ['GAT', 'SAT'] : ['NAFS']) : undefined),
-        lastLogin: data.lastLogin,
-        status: data.status || 'Active',
-        password: data.password,
-        created: data.created || 'Oct 5'
-      });
+      promises.push(parseUserDoc(docSnap.data()));
     });
+    const accounts = await Promise.all(promises);
 
     // Check backup vault to see if any accounts are missing from individual docs
     try {
@@ -157,10 +189,11 @@ export async function fetchUsersFromDb(): Promise<UserAccount[]> {
 export async function backupAccountsVaultToDb(accounts: UserAccount[]): Promise<void> {
   try {
     const vaultRef = doc(db, 'backups', 'accounts_vault');
+    const cleanAccounts = sanitizeForFirestore(accounts);
     await setDoc(vaultRef, {
-      accounts,
+      accounts: cleanAccounts,
       updatedAt: new Date().toISOString(),
-      count: accounts.length
+      count: cleanAccounts.length
     }, { merge: true });
   } catch (err) {
     console.warn('Could not write accounts vault backup to Firestore:', err);
@@ -187,22 +220,34 @@ export async function saveUserToDb(account: UserAccount): Promise<void> {
   try {
     const docId = account.username.toLowerCase().trim().replace(/\//g, '_');
     const userDocRef = doc(db, 'users', docId);
+
+    // Compute passwordHash and encrypted credential so plain readable text is NEVER in Firestore
+    let pwdHash = account.passwordHash;
+    let encPwd = account.encryptedPassword;
+
+    if (account.password && !account.password.startsWith('enc:')) {
+      if (!pwdHash) pwdHash = await hashPassword(account.password);
+      if (!encPwd) encPwd = await encryptCredential(account.password);
+    }
+
     const payload: Record<string, any> = {
       name: account.name,
       username: account.username,
       email: account.email || '',
       role: account.role,
-      password: account.password,
+      password: encPwd || pwdHash || account.password || 'enc:protected',
       created: account.created || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     };
+    if (pwdHash) payload.passwordHash = pwdHash;
+    if (encPwd) payload.encryptedPassword = encPwd;
     if (account.studentLevel) payload.studentLevel = account.studentLevel;
     if (account.studentClass) payload.studentClass = account.studentClass;
     if (account.assignedGrades) payload.assignedGrades = account.assignedGrades;
     if (account.assignedPathways) payload.assignedPathways = account.assignedPathways;
     if (account.lastLogin) payload.lastLogin = account.lastLogin;
     if (account.status) payload.status = account.status;
-    await setDoc(userDocRef, payload, { merge: true });
-    console.log(`User @${account.username} saved to Firestore database.`);
+    await setDoc(userDocRef, sanitizeForFirestore(payload), { merge: true });
+    console.log(`User @${account.username} securely saved to Cloud Firestore.`);
   } catch (err) {
     console.error(`Error saving user @${account.username} to Firestore:`, err);
     throw err;
@@ -213,34 +258,108 @@ export async function saveUsersBatchToDb(newAccounts: UserAccount[]): Promise<vo
   if (!newAccounts.length) return;
   try {
     const batch = writeBatch(db);
-    newAccounts.forEach(account => {
+    for (const account of newAccounts) {
       const docId = account.username.toLowerCase().trim().replace(/\//g, '_');
       const userDocRef = doc(db, 'users', docId);
+
+      let pwdHash = account.passwordHash;
+      let encPwd = account.encryptedPassword;
+
+      if (account.password && !account.password.startsWith('enc:')) {
+        if (!pwdHash) pwdHash = await hashPassword(account.password);
+        if (!encPwd) encPwd = await encryptCredential(account.password);
+      }
+
       const payload: Record<string, any> = {
         name: account.name,
         username: account.username,
         email: account.email || '',
         role: account.role,
-        password: account.password,
+        password: encPwd || pwdHash || account.password || 'enc:protected',
         created: account.created || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       };
+      if (pwdHash) payload.passwordHash = pwdHash;
+      if (encPwd) payload.encryptedPassword = encPwd;
       if (account.studentLevel) payload.studentLevel = account.studentLevel;
       if (account.studentClass) payload.studentClass = account.studentClass;
       if (account.assignedGrades) payload.assignedGrades = account.assignedGrades;
       if (account.assignedPathways) payload.assignedPathways = account.assignedPathways;
       if (account.lastLogin) payload.lastLogin = account.lastLogin;
       if (account.status) payload.status = account.status;
-      batch.set(userDocRef, payload, { merge: true });
-    });
+      batch.set(userDocRef, sanitizeForFirestore(payload), { merge: true });
+    }
     await batch.commit();
-    console.log(`Batch of ${newAccounts.length} users saved to Firestore database.`);
+    console.log(`Batch of ${newAccounts.length} users securely saved to Cloud Firestore.`);
   } catch (err) {
     console.error('Error saving users batch to Firestore, falling back to individual writes:', err);
-    // Fallback: save individually
     for (const acc of newAccounts) {
       await saveUserToDb(acc).catch(console.error);
     }
   }
+}
+
+// ----------------------------------------------------
+// REALTIME MULTI-DEVICE FIRESTORE SUBSCRIPTIONS
+// ----------------------------------------------------
+
+export function subscribeToUsers(onUpdate: (accounts: UserAccount[]) => void): Unsubscribe {
+  const colRef = collection(db, 'users');
+  return onSnapshot(colRef, async (snapshot) => {
+    if (snapshot.empty) return;
+    try {
+      const promises: Promise<UserAccount>[] = [];
+      snapshot.forEach(docSnap => {
+        promises.push(parseUserDoc(docSnap.data()));
+      });
+      const accounts = await Promise.all(promises);
+      onUpdate(accounts);
+    } catch (err) {
+      console.warn('Realtime users parse error:', err);
+    }
+  }, (err) => {
+    console.warn('Realtime users listener error:', err);
+  });
+}
+
+export function subscribeToSettings(onUpdate: (settings: AppSettings) => void): Unsubscribe {
+  const docRef = doc(db, 'settings', 'app');
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      onUpdate(docSnap.data() as AppSettings);
+    }
+  }, (err) => {
+    console.warn('Realtime settings listener error:', err);
+  });
+}
+
+export function subscribeToAttempts(onUpdate: (attempts: TestAttempt[]) => void): Unsubscribe {
+  const colRef = collection(db, 'attempts');
+  return onSnapshot(colRef, (snapshot) => {
+    const list: TestAttempt[] = [];
+    snapshot.forEach(d => list.push(d.data() as TestAttempt));
+    onUpdate(list);
+  }, (err) => {
+    console.warn('Realtime attempts listener error:', err);
+  });
+}
+
+export function subscribeToQuestions(onUpdate: (bank: Record<ExamType, Question[]>) => void): Unsubscribe {
+  const colRef = collection(db, 'questions');
+  return onSnapshot(colRef, (snapshot) => {
+    if (snapshot.empty) return;
+    const result: Record<ExamType, Question[]> = { NAFS: [], GAT: [], SAT: [] };
+    snapshot.forEach(d => {
+      const q = d.data() as Question;
+      if (q.exam === 'NAFS' || q.exam === 'GAT' || q.exam === 'SAT') {
+        result[q.exam].push(q);
+      }
+    });
+    if (result.NAFS.length || result.GAT.length || result.SAT.length) {
+      onUpdate(result);
+    }
+  }, (err) => {
+    console.warn('Realtime questions listener error:', err);
+  });
 }
 
 export async function deleteUserFromDb(username: string): Promise<void> {
@@ -260,14 +379,14 @@ export async function seedDefaultUsers(): Promise<void> {
     for (const acc of INITIAL_ACCOUNTS) {
       const docId = acc.username.toLowerCase().trim().replace(/\//g, '_');
       const userDocRef = doc(db, 'users', docId);
-      await setDoc(userDocRef, {
+      await setDoc(userDocRef, sanitizeForFirestore({
         name: acc.name,
         username: acc.username,
         email: acc.email || '',
         role: acc.role,
         password: acc.password,
         created: acc.created
-      }, { merge: true });
+      }), { merge: true });
     }
     console.log('Seeded initial accounts into Firestore database.');
   } catch (err) {
@@ -298,7 +417,7 @@ export async function fetchAppSettingsFromDb(): Promise<AppSettings> {
 export async function saveAppSettingsToDb(settings: AppSettings): Promise<void> {
   try {
     const settingsDocRef = doc(db, 'settings', 'app');
-    await setDoc(settingsDocRef, settings, { merge: true });
+    await setDoc(settingsDocRef, sanitizeForFirestore(settings), { merge: true });
     console.log('Branding and login page settings saved to Firestore database.');
   } catch (err) {
     console.error('Error saving app settings to Firestore:', err);
@@ -513,10 +632,10 @@ export async function saveAllChangesToCloud(
 export async function saveAttemptToDb(attempt: TestAttempt): Promise<void> {
   try {
     const docRef = doc(db, 'attempts', attempt.id);
-    await setDoc(docRef, {
+    await setDoc(docRef, sanitizeForFirestore({
       ...attempt,
       username: attempt.username || 'unknown'
-    }, { merge: true });
+    }), { merge: true });
     console.log(`Saved attempt ${attempt.id} for user ${attempt.username} to Firestore.`);
   } catch (err) {
     console.error('Error saving attempt to Firestore:', err);
@@ -556,7 +675,7 @@ export async function fetchUserAttemptsFromDb(username: string): Promise<TestAtt
 export async function saveUserProfileToDb(username: string, profile: UserProfile): Promise<void> {
   try {
     const docRef = doc(db, 'profiles', username.toLowerCase().trim());
-    await setDoc(docRef, profile, { merge: true });
+    await setDoc(docRef, sanitizeForFirestore(profile), { merge: true });
     console.log(`Saved study profile and exam dates for @${username} to Firestore.`);
   } catch (err) {
     console.error(`Error saving user profile to Firestore:`, err);
