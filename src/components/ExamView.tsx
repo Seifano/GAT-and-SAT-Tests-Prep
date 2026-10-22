@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ActiveSession, Question } from '../types';
-import { Clock, X, ArrowRight, Bookmark, BookOpen, Calculator, Strikethrough } from 'lucide-react';
+import { Clock, X, ArrowRight, Bookmark, BookOpen, Calculator, Strikethrough, Sparkles, CheckCircle2, XCircle } from 'lucide-react';
 import { ReferenceSheetModal } from './tools/ReferenceSheetModal';
 import { CalculatorModal } from './tools/CalculatorModal';
+import { playCorrectSound, playIncorrectSound } from '../utils/soundEffects';
 
 interface ExamViewProps {
   session: ActiveSession;
@@ -30,6 +31,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
   const [showCalculator, setShowCalculator] = useState(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<Record<number, boolean>>({});
   const [passageFontSize, setPassageFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-base');
+  const [gamifiedFeedback, setGamifiedFeedback] = useState<{ isCorrect: boolean; qid: string } | null>(null);
 
   const currentQId = session.qids[session.cur];
   const currentQ = allQuestions.find(q => q.id === currentQId) || {
@@ -41,6 +43,21 @@ export const ExamView: React.FC<ExamViewProps> = ({
     options: ['Option A', 'Option B', 'Option C', 'Option D'],
     answer: 0,
     explain: ''
+  };
+
+  const handleOptionSelect = (oIdx: number) => {
+    if (eliminatedOptions[oIdx]) return;
+    onAnswer(oIdx);
+    const isCorrect = oIdx === currentQ.answer;
+    if (isCorrect) {
+      playCorrectSound();
+    } else {
+      playIncorrectSound();
+    }
+    setGamifiedFeedback({ isCorrect, qid: currentQ.id });
+    setTimeout(() => {
+      setGamifiedFeedback(prev => (prev?.qid === currentQ.id ? null : prev));
+    }, 1500);
   };
 
   const answeredCount = Object.keys(session.answers).length;
@@ -78,7 +95,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
       const key = e.key.toLowerCase();
       if (['a', 'b', 'c', 'd'].includes(key)) {
-        onAnswer(['a', 'b', 'c', 'd'].indexOf(key));
+        handleOptionSelect(['a', 'b', 'c', 'd'].indexOf(key));
       } else if (e.key === 'ArrowRight' && session.cur < totalCount - 1) {
         onNavigateIndex(session.cur + 1);
       } else if (e.key === 'ArrowLeft' && session.cur > 0) {
@@ -90,7 +107,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [session.cur, totalCount, onAnswer, onNavigateIndex, onToggleFlag, showSubmitModal, showCalculator, showRefSheet]);
+  }, [session.cur, totalCount, onNavigateIndex, onToggleFlag, showSubmitModal, showCalculator, showRefSheet, currentQ, eliminatedOptions]);
 
   return (
     <div className="min-h-screen bg-[#f3f2f2] flex flex-col font-sans text-[#201e1d]">
@@ -254,6 +271,20 @@ export const ExamView: React.FC<ExamViewProps> = ({
               )}
             </div>
 
+            {/* Gamified Feedback Animation Badge */}
+            {gamifiedFeedback && gamifiedFeedback.qid === currentQ.id && (
+              <div
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black shadow-md animate-bounce mb-3 ${
+                  gamifiedFeedback.isCorrect
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-amber-600 text-white'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{gamifiedFeedback.isCorrect ? 'Correct! +10 XP' : 'Answer Logged'}</span>
+              </div>
+            )}
+
             {/* Prompt */}
             <div
               className={`text-[#201e1d] leading-snug mb-8 whitespace-pre-line ${
@@ -274,7 +305,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                   <div
                     key={oIdx}
                     onClick={() => {
-                      if (!isEliminated) onAnswer(oIdx);
+                      if (!isEliminated) handleOptionSelect(oIdx);
                     }}
                     className={`w-full text-left p-3.5 sm:p-4 border-2 transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer min-h-[52px] ${
                       isEliminated
@@ -316,6 +347,61 @@ export const ExamView: React.FC<ExamViewProps> = ({
                 );
               })}
             </div>
+
+            {/* Immediate Explanation on Incorrect / Selected Answer */}
+            {session.answers[session.cur] !== undefined && (
+              session.answers[session.cur] !== currentQ.answer ? (
+                <div className="mb-8 p-4.5 bg-rose-50/95 border-2 border-rose-400 rounded-2xl space-y-3 animate-in fade-in duration-200 shadow-sm">
+                  <div className="flex items-center justify-between gap-2 border-b border-rose-200 pb-2">
+                    <div className="flex items-center gap-2 text-xs font-black text-rose-900">
+                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Incorrect Answer — Immediate Diagnostic &amp; Explanation</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-200 text-rose-900 shrink-0">
+                      Solution Rationale
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-white border border-rose-300">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Your Choice:</span>
+                      <span className="font-bold text-rose-700">
+                        Option {['A', 'B', 'C', 'D'][session.answers[session.cur]]}: "{currentQ.options[session.answers[session.cur]]}"
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-emerald-400">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Correct Answer:</span>
+                      <span className="font-black text-emerald-800">
+                        Option {['A', 'B', 'C', 'D'][currentQ.answer]}: "{currentQ.options[currentQ.answer]}"
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 text-xs text-slate-800 leading-relaxed bg-white/80 p-3 rounded-xl border border-rose-200">
+                    <strong className="text-[#1f3d7a] block mb-1 font-black">
+                      Step-by-Step Educational Explanation:
+                    </strong>
+                    <p className="whitespace-pre-line font-medium text-slate-800">
+                      {currentQ.explain && currentQ.explain.trim() !== 'No explanation provided.'
+                        ? currentQ.explain
+                        : `Option ${['A', 'B', 'C', 'D'][currentQ.answer]} ("${currentQ.options[currentQ.answer]}") is the verified correct answer according to official curriculum standards for ${currentQ.skill}. Option ${['A', 'B', 'C', 'D'][session.answers[session.cur]]} is incorrect because it does not satisfy the requirements of ${currentQ.section}.`}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-8 p-3.5 bg-emerald-50/80 border border-emerald-300 rounded-2xl space-y-1.5 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2 text-xs font-black text-emerald-900">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>Correct Answer! Solution Breakdown</span>
+                  </div>
+                  <p className="text-xs text-emerald-950 leading-relaxed font-medium bg-white/60 p-2.5 rounded-lg border border-emerald-200">
+                    {currentQ.explain && currentQ.explain.trim() !== 'No explanation provided.'
+                      ? currentQ.explain
+                      : `Option ${['A', 'B', 'C', 'D'][currentQ.answer]} ("${currentQ.options[currentQ.answer]}") is verified correct for ${currentQ.skill}.`}
+                  </p>
+                </div>
+              )
+            )}
           </div>
 
           {/* Controls Bar */}

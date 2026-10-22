@@ -70,6 +70,7 @@ import {
   parseUserDoc
 } from './firebase';
 import { verifyUserPassword } from './utils/security';
+import { playCelebrationSound } from './utils/soundEffects';
 
 const STORAGE_KEY = 'ahs_prepline_v5';
 const VAULT_STORAGE_KEY = 'ahs_immutable_account_vault_v1';
@@ -456,17 +457,23 @@ export default function App() {
   useEffect(() => {
     if (!user || currentScreen === 'login' || currentScreen === 'onboard') return;
 
-    // Students CANNOT access Question Bank (browser) or staff/admin consoles. They solve in practice & exam, then review in results.
+    // Students and Teachers navigation boundaries
     const studentScreens = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'exam', 'results', 'ksaBooking'];
-    const teacherScreens = ['studentProgress', 'adminQuestions', 'adminImport', 'browser', 'ksaBooking', 'dashboard'];
+    // Teacher usage: monitor student progress, KSA test dates, and use platform as student (practice, mock exams, achievements, results)
+    // Teachers have NO access to question bank or question adding/importing
+    const teacherScreens = ['studentProgress', 'ksaBooking', 'dashboard', 'practice', 'exam', 'results', 'achievements', 'analytics', 'skills', 'studentSelect'];
 
     if (user.role === 'Student') {
       if (!studentScreens.includes(currentScreen)) {
         setCurrentScreen('dashboard');
       }
 
-      // Enforce grade pathway restrictions on activeExam
-      if (user.studentLevel === 'High School') {
+      // Enforce assigned pathways or grade pathway restrictions on activeExam
+      if (user.assignedPathways && user.assignedPathways.length > 0) {
+        if (!user.assignedPathways.includes(activeExam)) {
+          setActiveExam(user.assignedPathways[0]);
+        }
+      } else if (user.studentLevel === 'High School') {
         if (activeExam === 'NAFS') {
           setActiveExam('GAT');
         }
@@ -518,11 +525,21 @@ export default function App() {
     showToast(`Updated @${username} to ${newRole} role.`);
   };
 
-  const handleUpdateStudentInfo = (username: string, studentLevel: StudentLevel, studentClass?: string) => {
+  const handleUpdateStudentInfo = (
+    username: string,
+    studentLevel: StudentLevel,
+    studentClass?: string,
+    assignedPathways?: PathwayType[]
+  ) => {
     setAccounts(prev => {
       const updated = prev.map(a =>
         a.username.toLowerCase() === username.toLowerCase()
-          ? { ...a, studentLevel, studentClass }
+          ? {
+              ...a,
+              studentLevel,
+              studentClass,
+              assignedPathways: assignedPathways !== undefined ? assignedPathways : a.assignedPathways
+            }
           : a
       );
       const target = updated.find(a => a.username.toLowerCase() === username.toLowerCase());
@@ -533,7 +550,16 @@ export default function App() {
     });
 
     if (user && user.username.toLowerCase() === username.toLowerCase()) {
-      setUser(prev => (prev ? { ...prev, studentLevel, studentClass } : null));
+      setUser(prev =>
+        prev
+          ? {
+              ...prev,
+              studentLevel,
+              studentClass,
+              assignedPathways: assignedPathways !== undefined ? assignedPathways : prev.assignedPathways
+            }
+          : null
+      );
     }
 
     showToast(`Updated @${username}: ${studentLevel} · Class ${studentClass || 'None'}`);
@@ -601,6 +627,22 @@ export default function App() {
   const getAccessibleBank = (exam: ExamType): Question[] => {
     const list = bank[exam] || [];
     if (!user || user.role !== 'Student') return list;
+
+    // Check if student has explicitly assigned multiple pathways
+    if (user.assignedPathways && user.assignedPathways.length > 0) {
+      if (!user.assignedPathways.includes(exam)) {
+        return [];
+      }
+      if (exam === 'NAFS') {
+        if (user.studentLevel === 'Grade 6') {
+          return list.filter(q => q.section.includes('Grade 6') || q.section.includes('G6'));
+        }
+        if (user.studentLevel === 'Grade 9') {
+          return list.filter(q => q.section.includes('Grade 9') || q.section.includes('G9'));
+        }
+      }
+      return list;
+    }
 
     if (exam === 'NAFS') {
       if (user.studentLevel === 'Grade 6') {
@@ -891,6 +933,7 @@ export default function App() {
     setSeen(newSeen);
     setLastAttempt(attempt);
     saveAttemptToDb(attempt).catch(console.error);
+    playCelebrationSound();
     setSession(null);
     setCurrentScreen('results');
     showToast(`Session submitted. Estimated score: ${attempt.score}`);
@@ -900,6 +943,7 @@ export default function App() {
     const attempt = computeResults(sess);
     setAttempts(prev => [attempt, ...prev]);
     saveAttemptToDb(attempt).catch(console.error);
+    playCelebrationSound();
     setLastAttempt(attempt);
     setSession(null);
     setCurrentScreen('results');

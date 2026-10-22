@@ -37,6 +37,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
   defaultGrade,
   selectedUsernames
 }) => {
+  const [selectedRole, setSelectedRole] = useState<'All' | 'Student' | 'Teacher'>('All');
   const [selectedClass, setSelectedClass] = useState<string>(defaultClass);
   const [selectedGrade, setSelectedGrade] = useState<string>(defaultGrade || 'All');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -67,9 +68,9 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
       });
   }, [loginUrl]);
 
-  // Extract all student accounts (or optionally restricted to selectedUsernames)
-  const studentAccounts = useMemo(() => {
-    let list = accounts.filter(a => a.role === 'Student');
+  // Extract all eligible accounts (Students and Teachers)
+  const eligibleAccounts = useMemo(() => {
+    let list = accounts.filter(a => a.role === 'Student' || a.role === 'Teacher');
     if (selectedUsernames && selectedUsernames.length > 0) {
       const set = new Set(selectedUsernames.map(u => u.toLowerCase()));
       list = list.filter(a => set.has(a.username.toLowerCase()));
@@ -77,36 +78,42 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
     return list;
   }, [accounts, selectedUsernames]);
 
-  // Available classes list
+  // Available classes list from students
   const availableClasses = useMemo(() => {
     const set = new Set<string>();
-    studentAccounts.forEach(a => {
+    eligibleAccounts.forEach(a => {
       if (a.studentClass && a.studentClass.trim()) {
         set.add(a.studentClass.trim());
       }
     });
     return Array.from(set).sort();
-  }, [studentAccounts]);
+  }, [eligibleAccounts]);
 
-  // Filtered students according to class and grade
-  const filteredStudents = useMemo(() => {
-    return studentAccounts.filter(s => {
-      if (selectedClass !== 'All' && (s.studentClass || 'Unassigned') !== selectedClass) {
+  // Filtered accounts according to role, class, and grade
+  const filteredAccounts = useMemo(() => {
+    return eligibleAccounts.filter(s => {
+      if (selectedRole !== 'All' && s.role !== selectedRole) {
         return false;
       }
-      if (selectedGrade !== 'All' && s.studentLevel !== selectedGrade) {
-        return false;
+      if (s.role === 'Student') {
+        if (selectedClass !== 'All' && (s.studentClass || 'Unassigned') !== selectedClass) {
+          return false;
+        }
+        if (selectedGrade !== 'All' && s.studentLevel !== selectedGrade) {
+          return false;
+        }
       }
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase().trim();
         const matchName = s.name.toLowerCase().includes(q);
         const matchUser = s.username.toLowerCase().includes(q);
         const matchClass = (s.studentClass || '').toLowerCase().includes(q);
-        if (!matchName && !matchUser && !matchClass) return false;
+        const matchRole = s.role.toLowerCase().includes(q);
+        if (!matchName && !matchUser && !matchClass && !matchRole) return false;
       }
       return true;
     });
-  }, [studentAccounts, selectedClass, selectedGrade, searchTerm]);
+  }, [eligibleAccounts, selectedRole, selectedClass, selectedGrade, searchTerm]);
 
   // Resiliently resolve uploaded school logo from props or localStorage settings vault
   const resolvedSettings = useMemo(() => {
@@ -250,7 +257,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
             >
               <Printer className="w-4 h-4" />
-              <span>Print {filteredStudents.length} Cards</span>
+              <span>Print {filteredAccounts.length} Cards</span>
             </button>
 
             <button
@@ -267,35 +274,53 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
         {/* Filter and Class Toolbar (Hidden in Print) */}
         <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden shrink-0">
           <div className="flex flex-wrap items-center gap-3">
-            {/* Filter by Grade */}
+            {/* Filter by Role */}
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-slate-700">Grade:</span>
+              <span className="font-extrabold text-slate-700">Account Type:</span>
               <select
-                value={selectedGrade}
-                onChange={e => setSelectedGrade(e.target.value)}
+                value={selectedRole}
+                onChange={e => setSelectedRole(e.target.value as any)}
                 className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-800 text-xs"
               >
-                <option value="All">All Grades ({studentAccounts.length})</option>
-                <option value="Grade 6">Grade 6 (NAFS)</option>
-                <option value="Grade 9">Grade 9 (NAFS)</option>
-                <option value="High School">High School (SAT/GAT)</option>
+                <option value="All">All Roles ({eligibleAccounts.length})</option>
+                <option value="Student">Students ({eligibleAccounts.filter(a => a.role === 'Student').length})</option>
+                <option value="Teacher">Teachers / Staff ({eligibleAccounts.filter(a => a.role === 'Teacher').length})</option>
               </select>
             </div>
 
+            {/* Filter by Grade */}
+            {selectedRole !== 'Teacher' && (
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-slate-700">Grade:</span>
+                <select
+                  value={selectedGrade}
+                  onChange={e => setSelectedGrade(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-800 text-xs"
+                >
+                  <option value="All">All Grades</option>
+                  <option value="Grade 6">Grade 6 (NAFS)</option>
+                  <option value="Grade 9">Grade 9 (NAFS)</option>
+                  <option value="High School">High School (SAT/GAT)</option>
+                </select>
+              </div>
+            )}
+
             {/* Filter by Class */}
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-slate-700">Class:</span>
-              <select
-                value={selectedClass}
-                onChange={e => setSelectedClass(e.target.value)}
-                className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-800 text-xs"
-              >
-                <option value="All">All Classes ({availableClasses.length})</option>
-                {availableClasses.map(c => (
-                  <option key={c} value={c}>Class {c}</option>
-                ))}
-              </select>
-            </div>
+            {selectedRole !== 'Teacher' && (
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-slate-700">Class:</span>
+                <select
+                  value={selectedClass}
+                  onChange={e => setSelectedClass(e.target.value)}
+                  className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-800 text-xs"
+                >
+                  <option value="All">All Classes ({availableClasses.length})</option>
+                  {availableClasses.map(c => (
+                    <option key={c} value={c}>Class {c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Search */}
             <div className="relative">
@@ -312,38 +337,40 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
 
           <div className="flex items-center gap-2 text-slate-600 font-bold">
             <UserCheck className="w-4 h-4 text-emerald-600" />
-            <span>Ready to Print: <strong className="text-slate-900">{filteredStudents.length}</strong> Cards</span>
+            <span>Ready to Print: <strong className="text-slate-900">{filteredAccounts.length}</strong> Cards</span>
           </div>
         </div>
 
         {/* Print Layout & Cards Sheet */}
         <div className="print-cards-scroll flex-1 p-6 overflow-y-auto bg-slate-100/70 print:p-0 print:bg-white print:overflow-visible">
-          {filteredStudents.length === 0 ? (
+          {filteredAccounts.length === 0 ? (
             <div className="p-12 text-center bg-white border-2 border-dashed border-slate-300 rounded-2xl space-y-2">
               <School className="w-10 h-10 text-slate-400 mx-auto" />
-              <h3 className="text-base font-bold text-slate-800">No students match this class or filter</h3>
-              <p className="text-xs text-slate-500">Select a different class or grade level to view and print student cards.</p>
+              <h3 className="text-base font-bold text-slate-800">No accounts match this filter</h3>
+              <p className="text-xs text-slate-500">Select a different account role, grade, or class to view and print credential cards.</p>
             </div>
           ) : (
             <div className="print-cards-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 print:grid print:grid-cols-2 print:gap-3 print:m-0">
-              {filteredStudents.map((student, idx) => {
-                const gradeLabel = student.studentLevel || 'Grade 6';
-                const classLabel = student.studentClass || '6-A';
-                const examTrack =
-                  gradeLabel === 'High School'
-                    ? 'Digital SAT & GAT Track'
-                    : gradeLabel === 'Grade 9'
-                    ? 'NAFS Grade 9 Assessment'
-                    : 'NAFS Grade 6 Assessment';
+              {filteredAccounts.map((account, idx) => {
+                const isTeacher = account.role === 'Teacher';
+                const gradeLabel = account.studentLevel || 'Grade 6';
+                const classLabel = account.studentClass || '6-A';
+                const examTrack = isTeacher
+                  ? `Assigned: ${(account.assignedPathways || ['GAT', 'SAT']).join(', ')}`
+                  : gradeLabel === 'High School'
+                  ? 'Digital SAT & GAT Track'
+                  : gradeLabel === 'Grade 9'
+                  ? 'NAFS Grade 9 Assessment'
+                  : 'NAFS Grade 6 Assessment';
 
                 return (
                   <div
-                    key={student.username || idx}
+                    key={account.username || idx}
                     className="print-card-item relative bg-white border-2 border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between overflow-hidden print:border-2 print:border-slate-800 print:rounded-xl print:p-4 print:break-inside-avoid print:shadow-none"
                     style={{ pageBreakInside: 'avoid' }}
                   >
                     {/* Top Tri-Color Accent Line */}
-                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-700 via-[#1e3a8a] to-emerald-600" />
+                    <div className={`absolute top-0 left-0 right-0 h-1.5 ${isTeacher ? 'bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600' : 'bg-gradient-to-r from-red-700 via-[#1e3a8a] to-emerald-600'}`} />
 
                     {/* Card Header: School Emblem & Name */}
                     <div className="flex items-center justify-between pb-3 border-b border-slate-200 gap-2">
@@ -365,30 +392,30 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
                           <span className="text-[11px] font-black tracking-tight text-slate-900 block truncate leading-tight uppercase">
                             {appName}
                           </span>
-                          <span className="text-[9px] font-bold text-[#1e3a8a] tracking-wider uppercase block">
-                            Student Examination Access Card
+                          <span className={`text-[9px] font-bold tracking-wider uppercase block ${isTeacher ? 'text-indigo-800' : 'text-[#1e3a8a]'}`}>
+                            {isTeacher ? 'Faculty & Teacher Portal Card' : 'Student Examination Access Card'}
                           </span>
                         </div>
                       </div>
 
                       <div className="shrink-0 text-right">
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-[#1e3a8a] border border-blue-300">
-                          Class {classLabel}
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black border ${isTeacher ? 'bg-indigo-100 text-indigo-900 border-indigo-300' : 'bg-blue-100 text-[#1e3a8a] border-blue-300'}`}>
+                          {isTeacher ? 'Faculty Member' : `Class ${classLabel}`}
                         </span>
                       </div>
                     </div>
 
-                    {/* Student Identity Section */}
+                    {/* Identity Section */}
                     <div className="my-3 space-y-1">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        Student Name
+                        {isTeacher ? 'Teacher / Faculty Name' : 'Student Name'}
                       </div>
                       <div className="text-base sm:text-lg font-black text-slate-950 tracking-tight leading-tight truncate">
-                        {student.name}
+                        {account.name}
                       </div>
-                      <div className="flex items-center gap-2 pt-0.5">
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-300">
-                          {gradeLabel}
+                      <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${isTeacher ? 'bg-purple-100 text-purple-900 border-purple-300' : 'bg-slate-100 text-slate-800 border-slate-300'}`}>
+                          {isTeacher ? 'Teacher Role' : gradeLabel}
                         </span>
                         <span className="text-[10px] font-semibold text-slate-600">
                           · {examTrack}
@@ -405,7 +432,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
                             Portal Username
                           </span>
                           <span className="text-xs font-mono font-black text-[#1e3a8a] block select-all">
-                            @{student.username}
+                            @{account.username}
                           </span>
                         </div>
 
@@ -414,7 +441,7 @@ export const StudentCardsModal: React.FC<StudentCardsModalProps> = ({
                             Assigned Password
                           </span>
                           <span className="text-xs font-mono font-black text-slate-900 block tracking-wide select-all">
-                            {showPasswords ? (student.password || 'password123') : '••••••••'}
+                            {showPasswords ? (account.password || 'password123') : '••••••••'}
                           </span>
                         </div>
                       </div>

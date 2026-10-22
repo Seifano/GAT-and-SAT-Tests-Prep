@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'practice', label: 'Practice Drills', desc: 'Topic drills & question solving', icon: Zap },
         { id: 'results', label: 'My Test History & Review', desc: 'Past scores & answer explanations', icon: BookOpen },
         { id: 'achievements', label: 'Badges & XP', desc: `${streak || 0}d streak · Level rewards`, icon: Award },
-        { id: 'ksaBooking', label: 'Riyadh Test Dates', desc: 'Upcoming KSA testing sessions', icon: Calendar }
+        { id: 'ksaBooking', label: 'KSA Test Dates', desc: 'Riyadh & Al-Khobar sessions', icon: Calendar }
       ]
     },
     {
@@ -105,18 +105,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Academic Progress',
       items: [
         { id: 'studentProgress', label: 'Student Progress', desc: 'Roster analytics & diagnostics', icon: Users },
-        { id: 'ksaBooking', label: 'Riyadh Test Dates', desc: 'Upcoming KSA testing sessions', icon: Calendar },
-        { id: 'dashboard', label: 'Student View Preview', desc: 'Active student experience', icon: LayoutGrid }
+        { id: 'ksaBooking', label: 'KSA Test Dates', desc: 'Riyadh & Al-Khobar sessions', icon: Calendar },
+        { id: 'dashboard', label: 'Practice & Mocks (Student Mode)', desc: 'Experience student drills & tests', icon: LayoutGrid }
       ]
     },
-    {
-      title: 'Question Bank',
+    ...(isAdmin ? [{
+      title: 'Question Bank & Import',
       items: [
         { id: 'adminQuestions', label: 'Question Bank', desc: 'Create, audit & manage test items', icon: Database },
-        { id: 'adminImport', label: 'Word & PDF Importer', desc: 'Bulk import questions', icon: UploadCloud },
+        { id: 'adminImport', label: 'AI Importer (Gemini & Docs)', desc: 'Extract questions with AI', icon: UploadCloud },
         { id: 'browser', label: 'Question Library', desc: 'Verified item browser', icon: BookOpen }
       ]
-    },
+    }] : []),
     ...(isAdmin ? [{
       title: 'Administration',
       items: [

@@ -44,7 +44,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
   const [formError, setFormError] = useState('');
 
   const conf = EXAM_CONFIGS[activeExam];
-  const allSkills = conf.sections.flatMap(s => s.skills);
+  const allSkills = Array.from(new Set(conf.sections.flatMap(s => s.skills)));
   const currentBank = bank[activeExam] || [];
 
   const filtered = currentBank.filter(q => {
@@ -406,7 +406,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                   >
                     {EXAM_CONFIGS[formExam].sections.flatMap(sec =>
                       sec.skills.map(sk => (
-                        <option key={sk} value={sk}>
+                        <option key={`${sec.name}-${sk}`} value={sk}>
                           {sec.name} · {sk}
                         </option>
                       ))

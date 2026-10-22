@@ -39,7 +39,7 @@ interface AdminAccountsViewProps {
   onDeleteAccount: (username: string) => void;
   onDeleteAccounts?: (usernames: string[]) => void;
   onUpdateAccountRole?: (username: string, newRole: UserRole) => void;
-  onUpdateStudentInfo?: (username: string, studentLevel: StudentLevel, studentClass?: string) => void;
+  onUpdateStudentInfo?: (username: string, studentLevel: StudentLevel, studentClass?: string, assignedPathways?: PathwayType[]) => void;
   onUpdateTeacherGrades?: (username: string, assignedGrades: StudentLevel[]) => void;
   onUpdateTeacherAssignments?: (username: string, assignedGrades: StudentLevel[], assignedPathways?: PathwayType[]) => void;
   onToggleUserStatus?: (username: string, status: 'Active' | 'Inactive') => void;
@@ -116,7 +116,15 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
     name: string;
     level: StudentLevel;
     class: string;
+    assignedPathways: PathwayType[];
   } | null>(null);
+
+  // Pagination: 20 student/user accounts per page
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 20;
+
+  // Multi-pathway selection for new student creation form
+  const [studentPathways, setStudentPathways] = useState<PathwayType[]>(['NAFS']);
 
   // Edit Teacher Assigned Pathways & Grades modal
   const [editingTeacher, setEditingTeacher] = useState<{
@@ -156,12 +164,21 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
 
   const handleSelectLevel = (lvl: StudentLevel) => {
     setStudentLevel(lvl);
-    if (lvl === 'Grade 6' && (!studentClass || studentClass.startsWith('9-') || studentClass.startsWith('10-') || studentClass.startsWith('11-'))) {
-      setStudentClass('6-A');
-    } else if (lvl === 'Grade 9' && (!studentClass || studentClass.startsWith('6-') || studentClass.startsWith('10-') || studentClass.startsWith('11-'))) {
-      setStudentClass('9-A');
-    } else if (lvl === 'High School' && (!studentClass || studentClass.startsWith('6-') || studentClass.startsWith('9-'))) {
-      setStudentClass('10-A');
+    if (lvl === 'Grade 6') {
+      setStudentPathways(['NAFS']);
+      if (!studentClass || studentClass.startsWith('9-') || studentClass.startsWith('10-') || studentClass.startsWith('11-')) {
+        setStudentClass('6-A');
+      }
+    } else if (lvl === 'Grade 9') {
+      setStudentPathways(['NAFS']);
+      if (!studentClass || studentClass.startsWith('6-') || studentClass.startsWith('10-') || studentClass.startsWith('11-')) {
+        setStudentClass('9-A');
+      }
+    } else if (lvl === 'High School') {
+      setStudentPathways(['GAT', 'SAT']);
+      if (!studentClass || studentClass.startsWith('6-') || studentClass.startsWith('9-')) {
+        setStudentClass('10-A');
+      }
     }
   };
 
@@ -198,7 +215,11 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
       studentLevel: isStudentRole ? studentLevel : undefined,
       studentClass: finalClass,
       assignedGrades: isTeacherRole ? (teacherGrades.length ? teacherGrades : ['Grade 6', 'High School']) : undefined,
-      assignedPathways: isTeacherRole ? (teacherPathways.length ? teacherPathways : ['GAT', 'SAT']) : undefined,
+      assignedPathways: isTeacherRole
+        ? (teacherPathways.length ? teacherPathways : ['GAT', 'SAT'])
+        : isStudentRole
+        ? (studentPathways.length ? studentPathways : (studentLevel === 'High School' ? ['GAT', 'SAT'] : ['NAFS']))
+        : undefined,
       status: 'Active',
       password: pass,
       created: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -468,8 +489,13 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
   const inactiveCount = accounts.length - activeCount;
   const bulkLinesCount = bulkText.split(/\r?\n/).filter(l => l.trim()).length;
 
-  // Multi-select helpers
-  const selectableAccounts = filteredAccounts.filter(
+  // Pagination (20 accounts per page)
+  const totalPages = Math.max(1, Math.ceil(filteredAccounts.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedAccounts = filteredAccounts.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+
+  // Multi-select helpers (operates on visible page for clean UI)
+  const selectableAccounts = paginatedAccounts.filter(
     a => a.role !== 'Admin' && a.username.toLowerCase() !== 'admin'
   );
   const selectableUsernames = selectableAccounts.map(a => a.username);
@@ -884,6 +910,46 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                         SAT &amp; GAT Only
                       </div>
                     </button>
+                  </div>
+                </div>
+
+                {/* Student Exam Pathways Multi-select */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-extrabold text-[#201e1d]">
+                      Assigned Exam Pathways (Multi-select)
+                    </label>
+                    <span className="text-[10px] text-blue-700 font-bold">Select one or more</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['NAFS', 'GAT', 'SAT'] as PathwayType[]).map(pw => {
+                      const isChecked = studentPathways.includes(pw);
+                      return (
+                        <button
+                          key={pw}
+                          type="button"
+                          onClick={() => {
+                            if (isChecked) {
+                              if (studentPathways.length > 1) {
+                                setStudentPathways(studentPathways.filter(p => p !== pw));
+                              }
+                            } else {
+                              setStudentPathways([...studentPathways, pw]);
+                            }
+                          }}
+                          className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                            isChecked
+                              ? 'bg-[#1f3d7a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300 font-black'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="font-bold text-xs">{pw}</div>
+                          <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-400'}`}>
+                            {pw === 'NAFS' ? 'Saudi National' : pw === 'GAT' ? 'Qudurat' : 'Digital SAT'}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1507,7 +1573,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    filteredAccounts.map(acc => {
+                    paginatedAccounts.map(acc => {
                       const isCurrent = currentUser?.username === acc.username;
                       const isStudent = acc.role === 'Student';
                       const isSelected = selectedUsernames.has(acc.username);
@@ -1714,10 +1780,13 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                                       username: acc.username,
                                       name: acc.name,
                                       level: acc.studentLevel || 'Grade 6',
-                                      class: acc.studentClass || '6-A'
+                                      class: acc.studentClass || '6-A',
+                                      assignedPathways: acc.assignedPathways && acc.assignedPathways.length > 0
+                                        ? acc.assignedPathways
+                                        : (acc.studentLevel === 'High School' ? ['GAT', 'SAT'] : ['NAFS'])
                                     })}
                                     className="text-xs font-bold text-[#1f3d7a] hover:underline flex items-center gap-1 cursor-pointer"
-                                    title="Change grade level or assigned class"
+                                    title="Change grade level, assigned class, or exam pathways"
                                   >
                                     <Edit2 className="w-3 h-3" />
                                     <span>Edit Class</span>
@@ -1758,6 +1827,61 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls (20 per page) */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3.5 px-4 border-t border-slate-200 bg-slate-50/70 rounded-b-2xl">
+                <div className="text-xs font-semibold text-slate-600">
+                  Showing <span className="font-bold text-slate-900">{(safeCurrentPage - 1) * pageSize + 1}</span> to{' '}
+                  <span className="font-bold text-slate-900">{Math.min(safeCurrentPage * pageSize, filteredAccounts.length)}</span> of{' '}
+                  <span className="font-bold text-slate-900">{filteredAccounts.length}</span> accounts (20 per page)
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-colors"
+                  >
+                    Previous
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2)
+                    .map((page, idx, arr) => {
+                      const prev = arr[idx - 1];
+                      return (
+                        <React.Fragment key={page}>
+                          {prev && page - prev > 1 && (
+                            <span className="px-1 text-slate-400 font-bold text-xs select-none">...</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-7 h-7 rounded-lg text-xs font-black cursor-pointer transition-colors ${
+                              safeCurrentPage === page
+                                ? 'bg-[#1f3d7a] text-white shadow-2xs'
+                                : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1842,6 +1966,51 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                   ))}
                 </div>
               </div>
+
+              {/* Assigned Exam Pathways Multi-select for Student */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-black text-slate-800">
+                    Assigned Exam Pathways (Multi-select)
+                  </label>
+                  <span className="text-[10px] text-blue-700 font-bold">Select one or more</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['NAFS', 'GAT', 'SAT'] as PathwayType[]).map(pw => {
+                    const isChecked = (editingStudent.assignedPathways || []).includes(pw);
+                    return (
+                      <button
+                        key={pw}
+                        type="button"
+                        onClick={() => {
+                          const cur = editingStudent.assignedPathways || [];
+                          let updated: PathwayType[];
+                          if (isChecked) {
+                            if (cur.length > 1) {
+                              updated = cur.filter(p => p !== pw);
+                            } else {
+                              updated = cur;
+                            }
+                          } else {
+                            updated = [...cur, pw];
+                          }
+                          setEditingStudent({ ...editingStudent, assignedPathways: updated });
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-[#1e3a8a] text-white border-blue-900 shadow-sm ring-2 ring-blue-300 font-black'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="font-black text-xs">{pw}</div>
+                        <div className={`text-[10px] ${isChecked ? 'text-blue-100' : 'text-slate-500'}`}>
+                          {pw === 'NAFS' ? 'Saudi National' : pw === 'GAT' ? 'Qudurat' : 'Digital SAT'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
@@ -1858,7 +2027,8 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                   onUpdateStudentInfo?.(
                     editingStudent.username,
                     editingStudent.level,
-                    editingStudent.class
+                    editingStudent.class,
+                    editingStudent.assignedPathways
                   );
                   setEditingStudent(null);
                 }}

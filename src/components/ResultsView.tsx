@@ -165,22 +165,26 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
       )}
 
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
-            <span className="truncate max-w-[200px] sm:max-w-none">Diagnostic Report · {attempt.label}</span>
-            <span className="text-slate-400">·</span>
-            <span className="shrink-0">{attempt.date}</span>
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-5 pb-5 border-b-2 border-[#201e1d]/30">
+        <div className="flex-1 min-w-0 max-w-3xl">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1.5">
+            <span className="font-mono bg-blue-100 text-blue-900 px-2 py-0.5 rounded text-[11px]">
+              {attempt.exam} Report
+            </span>
+            <span>·</span>
+            <span>{attempt.label}</span>
+            <span>·</span>
+            <span className="text-slate-500 font-medium">{attempt.date}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-normal leading-snug">
             {targetDiff <= 0 ? 'Target Score Achieved!' : `${targetDiff} points from your ${target} goal.`}
           </h1>
-          <p className="text-sm text-slate-600 mt-1 break-words">
+          <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
             Comprehensive session diagnostic breakdown with error analysis and step-by-step rationales.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <button
             onClick={onReturnDashboard}
             className="px-4 py-2.5 border border-slate-300 rounded-xl bg-white hover:bg-slate-100 text-xs font-bold text-[#201e1d] cursor-pointer shadow-2xs"
@@ -208,7 +212,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
               onClick={onNavigateToPractice}
               className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl cursor-pointer shadow-xs transition-colors flex items-center gap-1.5"
             >
-              <span>Move to Next Practice Drill</span>
+              <span>Next Practice Drill</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
@@ -438,18 +442,18 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
                     </div>
                   )}
 
-                  <div className="text-base font-bold text-[#201e1d] mb-3 whitespace-pre-line">
+                  <div className="text-base font-bold text-[#201e1d] mb-3 whitespace-pre-line break-normal leading-relaxed">
                     {q.prompt}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 border-t-2 border-l-2 border-[#201e1d]/30 max-w-lg mb-3 bg-white">
-                    <div className="p-3 border-r-2 border-b-2 border-[#201e1d]/30 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 border-t-2 border-l-2 border-[#201e1d]/30 max-w-xl mb-3 bg-white shadow-2xs">
+                    <div className="p-3.5 border-r-2 border-b-2 border-[#201e1d]/30 text-xs">
                       <div className="text-[11px] text-slate-500 font-bold mb-0.5">Your Selected Answer</div>
                       <span className={isCorrect ? 'text-emerald-700 font-bold' : 'text-[#e15b47] font-bold'}>
                         {isSkipped ? 'No answer provided' : `ABCD`[chosenIdx] + ') ' + q.options[chosenIdx]}
                       </span>
                     </div>
-                    <div className="p-3 border-r-2 border-b-2 border-[#201e1d]/30 text-xs">
+                    <div className="p-3.5 border-r-2 border-b-2 border-[#201e1d]/30 text-xs">
                       <div className="text-[11px] text-slate-500 font-bold mb-0.5">Correct Answer</div>
                       <span className="font-extrabold text-[#201e1d]">
                         {`ABCD`[q.answer] + ') ' + q.options[q.answer]}
@@ -457,9 +461,9 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="p-3 bg-slate-100 border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed max-w-2xl">
-                    <span className="font-extrabold text-[#1f3d7a]">Step-by-Step Rationale: </span>
-                    {q.explain}
+                  <div className="p-4 bg-slate-100/90 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 leading-relaxed max-w-3xl shadow-2xs">
+                    <span className="font-black text-[#1f3d7a] block mb-1">Step-by-Step Rationale: </span>
+                    <p className="whitespace-pre-line break-normal">{q.explain}</p>
                   </div>
                 </div>
               );

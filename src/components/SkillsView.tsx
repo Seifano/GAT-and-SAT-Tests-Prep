@@ -114,7 +114,7 @@ export const SkillsView: React.FC<SkillsViewProps> = ({
 
                     return (
                       <div
-                        key={sk}
+                        key={`${section.name}-${sk}`}
                         className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition-all duration-200 group"
                       >
                         <div className="flex-1 min-w-0 pr-4 space-y-2">

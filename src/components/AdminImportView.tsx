@@ -4,7 +4,7 @@ import { QuestionDraft, Question, ExamType } from '../types';
 import { parseRawQuestionsText } from '../utils/questionParser';
 import { extractTextFromFile } from '../utils/documentParser';
 import { EXAM_CONFIGS } from '../data/mockData';
-import { UploadCloud, FileText, Check, X, Loader2, FileCheck, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileText, Check, X, Loader2, FileCheck, AlertCircle, Sparkles, Wand2 } from 'lucide-react';
 
 interface AdminImportViewProps {
   onImportDrafts: (questions: Question[]) => void | Promise<void>;
@@ -13,6 +13,7 @@ interface AdminImportViewProps {
 
 export const AdminImportView: React.FC<AdminImportViewProps> = ({ onImportDrafts, onCancel }) => {
   const [examPref, setExamPref] = useState<ExamType | 'Auto'>('Auto');
+  const [useAi, setUseAi] = useState<boolean>(true);
   const [rawText, setRawText] = useState('');
   const [fileName, setFileName] = useState('');
   const [fileType, setFileType] = useState<'word' | 'pdf' | 'text' | null>(null);
@@ -21,15 +22,71 @@ export const AdminImportView: React.FC<AdminImportViewProps> = ({ onImportDrafts
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [extractionMsg, setExtractionMsg] = useState('');
+  const [aiSuccessMsg, setAiSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editingDraftIndex, setEditingDraftIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleTextParse = (text: string, name = 'Pasted Questions', type: 'word' | 'pdf' | 'text' = 'text') => {
+  const parseWithGeminiAi = async (text: string, targetExam: ExamType | 'Auto'): Promise<QuestionDraft[] | null> => {
+    try {
+      const res = await fetch('/api/ai/extract-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, exam: targetExam })
+      });
+      if (!res.ok) {
+        throw new Error(`AI extraction failed with HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.success && Array.isArray(data.questions) && data.questions.length > 0) {
+        return data.questions.map((q: any, idx: number) => ({
+          prompt: q.prompt,
+          passage: q.passage || undefined,
+          options: Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'],
+          answer: typeof q.answer === 'number' ? Math.max(0, Math.min(3, q.answer)) : 0,
+          explain: q.explain || '',
+          exam: (q.exam === 'NAFS' || q.exam === 'SAT' || q.exam === 'GAT') ? q.exam : (targetExam !== 'Auto' ? targetExam : 'SAT'),
+          section: q.section || 'General',
+          skill: q.skill || 'General',
+          include: true,
+          num: idx + 1,
+          guessed: false
+        }));
+      }
+      return null;
+    } catch (err) {
+      console.warn('Gemini AI endpoint call failed, falling back to local parser:', err);
+      return null;
+    }
+  };
+
+  const handleTextParse = async (text: string, name = 'Pasted Questions', type: 'word' | 'pdf' | 'text' = 'text', forceAi = useAi) => {
     setFileName(name);
     setFileType(type);
     setRawText(text);
+    setErrorMsg(null);
+    setAiSuccessMsg('');
+
+    if (forceAi) {
+      setIsExtracting(true);
+      setExtractionMsg('Gemini AI is reading file content, extracting questions, classifying curriculum skills, and formatting explanations...');
+      try {
+        const aiDrafts = await parseWithGeminiAi(text, examPref);
+        if (aiDrafts && aiDrafts.length > 0) {
+          setDrafts(aiDrafts);
+          setAiSuccessMsg(`Gemini AI successfully extracted and auto-classified ${aiDrafts.length} questions!`);
+          setIsExtracting(false);
+          setExtractionMsg('');
+          return;
+        }
+      } catch (err) {
+        // Fallback to local parser
+      }
+      setIsExtracting(false);
+      setExtractionMsg('');
+    }
+
     const parsed = parseRawQuestionsText(text, examPref);
     setDrafts(parsed);
   };
@@ -37,18 +94,19 @@ export const AdminImportView: React.FC<AdminImportViewProps> = ({ onImportDrafts
   const processFile = async (file: File) => {
     setIsExtracting(true);
     setErrorMsg(null);
+    setAiSuccessMsg('');
     const lowerName = file.name.toLowerCase();
     let detectedType: 'word' | 'pdf' | 'text' = 'text';
 
     if (lowerName.endsWith('.docx') || lowerName.endsWith('.doc')) {
       detectedType = 'word';
-      setExtractionMsg('Reading Word document & extracting questions...');
+      setExtractionMsg(useAi ? 'Reading Word document & sending to Gemini AI...' : 'Reading Word document & extracting questions...');
     } else if (lowerName.endsWith('.pdf')) {
       detectedType = 'pdf';
-      setExtractionMsg('Parsing PDF pages & extracting question text...');
+      setExtractionMsg(useAi ? 'Parsing PDF pages & sending to Gemini AI...' : 'Parsing PDF pages & extracting question text...');
     } else {
       detectedType = 'text';
-      setExtractionMsg('Reading text file...');
+      setExtractionMsg(useAi ? 'Reading text & sending to Gemini AI...' : 'Reading text file...');
     }
 
     try {
@@ -56,7 +114,7 @@ export const AdminImportView: React.FC<AdminImportViewProps> = ({ onImportDrafts
       if (!extractedText || extractedText.trim().length === 0) {
         throw new Error('No readable text could be extracted from this file. Please verify file content.');
       }
-      handleTextParse(extractedText, file.name, detectedType);
+      await handleTextParse(extractedText, file.name, detectedType, useAi);
     } catch (err: any) {
       console.error('File parsing error:', err);
       setErrorMsg(`Failed to extract text from ${file.name}: ${err?.message || 'Unsupported or corrupted format'}`);
@@ -186,6 +244,46 @@ Explanation: 5x - 7 = 3x + 15 -> 2x = 22 -> x = 11.`;
             </div>
           </div>
 
+          {/* AI Intelligence Mode Toggle */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+              </div>
+              <div>
+                <div className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                  <span>Gemini AI Smart Extraction &amp; Auto-Classification</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-200 text-indigo-900 uppercase">Active</span>
+                </div>
+                <div className="text-[11px] text-indigo-700 font-medium">
+                  Reads questions, extracts reading passages &amp; options, and classifies syllabus skills automatically.
+                </div>
+              </div>
+            </div>
+
+            <div className="inline-flex border border-indigo-300 rounded-xl p-1 bg-white shrink-0 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setUseAi(true)}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  useAi ? 'bg-indigo-700 text-white shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Sparkles className="w-3 h-3 text-amber-300" />
+                <span>Gemini AI</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUseAi(false)}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  !useAi ? 'bg-slate-800 text-white shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Standard Regex</span>
+              </button>
+            </div>
+          </div>
+
           {/* Drag & Drop Area */}
           <div
             onDragOver={e => {
@@ -283,17 +381,36 @@ Explanation: 5x - 7 = 3x + 15 -> 2x = 22 -> x = 11.`;
             </div>
           )}
 
+          {/* AI Success Feedback */}
+          {aiSuccessMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center gap-2.5 text-xs text-emerald-900 font-bold">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{aiSuccessMsg}</span>
+            </div>
+          )}
+
           {/* Paste Input */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-[#201e1d]">
-              Or paste questions directly
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-[#201e1d]">
+                Or paste questions directly
+              </label>
+              <button
+                type="button"
+                onClick={() => handleTextParse(rawText, 'Direct Paste', 'text', true)}
+                disabled={!rawText.trim() || isExtracting}
+                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-300 rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-40"
+              >
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                <span>Extract with Gemini AI</span>
+              </button>
+            </div>
             <textarea
               rows={6}
               value={rawText}
               onChange={e => {
                 setRawText(e.target.value);
-                handleTextParse(e.target.value, 'Direct Paste');
+                handleTextParse(e.target.value, 'Direct Paste', 'text', false);
               }}
               placeholder="Paste formatted questions here..."
               className="w-full p-3 font-mono text-xs border border-slate-300 bg-white text-[#201e1d] focus:outline-none focus:border-[#1f3d7a]"
@@ -440,7 +557,7 @@ Explanation: A palm is a kind of tree.`}
               >
                 {EXAM_CONFIGS[drafts[editingDraftIndex].exam].sections.flatMap(sec =>
                   sec.skills.map(sk => (
-                    <option key={sk} value={sk}>
+                    <option key={`${sec.name}-${sk}`} value={sk}>
                       {sec.name} · {sk}
                     </option>
                   ))

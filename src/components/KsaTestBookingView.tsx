@@ -100,7 +100,8 @@ const EXAM_WINDOWS: ExamWindow[] = [
   }
 ];
 
-const RIYADH_TEST_CENTERS: TestCenter[] = [
+const KSA_TEST_CENTERS: TestCenter[] = [
+  // --- RIYADH CENTERS ---
   {
     id: 'ksu-gat',
     name: 'King Saud University Testing Center',
@@ -196,17 +197,87 @@ const RIYADH_TEST_CENTERS: TestCenter[] = [
     address: 'King Abdulaziz Road, Ar Rabi, Riyadh',
     notes: 'Fast-filling center for Northern Riyadh students.'
   },
+
+  // --- AL-KHOBAR & EASTERN PROVINCE CENTERS ---
+  {
+    id: 'kfupm-gat',
+    name: 'King Fahd University of Petroleum & Minerals (KFUPM)',
+    arabicName: 'مركز جامعة الملك فهد للبترول والمعادن',
+    city: 'Al-Khobar',
+    district: 'Dhahran / KFUPM Main Campus',
+    exam: 'GAT',
+    type: 'Computer-Based (CBT)',
+    status: 'Daily/Weekly Slots Available',
+    nextSlot: 'Within 2-4 days (Daily sessions open)',
+    address: 'KFUPM Campus, Building 59 / E-Testing Center, Dhahran / Al-Khobar',
+    notes: 'Premier Eastern Province test center serving Al-Khobar, Dhahran, and Dammam.'
+  },
+  {
+    id: 'bisak-sat',
+    name: 'British International School Al-Khobar (BISAK)',
+    arabicName: 'المدرسة البريطانية الدولية بالخبر',
+    city: 'Al-Khobar',
+    district: 'Al-Rakkah / Coastal Road',
+    code: 'Center Code: 52835',
+    exam: 'SAT',
+    type: 'Digital SAT',
+    status: 'Open for Booking',
+    nextSlot: 'November 7, 2026 & December 5, 2026',
+    address: 'Al Rakkah Al Shamaliyah, Al-Khobar Coastal Road',
+    notes: 'Official College Board Digital SAT test center for Al-Khobar students.'
+  },
+  {
+    id: 'dhahran-ahliyya-sat',
+    name: 'Dhahran Ahliyya Schools (DAS)',
+    arabicName: 'مدارس الظهران الأهلية',
+    city: 'Al-Khobar',
+    district: 'Dhahran Hills / Al-Dawhah',
+    code: 'Center Code: 52848',
+    exam: 'SAT',
+    type: 'Digital SAT',
+    status: 'Open for Booking',
+    nextSlot: 'November 7, 2026 · Dec 5, 2026 · Mar 13, 2027',
+    address: 'Al-Dawhah Al-Janubiyah, Dhahran / Al-Khobar',
+    notes: 'High-bandwidth digital testing labs with technical proctors on site.'
+  },
+  {
+    id: 'iau-dammam-gat',
+    name: 'Imam Abdulrahman Bin Faisal University (IAU)',
+    arabicName: 'جامعة الإمام عبدالرحمن بن فيصل - مركز الاختبارات',
+    city: 'Dammam',
+    district: 'Al-Rakkah / Dammam Coastal',
+    exam: 'GAT',
+    type: 'Computer-Based (CBT)',
+    status: 'Daily/Weekly Slots Available',
+    nextSlot: 'Within 3-5 days',
+    address: 'IAU Main Campus, Testing Complex Gate 1, Dammam',
+    notes: 'Continuous computerized testing for male and female test takers.'
+  },
+  {
+    id: 'isg-dammam-sat',
+    name: 'ISG International Schools (Dammam / Khobar)',
+    arabicName: 'مدارس المجموعة العالمية الدولية - الدمام',
+    city: 'Dammam',
+    district: 'Al-Faisaliyah District',
+    code: 'Center Code: 52865',
+    exam: 'SAT',
+    type: 'Digital SAT',
+    status: 'Filling Fast',
+    nextSlot: 'December 5, 2026',
+    address: 'Al-Faisaliyah, Abu Bakr Al-Siddiq Road, Dammam',
+    notes: 'Serving Al-Khobar, Dammam, and Jubail international students.'
+  },
   {
     id: 'ahs-nafs',
     name: 'Al-Hussan / AHS Enrolled Campus (NAFS Center)',
     arabicName: 'مقر المدرسة المعتمد لاختبارات نافس',
     city: 'Riyadh',
-    district: 'School Enrolled Campus',
+    district: 'School Enrolled Campus (Riyadh & Khobar)',
     exam: 'NAFS',
     type: 'Paper-Based',
     status: 'Scheduled Window',
     nextSlot: 'Official National Assessment Window (May 2027)',
-    address: 'AHS School Campus Testing Laboratories, Riyadh',
+    address: 'AHS School Campus Testing Laboratories (Riyadh & Al-Khobar Campuses)',
     notes: 'Students are pre-assigned by national student ID (Noor System integration).'
   }
 ];
@@ -223,6 +294,7 @@ export const KsaTestBookingView: React.FC<KsaTestBookingViewProps> = ({
   const currentUser = user || directCurrentUser;
   const onNavigateToPractice = directNavigatePractice || onStartPractice;
   const [selectedExam, setSelectedExam] = useState<ExamType | 'ALL'>(activeExam || 'ALL');
+  const [selectedCity, setSelectedCity] = useState<'ALL' | 'Riyadh' | 'Al-Khobar' | 'Dammam'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number }>({
     days: 0,
@@ -253,14 +325,22 @@ export const KsaTestBookingView: React.FC<KsaTestBookingViewProps> = ({
     return () => clearInterval(interval);
   }, [currentExamWindow]);
 
-  const filteredCenters = RIYADH_TEST_CENTERS.filter(center => {
+  const filteredCenters = KSA_TEST_CENTERS.filter(center => {
     if (selectedExam !== 'ALL' && center.exam !== selectedExam) return false;
+    if (selectedCity !== 'ALL') {
+      if (selectedCity === 'Al-Khobar') {
+        if (!center.city.includes('Khobar') && !center.district.includes('Dhahran')) return false;
+      } else if (!center.city.includes(selectedCity)) {
+        return false;
+      }
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
         center.name.toLowerCase().includes(q) ||
         center.arabicName.toLowerCase().includes(q) ||
         center.district.toLowerCase().includes(q) ||
+        center.city.toLowerCase().includes(q) ||
         center.address.toLowerCase().includes(q)
       );
     }
@@ -282,25 +362,25 @@ export const KsaTestBookingView: React.FC<KsaTestBookingViewProps> = ({
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
-              Next Available Test Booking Sessions in Riyadh
+              Next Available Test Booking Sessions in Riyadh &amp; Al-Khobar
             </h1>
 
             <p className="text-xs sm:text-sm text-blue-100 leading-relaxed">
-              Find nearest authorized test centers, continuous Computer-Based (CBT) GAT slots, Digital SAT test centers in Riyadh, and official registration windows.
+              Find nearest authorized test centers, continuous Computer-Based (CBT) GAT slots, Digital SAT test centers in Riyadh and Eastern Province (Al-Khobar, Dhahran, Dammam), and official registration windows.
             </p>
           </div>
 
-          {/* Riyadh Live Booking Indicator */}
+          {/* KSA Live Booking Indicator */}
           <div className="bg-white/10 border border-white/20 p-4 rounded-xl shrink-0 backdrop-blur-xs text-center sm:text-right">
             <span className="text-[10px] font-bold text-sky-200 uppercase tracking-wider block">
-              Active Riyadh Booking Status
+              Active KSA Booking Status
             </span>
             <div className="flex items-center justify-center sm:justify-end gap-2 mt-1">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-sm font-black text-white">Daily CBT Sessions Open</span>
             </div>
             <span className="text-[11px] text-blue-200 block mt-0.5">
-              ETEC / Qiyas &amp; College Board
+              Riyadh, Al-Khobar &amp; Dammam
             </span>
           </div>
         </div>
@@ -393,27 +473,47 @@ export const KsaTestBookingView: React.FC<KsaTestBookingViewProps> = ({
         </div>
       </section>
 
-      {/* 3. Official Riyadh Testing Centers Directory */}
+      {/* 3. Official Testing Centers Directory */}
       <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-black text-slate-900">
-              Riyadh Test Centers Directory ({filteredCenters.length} Centers)
+              Authorized Test Centers Directory ({filteredCenters.length} Venues)
             </h2>
             <p className="text-xs text-slate-500">
-              Authorized examination venues across Riyadh with real booking availability
+              Official test centers in Riyadh, Al-Khobar, Dhahran, and Dammam
             </p>
           </div>
 
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search by center or district (e.g. KSU, DQ)..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#1e3a8a]"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* City Filter Pills */}
+            <div className="inline-flex border border-slate-200 rounded-xl p-1 bg-slate-50 text-xs font-bold">
+              {(['ALL', 'Riyadh', 'Al-Khobar', 'Dammam'] as const).map(city => (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => setSelectedCity(city)}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    selectedCity === city
+                      ? 'bg-[#1e3a8a] text-white shadow-2xs font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {city === 'ALL' ? 'All Cities' : city === 'Al-Khobar' ? 'Al-Khobar / Dhahran' : city}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full sm:w-60">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search center or city..."
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#1e3a8a]"
+              />
+            </div>
           </div>
         </div>
 
@@ -435,6 +535,9 @@ export const KsaTestBookingView: React.FC<KsaTestBookingViewProps> = ({
                           isGat ? 'bg-red-700' : isSat ? 'bg-[#1e3a8a]' : 'bg-emerald-700'
                         }`}>
                           {center.exam}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                          {center.city}
                         </span>
                         <span className="text-[10px] font-bold text-slate-500">
                           {center.type}

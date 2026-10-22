@@ -27,14 +27,14 @@ export const PracticeSetsView: React.FC<PracticeSetsViewProps> = ({
     if (currentUser?.role === 'Student' && activeExam === 'NAFS') {
       if (currentUser.studentLevel === 'Grade 6') {
         const sec = conf.sections.find(s => s.name.includes('Grade 6') || s.name.includes('G6'));
-        return sec ? sec.skills : conf.sections.flatMap(s => s.skills);
+        return sec ? Array.from(new Set(sec.skills)) : Array.from(new Set(conf.sections.flatMap(s => s.skills)));
       }
       if (currentUser.studentLevel === 'Grade 9') {
         const sec = conf.sections.find(s => s.name.includes('Grade 9') || s.name.includes('G9'));
-        return sec ? sec.skills : conf.sections.flatMap(s => s.skills);
+        return sec ? Array.from(new Set(sec.skills)) : Array.from(new Set(conf.sections.flatMap(s => s.skills)));
       }
     }
-    return conf.sections.flatMap(s => s.skills);
+    return Array.from(new Set(conf.sections.flatMap(s => s.skills)));
   })();
 
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
