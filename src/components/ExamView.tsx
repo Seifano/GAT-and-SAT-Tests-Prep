@@ -285,6 +285,14 @@ export const ExamView: React.FC<ExamViewProps> = ({
               </div>
             )}
 
+            {/* Figure / Graph / Diagram if attached */}
+            {currentQ.figureSvg && (
+              <div 
+                className="my-5 p-4 bg-white border-2 border-slate-300 rounded-2xl shadow-xs overflow-x-auto flex flex-col items-center justify-center transition-all"
+                dangerouslySetInnerHTML={{ __html: currentQ.figureSvg }}
+              />
+            )}
+
             {/* Prompt */}
             <div
               className={`text-[#201e1d] leading-snug mb-8 whitespace-pre-line ${

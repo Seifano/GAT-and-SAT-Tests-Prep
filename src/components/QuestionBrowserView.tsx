@@ -582,6 +582,14 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
                     </div>
                   )}
 
+                  {/* Figure / Graph / Diagram if attached */}
+                  {q.figureSvg && (
+                    <div 
+                      className="my-3 p-3 bg-white border border-slate-300 rounded-xl shadow-xs overflow-x-auto flex flex-col items-center justify-center"
+                      dangerouslySetInnerHTML={{ __html: q.figureSvg }}
+                    />
+                  )}
+
                   {/* Question Prompt */}
                   <div className="text-sm font-bold text-[#201e1d] leading-relaxed whitespace-pre-wrap">
                     {q.prompt}

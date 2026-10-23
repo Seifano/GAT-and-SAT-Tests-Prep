@@ -27,6 +27,7 @@ export interface Question {
   explain: string;
   src?: string;
   passage?: string;
+  figureSvg?: string;
 }
 
 export interface QuestionDraft extends Omit<Question, 'id'> {

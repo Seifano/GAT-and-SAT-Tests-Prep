@@ -1,5 +1,6 @@
 import { Question } from '../types';
 import { passages } from './passages';
+import { satTests4and9Questions } from './satTests4and9';
 
 export const initialGATQuestions: Question[] = [
   // GAT Verbal: Analogy
@@ -744,5 +745,6 @@ export const initialSATQuestions: Question[] = [
     options: ['30π cm³', '60π cm³', '90π cm³', '120π cm³'],
     answer: 2,
     explain: 'Volume of cylinder = πr²h = π(3²)(10) = π(9)(10) = 90π cm³.',
-  }
+  },
+  ...satTests4and9Questions
 ];

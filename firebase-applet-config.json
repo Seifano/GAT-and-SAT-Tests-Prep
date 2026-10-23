@@ -1,7 +1,7 @@
 {
   "projectId": "local-sun-xpqwl",
   "appId": "1:316632958334:web:923a296f2ba44b1cf79f2f",
-  "apiKey": "REPLACE_WITH_FIREBASE_API_KEY",
+  "apiKey": "",
   "authDomain": "local-sun-xpqwl.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-ahsexamsprepline-4c9685f9-88e1-4188-b58f-ce6decbf229e",
   "storageBucket": "local-sun-xpqwl.firebasestorage.app",

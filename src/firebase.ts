@@ -17,8 +17,12 @@ import { UserAccount, Question, AppSettings, TestAttempt, ExamType, UserProfile 
 import { INITIAL_ACCOUNTS, DEFAULT_APP_SETTINGS } from './data/mockData';
 import { hashPassword, encryptCredential, decryptCredential } from './utils/security';
 
-// Initialize Firebase App
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase App with safe environment fallback (no hardcoded credentials)
+const safeConfig = {
+  ...firebaseConfig,
+  apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_API_KEY) || firebaseConfig.apiKey || ''
+};
+const app = getApps().length === 0 ? initializeApp(safeConfig) : getApp();
 
 // Initialize Firestore with configured database ID
 export const db = firebaseConfig.firestoreDatabaseId
@@ -509,6 +513,9 @@ export function sanitizeQuestionForDb(q: Question): Record<string, any> {
   }
   if (q.passage && typeof q.passage === 'string' && q.passage.trim().length > 0) {
     cleaned.passage = q.passage.trim();
+  }
+  if (q.figureSvg && typeof q.figureSvg === 'string' && q.figureSvg.trim().length > 0) {
+    cleaned.figureSvg = q.figureSvg.trim();
   }
   return cleaned;
 }
