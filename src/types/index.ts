@@ -16,6 +16,8 @@ export interface ExamConfig {
   sections: ExamSection[];
 }
 
+export type DifficultyLevel = 'Easy' | 'Medium' | 'Hard';
+
 export interface Question {
   id: string;
   exam: ExamType;
@@ -25,6 +27,7 @@ export interface Question {
   options: string[];
   answer: number; // 0, 1, 2, 3 corresponding to A, B, C, D
   explain: string;
+  difficulty?: DifficultyLevel;
   src?: string;
   passage?: string;
   figureSvg?: string;
@@ -145,4 +148,55 @@ export interface StudentGamification {
   dailyGoalProgress: number;
   dailyGoalTarget: number;
   badgeBonusXp?: number;
+}
+
+// ----------------------------------------------------
+// BLOOKET-STYLE LIVE GAME HOSTING & ARENA TYPES
+// ----------------------------------------------------
+export type GameMode = 'gold_quest' | 'speed_sprint' | 'mastery_paced';
+
+export interface GameRuleSettings {
+  timeLimitSeconds: number; // 0 = self-paced untimed; or 20, 30, 45, 60s per question
+  allowGuests: boolean; // whether guest nicknames without login are permitted
+  showExplanations: boolean; // show step-by-step reasoning after answering
+  basePoints: number; // base points per question, default 100
+  streakMultipliers: boolean; // x1.5, x2, x3 for consecutive correct answers
+  powerChestRewards: boolean; // mystery gold chest rewards after correct answers (Blooket-style)
+  maxPlayers: number; // maximum joined students, strictly 25 limit
+}
+
+export interface GamePlayer {
+  id: string; // username or guest-uuid
+  name: string;
+  isGuest: boolean;
+  avatar: string; // icon identifier: 'falcon', 'camel', 'palm', 'crown', 'shield', 'star', 'rocket', 'diamond'
+  score: number;
+  gold: number;
+  currentQuestionIndex: number;
+  correctCount: number;
+  streak: number;
+  highestStreak: number;
+  answers: Record<number, number>; // index of question -> chosen option index
+  finished: boolean;
+  lastUpdated: number;
+}
+
+export interface LiveGameSession {
+  pin: string; // 6-digit PIN e.g. "582914"
+  hostTeacherUsername: string;
+  hostTeacherName: string;
+  title: string;
+  exam: ExamType;
+  sectionFilter?: string;
+  skillFilter?: string;
+  difficultyFilter?: DifficultyLevel | 'All';
+  mode: GameMode;
+  ruleSettings: GameRuleSettings;
+  questionIds: string[];
+  questions: Question[]; // Snapshot of selected questions from the question bank
+  status: 'lobby' | 'active' | 'completed' | 'paused';
+  createdAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  players: Record<string, GamePlayer>;
 }

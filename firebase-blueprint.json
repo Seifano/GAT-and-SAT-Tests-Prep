@@ -158,6 +158,49 @@
         }
       },
       "required": ["id", "username", "exam", "score", "correctCount", "totalCount"]
+    },
+    "LiveGameSession": {
+      "title": "LiveGameSession",
+      "description": "Hosted Blooket-style multiplayer classroom game session",
+      "type": "object",
+      "properties": {
+        "pin": {
+          "type": "string",
+          "description": "6-digit unique game PIN"
+        },
+        "hostTeacherUsername": {
+          "type": "string",
+          "description": "Host teacher username"
+        },
+        "hostTeacherName": {
+          "type": "string",
+          "description": "Host teacher display name"
+        },
+        "title": {
+          "type": "string",
+          "description": "Game session title"
+        },
+        "exam": {
+          "type": "string",
+          "enum": ["NAFS", "GAT", "SAT"],
+          "description": "Exam track"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["gold_quest", "speed_sprint", "mastery_paced"],
+          "description": "Game mode"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["lobby", "active", "completed", "paused"],
+          "description": "Game status"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Creation timestamp in milliseconds"
+        }
+      },
+      "required": ["pin", "hostTeacherUsername", "title", "exam", "mode", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -176,6 +219,10 @@
     "/attempts/{attemptId}": {
       "schema": { "$ref": "#/entities/TestAttempt" },
       "description": "Student mock exam results and attempt records"
+    },
+    "/gameSessions/{pin}": {
+      "schema": { "$ref": "#/entities/LiveGameSession" },
+      "description": "Blooket-style live classroom game sessions and player real-time progress"
     }
   }
 }

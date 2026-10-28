@@ -9,8 +9,10 @@ import {
   AppSettings,
   UserRole,
   StudentLevel,
-  PathwayType
+  PathwayType,
+  DifficultyLevel
 } from './types';
+import { getQuestionDifficulty } from './utils/difficulty';
 import {
   EXAM_CONFIGS,
   INITIAL_ACCOUNTS,
@@ -39,9 +41,14 @@ import { AdminAccountsView } from './components/AdminAccountsView';
 import { AdminBrandingView } from './components/AdminBrandingView';
 import { StudentExamGateway } from './components/StudentExamGateway';
 import { KsaTestBookingView } from './components/KsaTestBookingView';
+import { TeacherHostGameView } from './components/TeacherHostGameView';
+import { LiveGamePlayView } from './components/LiveGamePlayView';
+import { JoinGameModal } from './components/JoinGameModal';
 import { Sidebar } from './components/Sidebar';
 import { ArrowLeft } from 'lucide-react';
 import { calculateGamification } from './utils/gamification';
+import { Language, getStoredLanguage, saveStoredLanguage } from './utils/i18n';
+import { LiveGameSession, GamePlayer } from './types';
 import { doc, getDoc } from 'firebase/firestore';
 import {
   db,
@@ -67,7 +74,9 @@ import {
   subscribeToSettings,
   subscribeToAttempts,
   subscribeToQuestions,
-  parseUserDoc
+  parseUserDoc,
+  fetchGameSessionFromDb,
+  joinPlayerToGameSessionInDb
 } from './firebase';
 import { verifyUserPassword } from './utils/security';
 import { playCelebrationSound } from './utils/soundEffects';
@@ -88,6 +97,8 @@ export const ACTIVE_VIEW_INFO: Record<string, { title: string; subtitle: string;
   adminImport: { title: 'Word & PDF Importer', subtitle: 'Bulk convert exam documents into structured question items', category: 'Curriculum' },
   adminAccounts: { title: 'User Accounts', subtitle: 'Student and teacher credential vault with cloud backup', category: 'Administration' },
   adminBranding: { title: 'School Branding', subtitle: 'Customize school emblem, application name & login theme', category: 'Administration' },
+  hostGame: { title: 'Live Game Hosting', subtitle: 'Host Blooket-style multiplayer game with QR codes & question bank', category: 'Instruction' },
+  playGame: { title: 'Live Game Arena', subtitle: 'Interactive multiplayer practice with real-time feedback & rewards', category: 'Practice' },
 };
 
 export default function App() {
@@ -238,6 +249,104 @@ export default function App() {
       return false;
     }
   });
+
+  const [language, setLanguage] = useState<Language>(getStoredLanguage);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  }, [language]);
+
+  const handleToggleLanguage = (newLang: Language) => {
+    setLanguage(newLang);
+    saveStoredLanguage(newLang);
+  };
+
+  // Live Game Arena State (Blooket-style multiplayer)
+  const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState<boolean>(false);
+  const [activeGamePin, setActiveGamePin] = useState<string>('');
+  const [currentPlayingPlayer, setCurrentPlayingPlayer] = useState<GamePlayer | null>(null);
+
+  // Auto-detect ?joinPin=XXXXXX in URL (e.g. from scanned QR code)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pin = params.get('joinPin') || params.get('pin');
+        if (pin && pin.length >= 4) {
+          setActiveGamePin(pin.replace(/\s+/g, ''));
+          setIsJoinGameModalOpen(true);
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+  }, []);
+
+  const handleJoinGameSession = async (
+    pin: string,
+    playerName: string,
+    avatarId: string,
+    isGuest: boolean
+  ) => {
+    showToast(language === 'ar' ? 'جارٍ التحقق من رمز المسابقة...' : 'Verifying game PIN...');
+    const session = await fetchGameSessionFromDb(pin);
+    if (!session) {
+      showToast(language === 'ar' ? 'رمز المسابقة غير صالح أو انتهت الجلسة.' : 'Invalid Game PIN or session has ended.');
+      return;
+    }
+
+    if (session.status === 'completed') {
+      showToast(language === 'ar' ? 'هذه المسابقة انتهت بالفعل.' : 'This game session has already ended.');
+      return;
+    }
+
+    const playerId = user?.username ? user.username.toLowerCase() : `guest_${Date.now().toString(36)}`;
+    
+    // Strict 25 student capacity limit check
+    const existingPlayers = session.players || {};
+    const currentCount = Object.keys(existingPlayers).length;
+    const maxCapacity = session.ruleSettings?.maxPlayers || 25;
+
+    if (!existingPlayers[playerId] && currentCount >= maxCapacity) {
+      showToast(
+        language === 'ar'
+          ? `عذراً، ساحة المسابقة ممتلئة! الحد الأقصى للمشاركين هو ${maxCapacity} طالباً.`
+          : `Arena full! Maximum capacity of ${maxCapacity} scholars reached.`
+      );
+      return;
+    }
+
+    if (session.ruleSettings && session.ruleSettings.allowGuests === false && isGuest) {
+      showToast(
+        language === 'ar'
+          ? 'المعلم سمح فقط للطلاب المسجلين بالدخول (غير مسموح كضيف).'
+          : 'Host requires an official scholar account to participate.'
+      );
+      return;
+    }
+    const newPlayer: GamePlayer = {
+      id: playerId,
+      name: playerName,
+      isGuest,
+      avatar: avatarId,
+      score: 0,
+      gold: 0,
+      currentQuestionIndex: 0,
+      correctCount: 0,
+      streak: 0,
+      highestStreak: 0,
+      answers: {},
+      finished: false,
+      lastUpdated: Date.now()
+    };
+
+    await joinPlayerToGameSessionInDb(pin, newPlayer);
+    setActiveGamePin(pin);
+    setCurrentPlayingPlayer(newPlayer);
+    setCurrentScreen('playGame');
+    showToast(language === 'ar' ? `مرحباً ${playerName}! دخلت ساحة المسابقة.` : `Welcome ${playerName}! Entered game arena.`);
+  };
 
   // Sync state to localStorage (Dual-Vault: standard storage + immutable safety vault)
   useEffect(() => {
@@ -458,10 +567,10 @@ export default function App() {
     if (!user || currentScreen === 'login' || currentScreen === 'onboard') return;
 
     // Students and Teachers navigation boundaries
-    const studentScreens = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'exam', 'results', 'ksaBooking'];
+    const studentScreens = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'exam', 'results', 'ksaBooking', 'playGame'];
     // Teacher usage: monitor student progress, KSA test dates, and use platform as student (practice, mock exams, achievements, results)
     // Teachers have NO access to question bank or question adding/importing
-    const teacherScreens = ['studentProgress', 'ksaBooking', 'dashboard', 'practice', 'exam', 'results', 'achievements', 'analytics', 'skills', 'studentSelect'];
+    const teacherScreens = ['studentProgress', 'ksaBooking', 'dashboard', 'practice', 'exam', 'results', 'achievements', 'analytics', 'skills', 'studentSelect', 'hostGame', 'playGame'];
 
     if (user.role === 'Student') {
       if (!studentScreens.includes(currentScreen)) {
@@ -672,11 +781,28 @@ export default function App() {
     return a;
   };
 
-  const sampleQuestions = (exam: ExamType, targetSkills: string[], totalTarget: number): string[] => {
-    const currentList = getAccessibleBank(exam);
+  const sampleQuestions = (
+    exam: ExamType,
+    targetSkills: string[],
+    totalTarget: number,
+    difficulty?: DifficultyLevel
+  ): string[] => {
+    let currentList = getAccessibleBank(exam);
     if (!currentList.length) return [];
-    const seenMap = seen[exam] || {};
+    
+    // If difficulty is specified, prioritize matching questions
+    if (difficulty) {
+      const difficultyMatches = currentList.filter(q => getQuestionDifficulty(q) === difficulty);
+      if (difficultyMatches.length >= totalTarget) {
+        currentList = difficultyMatches;
+      } else if (difficultyMatches.length > 0) {
+        // Prioritize matching difficulty, then backfill
+        const nonMatches = currentList.filter(q => getQuestionDifficulty(q) !== difficulty);
+        currentList = [...difficultyMatches, ...nonMatches];
+      }
+    }
 
+    const seenMap = seen[exam] || {};
     let selectedIds: string[] = [];
 
     targetSkills.forEach(sk => {
@@ -699,7 +825,7 @@ export default function App() {
     return selectedIds;
   };
 
-  const startMockExam = (examToUse?: ExamType) => {
+  const startMockExam = (examToUse?: ExamType, difficulty?: DifficultyLevel) => {
     const ex = examToUse || activeExam;
 
     // Enforce student access control
@@ -733,13 +859,13 @@ export default function App() {
     }
 
     const mockCount = Math.min(currentBank.length, ex === 'GAT' ? 25 : 20);
-    const qids = sampleQuestions(ex, allSkills, mockCount);
+    const qids = sampleQuestions(ex, allSkills, mockCount, difficulty);
     const timeSeconds = Math.max(300, qids.length * 48);
 
     setSession({
       exam: ex,
       kind: 'mock',
-      label: `Full ${ex} mock${user?.role === 'Student' && user?.studentLevel ? ` (${user.studentLevel})` : ''}`,
+      label: `Full ${ex} Mock${difficulty ? ` (${difficulty} Mode)` : ''}${user?.role === 'Student' && user?.studentLevel ? ` · ${user.studentLevel}` : ''}`,
       qids,
       answers: {},
       flagged: {},
@@ -751,7 +877,7 @@ export default function App() {
     setCurrentScreen('exam');
   };
 
-  const startFocusDrill = (skills: string[]) => {
+  const startFocusDrill = (skills: string[], difficulty?: DifficultyLevel) => {
     const ex = activeExam;
 
     // Enforce student access control
@@ -772,13 +898,13 @@ export default function App() {
       return;
     }
 
-    const qids = sampleQuestions(ex, skills, Math.min(10, currentBank.length));
+    const qids = sampleQuestions(ex, skills, Math.min(10, currentBank.length), difficulty);
     const timeSeconds = Math.max(180, qids.length * 60);
 
     setSession({
       exam: ex,
       kind: 'focus',
-      label: `Focus: ${skills.slice(0, 2).join(' + ')}`,
+      label: `Focus: ${skills.slice(0, 2).join(' + ')}${difficulty ? ` (${difficulty})` : ''}`,
       qids,
       answers: {},
       flagged: {},
@@ -790,7 +916,7 @@ export default function App() {
     setCurrentScreen('exam');
   };
 
-  const startQuickWarmup = () => {
+  const startQuickWarmup = (difficulty?: DifficultyLevel) => {
     const ex = activeExam;
 
     // Enforce student access control
@@ -820,13 +946,13 @@ export default function App() {
       }
     }
 
-    const qids = sampleQuestions(ex, allSkills, Math.min(5, currentBank.length));
+    const qids = sampleQuestions(ex, allSkills, Math.min(5, currentBank.length), difficulty);
     const timeSeconds = qids.length * 50;
 
     setSession({
       exam: ex,
       kind: 'quick',
-      label: `5-question ${ex} warmup`,
+      label: `5-question ${ex} warmup${difficulty ? ` (${difficulty})` : ''}`,
       qids,
       answers: {},
       flagged: {},
@@ -1190,6 +1316,10 @@ export default function App() {
           cloudSyncStatus={cloudSyncStatus}
           lastCloudSyncTime={lastCloudSyncTime}
           onToggleSidebar={handleToggleSidebar}
+          language={language}
+          onToggleLanguage={handleToggleLanguage}
+          onOpenJoinModal={() => setIsJoinGameModalOpen(true)}
+          onHostGame={() => setCurrentScreen('hostGame')}
         />
       )}
 
@@ -1199,7 +1329,8 @@ export default function App() {
         {currentScreen !== 'login' &&
           currentScreen !== 'onboard' &&
           currentScreen !== 'studentSelect' &&
-          currentScreen !== 'exam' && (
+          currentScreen !== 'exam' &&
+          currentScreen !== 'playGame' && (
             <Sidebar
               currentScreen={currentScreen}
               activeExam={activeExam}
@@ -1229,17 +1360,19 @@ export default function App() {
               }}
               streak={authenticStreak}
               xp={studentGamification.xp}
+              language={language}
+              onOpenJoinModal={() => setIsJoinGameModalOpen(true)}
             />
         )}
 
         {/* Right / Main Content Column */}
-        <div className="flex-1 min-w-0 flex flex-col bg-slate-100/90">
+        <div className="flex-1 min-w-0 flex flex-col bg-slate-50/70">
           {/* Active View Header & Breadcrumb Bar (Appears across all active module screens) */}
           {currentScreen !== 'login' &&
             currentScreen !== 'onboard' &&
             currentScreen !== 'studentSelect' &&
             currentScreen !== 'exam' && (
-              <div className="bg-white/95 backdrop-blur-xs border-b border-slate-200/90 px-3 sm:px-6 lg:px-8 py-2.5">
+              <div className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-2.5 shadow-2xs">
                 <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   {/* Breadcrumb Navigation & Module Context */}
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -1250,11 +1383,11 @@ export default function App() {
                     {user?.role === 'Student' || ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen) ? (
                       <div className="inline-flex items-center gap-1.5 font-bold text-slate-700">
                         <span className={`w-2 h-2 rounded-full ${
-                          activeExam === 'NAFS' ? 'bg-emerald-600' : activeExam === 'GAT' ? 'bg-red-600' : 'bg-[#1e3a8a]'
+                          activeExam === 'NAFS' ? 'bg-emerald-600' : activeExam === 'GAT' ? 'bg-rose-600' : 'bg-indigo-600'
                         }`} />
                         <span>{activeExam} Track</span>
                         {user?.role === 'Student' && user?.studentLevel && (
-                          <span className="text-[11px] font-bold text-slate-500">({user.studentLevel})</span>
+                          <span className="text-[11px] font-semibold text-slate-500">({user.studentLevel})</span>
                         )}
                       </div>
                     ) : (
@@ -1262,13 +1395,13 @@ export default function App() {
                     )}
 
                     <span className="text-slate-300">/</span>
-                    <span className="font-extrabold text-[#1e3a8a] truncate">
+                    <span className="font-black text-indigo-700 truncate">
                       {ACTIVE_VIEW_INFO[currentScreen]?.title || currentScreen}
                     </span>
 
                     {/* Subtitle tag */}
                     {ACTIVE_VIEW_INFO[currentScreen]?.subtitle && (
-                      <span className="hidden md:inline-block text-[11px] text-slate-500 font-normal pl-1 border-l border-slate-200 truncate max-w-md">
+                      <span className="hidden md:inline-block text-[11px] text-slate-400 font-normal pl-1 border-l border-slate-200 truncate max-w-md">
                         {ACTIVE_VIEW_INFO[currentScreen].subtitle}
                       </span>
                     )}
@@ -1278,11 +1411,11 @@ export default function App() {
                   {(user?.role === 'Student' || ['dashboard', 'achievements', 'analytics', 'skills', 'practice', 'browser', 'results'].includes(currentScreen)) && (
                     <button
                       onClick={() => setCurrentScreen('studentSelect')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-[#1e3a8a] font-extrabold rounded-xl border border-slate-300 shadow-2xs hover:border-[#1e3a8a] transition-all cursor-pointer hover:-translate-x-0.5 shrink-0 ml-auto sm:ml-0"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-indigo-700 font-bold rounded-xl border border-slate-200 shadow-2xs hover:border-indigo-300 transition-all cursor-pointer hover:-translate-x-0.5 shrink-0 ml-auto sm:ml-0"
                       title="Return to Main Menu to select another examination track"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Main Menu (Switch Track)</span>
+                      <span>Switch Track (SAT / GAT)</span>
                     </button>
                   )}
                 </div>
@@ -1362,6 +1495,7 @@ export default function App() {
             onSyncAllToCloud={handleSyncAllToCloud}
             cloudSyncStatus={cloudSyncStatus}
             lastCloudSyncTime={lastCloudSyncTime}
+            language={language}
           />
         )}
 
@@ -1407,9 +1541,10 @@ export default function App() {
             bank={getAccessibleBank(activeExam)}
             mastery={authenticMastery}
             currentUser={user}
-            onStartMock={() => startMockExam(activeExam)}
-            onStartFocus={skills => startFocusDrill(skills)}
-            onStartQuick={startQuickWarmup}
+            onStartMock={diff => startMockExam(activeExam, diff)}
+            onStartFocus={(skills, diff) => startFocusDrill(skills, diff)}
+            onStartQuick={diff => startQuickWarmup(diff)}
+            language={language}
           />
         )}
 
@@ -1588,9 +1723,40 @@ export default function App() {
             />
           )
         )}
+
+        {/* Teacher Hosted Blooket-Style Game Arena (Lobby, QR Generator, Controls & Leaderboard) */}
+        {currentScreen === 'hostGame' && (
+          <TeacherHostGameView
+            teacher={user || accounts[0]}
+            bank={bank}
+            onClose={() => setCurrentScreen(user?.role === 'Student' ? 'dashboard' : 'studentProgress')}
+            language={language}
+          />
+        )}
+
+        {/* Student & Guest Live Game Play Arena */}
+        {currentScreen === 'playGame' && currentPlayingPlayer && (
+          <LiveGamePlayView
+            pin={activeGamePin}
+            initialPlayer={currentPlayingPlayer}
+            user={user}
+            onExit={() => setCurrentScreen(user?.role === 'Student' ? 'dashboard' : 'studentProgress')}
+            language={language}
+          />
+        )}
       </div>
     </div>
   </div>
+
+  {/* Universal Join Live Game Modal */}
+  <JoinGameModal
+    isOpen={isJoinGameModalOpen}
+    onClose={() => setIsJoinGameModalOpen(false)}
+    onJoin={handleJoinGameSession}
+    initialPin={activeGamePin}
+    user={user}
+    language={language}
+  />
 </div>
   );
 }

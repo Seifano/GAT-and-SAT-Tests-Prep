@@ -1,6 +1,6 @@
 {
-  "name": "AHS Exams Prepline",
-  "description": "Comprehensive NAFS (Grade 6 & Grade 9), GAT (Qudurat), and Digital SAT preparation platform with timed mock exams, adaptive skill practice, question bank management, and performance analytics.",
+  "name": "Adhwa'a Al-Hedaya International Schools - Exam Prep",
+  "description": "Official examination preparation platform of Adhwa'a Al-Hedaya International Schools (مدارس أضواء الهداية العالمية) for Digital SAT, GAT (Qudurat), and NAFS assessments.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

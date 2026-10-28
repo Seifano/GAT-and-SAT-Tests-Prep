@@ -13,7 +13,7 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { UserAccount, Question, AppSettings, TestAttempt, ExamType, UserProfile } from './types';
+import { UserAccount, Question, AppSettings, TestAttempt, ExamType, UserProfile, LiveGameSession, GamePlayer } from './types';
 import { INITIAL_ACCOUNTS, DEFAULT_APP_SETTINGS } from './data/mockData';
 import { hashPassword, encryptCredential, decryptCredential } from './utils/security';
 
@@ -702,3 +702,121 @@ export async function fetchUserProfileFromDb(username: string): Promise<UserProf
     return null;
   }
 }
+
+// ----------------------------------------------------
+// LIVE BLOOKET-STYLE GAME SESSIONS DATABASE OPERATIONS
+// ----------------------------------------------------
+
+export async function createGameSessionInDb(session: LiveGameSession): Promise<boolean> {
+  try {
+    const docRef = doc(db, 'gameSessions', session.pin);
+    await setDoc(docRef, sanitizeForFirestore(session));
+    console.log(`Created live game session ${session.pin} in Firestore.`);
+    return true;
+  } catch (err) {
+    console.error(`Failed to create game session ${session.pin} in Firestore:`, err);
+    return false;
+  }
+}
+
+export async function fetchGameSessionFromDb(pin: string): Promise<LiveGameSession | null> {
+  try {
+    const cleanPin = pin.trim().replace(/\s+/g, '');
+    const docRef = doc(db, 'gameSessions', cleanPin);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data() as LiveGameSession;
+    }
+    return null;
+  } catch (err) {
+    console.error(`Error fetching game session ${pin} from Firestore:`, err);
+    return null;
+  }
+}
+
+export function subscribeToGameSession(
+  pin: string,
+  callback: (session: LiveGameSession | null) => void
+): Unsubscribe {
+  const cleanPin = pin.trim().replace(/\s+/g, '');
+  const docRef = doc(db, 'gameSessions', cleanPin);
+  return onSnapshot(
+    docRef,
+    snapshot => {
+      if (snapshot.exists()) {
+        callback(snapshot.data() as LiveGameSession);
+      } else {
+        callback(null);
+      }
+    },
+    error => {
+      console.warn(`Error subscribing to game session ${pin}:`, error);
+      callback(null);
+    }
+  );
+}
+
+export async function updateGameSessionInDb(
+  pin: string,
+  partial: Partial<LiveGameSession>
+): Promise<boolean> {
+  try {
+    const cleanPin = pin.trim().replace(/\s+/g, '');
+    const docRef = doc(db, 'gameSessions', cleanPin);
+    await setDoc(docRef, sanitizeForFirestore(partial), { merge: true });
+    return true;
+  } catch (err) {
+    console.error(`Error updating game session ${pin}:`, err);
+    return false;
+  }
+}
+
+export async function joinPlayerToGameSessionInDb(
+  pin: string,
+  player: GamePlayer
+): Promise<boolean> {
+  try {
+    const cleanPin = pin.trim().replace(/\s+/g, '');
+    const docRef = doc(db, 'gameSessions', cleanPin);
+    await setDoc(
+      docRef,
+      sanitizeForFirestore({
+        players: {
+          [player.id]: player
+        }
+      }),
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.error(`Error joining player ${player.name} to game session ${pin}:`, err);
+    return false;
+  }
+}
+
+export async function updatePlayerProgressInDb(
+  pin: string,
+  player: GamePlayer
+): Promise<boolean> {
+  try {
+    const cleanPin = pin.trim().replace(/\s+/g, '');
+    const docRef = doc(db, 'gameSessions', cleanPin);
+    await setDoc(
+      docRef,
+      sanitizeForFirestore({
+        players: {
+          [player.id]: {
+            ...player,
+            lastUpdated: Date.now()
+          }
+        }
+      }),
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.error(`Error updating player progress for ${player.name}:`, err);
+    return false;
+  }
+}
+

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserAccount, AppSettings } from '../types';
 import { AHS_LOGO_SRC } from '../assets/logo';
-import { ArrowRight, LogIn, Eye, EyeOff, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, LogIn, Eye, EyeOff, ShieldCheck, CheckCircle2, Lock, School } from 'lucide-react';
 
 interface AuthScreenProps {
   onSignIn: (username: string, password: string) => Promise<boolean>;
@@ -26,18 +26,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   // Resolved branding settings
   const logo = settings?.logoUrl || AHS_LOGO_SRC;
-  const loginTitle = settings?.loginTitle || 'AHS Exams Prepline';
-  const loginHeadline = settings?.loginHeadline || 'GAT and SAT practice, in one place.';
+  const loginTitle = settings?.appName || "Adhwa'a Al-Hedaya International Schools";
+  const loginHeadline = settings?.loginHeadline || 'Excellence in Digital SAT, GAT (Qudurat), and NAFS.';
   const loginDescription =
     settings?.loginDescription ||
-    'Timed mock exams, an authentic question bank built from recent test reports, and targeted feedback on the skills that move your score.';
+    "Official institutional examination assessment and preparation portal for scholars of Adhwa'a Al-Hedaya International Schools (مدارس أضواء الهداية العالمية) in Riyadh, Saudi Arabia.";
   const footnotes = settings?.loginFootnotes || [
-    { title: 'GAT', subtitle: 'Verbal · Quant' },
-    { title: 'SAT', subtitle: 'R&W · Math' },
-    { title: 'Feedback', subtitle: 'By skill' }
+    { title: 'Digital SAT', subtitle: 'Math & Reading/Writing' },
+    { title: 'GAT (Qudurat)', subtitle: 'Verbal & Quantitative' },
+    { title: 'NAFS Assessment', subtitle: 'Grade 6 & Grade 9' }
   ];
 
-  // Constellation network animation
+  // Constellation network animation on left panel
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -128,7 +128,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!login.trim()) {
-      setError('Please enter your username or email.');
+      setError('Please enter your school username or email.');
       return;
     }
     if (!password) {
@@ -140,51 +140,64 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     try {
       const ok = await onSignIn(login.trim(), password);
       if (!ok) {
-        setError('Incorrect username or password. Please verify your credentials or contact the school administrator.');
+        setError('Incorrect username or password. Please verify your credentials or contact the school administration.');
       }
     } catch (err) {
-      setError('Sign-in failed. Please check your credentials or contact administrator.');
+      setError('Sign-in failed. Please verify credentials or contact administration.');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#111c38] text-slate-100 font-sans selection:bg-[#1f3d7a] selection:text-white">
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-900 text-slate-100 font-sans selection:bg-indigo-600 selection:text-white">
       {/* Left Branding / Atmosphere Panel */}
-      <div className="relative md:w-1/2 lg:w-7/12 flex flex-col justify-between p-8 sm:p-12 lg:p-16 overflow-hidden border-b md:border-b-0 md:border-r border-slate-700/60">
+      <div className="relative md:w-1/2 lg:w-7/12 flex flex-col justify-between p-8 sm:p-12 lg:p-16 overflow-hidden border-b md:border-b-0 md:border-r border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950">
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-60"
+          className="absolute inset-0 w-full h-full pointer-events-none opacity-40"
         />
 
         <div className="relative z-10 space-y-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3.5">
             <img
               src={logo}
-              alt="AHS Logo"
-              className="h-12 w-auto object-contain drop-shadow-md"
+              alt="Adhwa'a Al-Hedaya Logo"
+              className="h-14 sm:h-16 w-auto object-contain drop-shadow-md"
             />
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-white">
-              {loginTitle}
-            </span>
+            <div>
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-white block">
+                {loginTitle}
+              </span>
+              <span className="text-xs font-bold text-sky-400 tracking-wide font-sans block mt-0.5" dir="rtl">
+                مدارس أضواء الهداية العالمية · الرياض
+              </span>
+            </div>
           </div>
 
           <div className="max-w-xl space-y-4 pt-4 sm:pt-8">
-            <span className="inline-block text-xs font-black tracking-widest uppercase text-sky-400 bg-sky-950/70 px-3 py-1 border border-sky-600/50">
-              Official Assessment Portal
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-black tracking-wider uppercase text-sky-300 bg-sky-950/80 px-3 py-1 rounded-full border border-sky-500/40 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Official Testing Portal
+              </span>
+              <span className="text-[11px] font-bold text-slate-400 bg-white/10 px-2.5 py-1 rounded-full border border-white/15">
+                Riyadh Campus
+              </span>
+            </div>
+
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
               {loginHeadline}
             </h1>
+
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-lg">
               {loginDescription}
             </p>
           </div>
         </div>
 
-        {/* Footnote stats / features */}
-        <div className="relative z-10 pt-8 sm:pt-12 grid grid-cols-3 gap-4 border-t border-slate-700/60 max-w-lg">
+        {/* Footnote tracks banner */}
+        <div className="relative z-10 pt-8 sm:pt-12 grid grid-cols-3 gap-4 border-t border-slate-800/80 max-w-lg">
           {footnotes.map((fn, i) => (
             <div key={i}>
               <span className="text-slate-400 block text-xs font-semibold">{fn.title}</span>
@@ -194,100 +207,110 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </div>
       </div>
 
-      {/* Right Form Panel: Secure Sign In */}
-      <div className="md:w-1/2 lg:w-5/12 p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-[#f3f2f2]">
+      {/* Right Form Panel: Pure Institutional Dignified Login */}
+      <div className="md:w-1/2 lg:w-5/12 p-6 sm:p-10 lg:p-14 flex flex-col justify-center bg-slate-50">
         <div className="w-full max-w-md mx-auto space-y-6">
           
-          {/* Header */}
-          <div className="border-b-2 border-[#201e1d]/30 pb-3">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#1e3a8a] mb-1">
-              <LogIn className="w-4 h-4" />
-              <span>Portal Access</span>
-            </div>
-            <h2 className="text-2xl font-black text-[#201e1d] tracking-tight">
-              Sign In to Your Account
-            </h2>
-            <p className="text-xs text-slate-600 mt-1">
-              Enter your school-issued credentials to access your exam tracks and practice sessions.
-            </p>
-          </div>
-
-          {/* Institutional Policy Notice: Admin-Only Account Creation */}
-          <div className="p-3.5 bg-blue-50/90 border border-blue-200 rounded-xl text-xs text-slate-700 space-y-1.5">
-            <div className="flex items-center gap-2 font-black text-[#1e3a8a]">
-              <ShieldAlert className="w-4 h-4 text-[#1e3a8a] shrink-0" />
-              <span>Institutional Policy: Administrator Provisioned</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Student and teacher accounts are created, approved, and managed directly by the School Administrator. Direct email self-registration is disabled.
-            </p>
-          </div>
-
-          {/* SIGN IN FORM */}
-          <form onSubmit={handleSignInSubmit} className="space-y-4">
+          <div className="bg-white rounded-3xl p-7 sm:p-9 shadow-sm border border-slate-200/90 space-y-6">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Username or Email
-              </label>
-              <input
-                type="text"
-                value={login}
-                onChange={e => setLogin(e.target.value)}
-                placeholder="e.g. sara.q, abdullah.a, Admin"
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-[#201e1d] focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]"
-                autoComplete="username"
-              />
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-indigo-700">
+                  <LogIn className="w-4 h-4" />
+                  <span>Portal Sign In</span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                  <School className="w-3 h-3 text-indigo-600" />
+                  <span>AHIS Portal</span>
+                </div>
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                Academic Access Portal
+              </h2>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Enter your school-assigned credentials to access your testing syllabus, mock exams, and analytics.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Password
-              </label>
-              <div className="relative">
+            {/* Institutional Security Notice */}
+            <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/80 rounded-2xl text-xs text-slate-700 space-y-1">
+              <div className="flex items-center gap-2 font-black text-indigo-900">
+                <ShieldCheck className="w-4 h-4 text-indigo-700 shrink-0" />
+                <span>Authorized Scholar &amp; Faculty Access</span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Accounts are provisioned directly by Adhwa'a Al-Hedaya Administration. For account inquiries or credentials recovery, please contact your grade supervisor.
+              </p>
+            </div>
+
+            {/* Clean Sign In Form */}
+            <form onSubmit={handleSignInSubmit} className="space-y-4 pt-1">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  School Username or Email
+                </label>
                 <input
-                  type={showSignInPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full px-3.5 py-2.5 pr-10 bg-white border border-slate-300 rounded-xl text-sm text-[#201e1d] focus:outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]"
-                  autoComplete="current-password"
+                  type="text"
+                  value={login}
+                  onChange={e => setLogin(e.target.value)}
+                  placeholder="Enter your assigned username"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl text-sm text-slate-900 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:bg-white transition-all shadow-2xs"
+                  autoComplete="username"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowSignInPassword(!showSignInPassword)}
-                  className="absolute right-3 top-3 text-slate-500 hover:text-slate-800"
-                  title={showSignInPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showSignInPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
               </div>
-            </div>
 
-            {error && (
-              <div className="p-3 bg-red-100 border border-red-300 text-red-900 text-xs font-bold rounded-xl">
-                {error}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Password
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">Case-sensitive</span>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showSignInPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Enter your secure password"
+                    className="w-full px-4 py-3 pr-11 bg-slate-50 border border-slate-300 rounded-2xl text-sm text-slate-900 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:bg-white transition-all shadow-2xs"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSignInPassword(!showSignInPassword)}
+                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+                    title={showSignInPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showSignInPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full py-3 px-4 bg-[#1e3a8a] hover:bg-[#162c68] text-white text-sm font-extrabold rounded-xl shadow-xs flex items-center justify-between cursor-pointer disabled:opacity-50 transition-colors"
-            >
-              <span>{busy ? 'Verifying Credentials…' : 'Sign In to Portal'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
+              {error && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-2xl">
+                  {error}
+                </div>
+              )}
 
-          {/* Secure Institutional Access Notice */}
-          <div className="pt-4 border-t border-slate-200 text-center space-y-2">
-            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-700">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Encrypted Institutional Authentication</span>
+              <button
+                type="submit"
+                disabled={busy}
+                className="btn-primary w-full py-3.5 px-4 text-white text-sm font-black rounded-2xl shadow-sm flex items-center justify-between cursor-pointer disabled:opacity-50 transition-all hover:shadow-md"
+              >
+                <span>{busy ? 'Authenticating Credentials…' : 'Sign In to Portal'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+
+            {/* Institutional Seal */}
+            <div className="pt-2 text-center border-t border-slate-100 space-y-1">
+              <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-700">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Adhwa'a Al-Hedaya Institutional Security</span>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                مدارس أضواء الهداية العالمية · Riyadh, Kingdom of Saudi Arabia
+              </p>
             </div>
-            <p className="text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">
-              Passwords are fully protected and never revealed publicly. Please contact your school grade supervisor or IT administrator if you require your login card or password reset.
-            </p>
           </div>
 
         </div>

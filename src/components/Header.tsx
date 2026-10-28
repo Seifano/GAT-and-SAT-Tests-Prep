@@ -1,6 +1,7 @@
-import React from 'react';
-import { ExamType, UserAccount } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { ExamType, UserAccount, AppSettings } from '../types';
 import { AHS_LOGO_SRC } from '../assets/logo';
+import { Language, t } from '../utils/i18n';
 import {
   Flame,
   LogOut,
@@ -9,7 +10,12 @@ import {
   Menu,
   Cloud,
   RefreshCw,
-  ArrowLeft
+  ArrowLeft,
+  Globe,
+  ChevronDown,
+  Check,
+  Gamepad2,
+  Sparkles
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -22,13 +28,17 @@ interface HeaderProps {
   onSignOut: () => void;
   onSwitchRole: () => void;
   onGoBackToSelect?: () => void;
-  settings?: import('../types').AppSettings;
+  settings?: AppSettings;
   xp?: number;
   level?: number;
   onSyncAllToCloud?: () => Promise<void> | void;
   cloudSyncStatus?: 'synced' | 'syncing' | 'idle';
   lastCloudSyncTime?: string;
   onToggleSidebar?: () => void;
+  language?: Language;
+  onToggleLanguage?: (lang: Language) => void;
+  onOpenJoinModal?: () => void;
+  onHostGame?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,34 +57,63 @@ export const Header: React.FC<HeaderProps> = ({
   onSyncAllToCloud,
   cloudSyncStatus = 'idle',
   lastCloudSyncTime = 'Connected',
-  onToggleSidebar
+  onToggleSidebar,
+  language = 'en',
+  onToggleLanguage,
+  onOpenJoinModal,
+  onHostGame
 }) => {
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
+
   const isAdmin = user?.role === 'Admin';
   const isTeacher = user?.role === 'Teacher';
   const isExamScreen = currentScreen === 'exam';
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setLangMenuOpen(false);
+      }
+    };
+    if (langMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [langMenuOpen]);
 
   if (isExamScreen) {
     return null;
   }
 
-  const isViewingStudentSide = ['studentSelect', 'dashboard', 'achievements', 'analytics', 'skills', 'practice', 'results'].includes(currentScreen);
+  const isViewingStudentSide = [
+    'studentSelect',
+    'dashboard',
+    'achievements',
+    'analytics',
+    'skills',
+    'practice',
+    'results'
+  ].includes(currentScreen);
 
   return (
-    <header className="sticky top-0 z-40 bg-[#f3f2f2]/95 backdrop-blur-md border-b border-gray-200 shadow-xs">
-      {/* School Tri-Color Heritage Accent Stripe: Crimson Red · Navy Blue · Green */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-red-800 via-[#1e3a8a] to-emerald-700" />
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs transition-colors">
+      {/* School Heritage Tri-Color Accent Line */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-rose-600 via-indigo-600 to-emerald-500 shadow-xs" />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between min-h-[4.75rem] sm:min-h-[5.25rem] py-2 gap-3 sm:gap-6">
-          {/* Left: Sidebar Toggle Button + School Logo & Name */}
+          {/* Left: Sidebar Toggle + School Logo & Title */}
           <div className="flex items-center shrink-0 z-10 gap-2 sm:gap-3">
-            {/* Sidebar toggle button (opens/toggles the left navigation list) */}
             {onToggleSidebar && (
               <button
                 type="button"
                 onClick={onToggleSidebar}
-                className="p-2 -ml-1 text-slate-700 hover:text-[#1e3a8a] hover:bg-slate-200/70 active:scale-90 rounded-xl transition-all cursor-pointer"
-                title="Toggle Left Navigation Menu (Expand / Collapse)"
+                className="p-2 -ml-1 text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/80 active:scale-95 rounded-xl transition-all cursor-pointer"
+                title="Toggle navigation sidebar"
                 aria-label="Toggle navigation list"
               >
                 <Menu className="w-5 h-5" />
@@ -92,47 +131,139 @@ export const Header: React.FC<HeaderProps> = ({
                 }
               }}
               className="flex items-center gap-3 sm:gap-4 text-left cursor-pointer group transition-transform duration-200 hover:scale-[1.01] shrink-0"
-              title={settings?.appName || 'AHS Exams Prepline'}
+              title={settings?.appName || "Adhwa'a Al-Hedaya International Schools"}
             >
-              <img
-                src={settings?.logoUrl || AHS_LOGO_SRC}
-                alt="AHS School Emblem Logo"
-                className="h-14 sm:h-16 lg:h-18 w-auto max-w-[110px] sm:max-w-[145px] lg:max-w-[170px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105 drop-shadow-sm"
-              />
+              <div className="relative">
+                <img
+                  src={settings?.logoUrl || AHS_LOGO_SRC}
+                  alt="Adhwa'a Al-Hedaya Logo"
+                  className="h-12 sm:h-14 lg:h-16 w-auto max-w-[110px] sm:max-w-[145px] lg:max-w-[165px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105 drop-shadow-sm"
+                />
+              </div>
+
               <div className="min-w-0">
-                <span className="text-base sm:text-lg lg:text-xl font-black tracking-tight text-[#201e1d] block leading-tight">
-                  {settings?.appName || 'AHS Exams Prepline'}
-                </span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#1e3a8a]">
-                    {isAdmin ? (isViewingStudentSide ? 'Admin (Student Mode)' : 'Admin Console') : isTeacher ? 'Teacher View' : 'Student View'}
+                <div className="flex items-center gap-2">
+                  <span className="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight text-slate-900 block leading-tight truncate max-w-xs sm:max-w-md lg:max-w-none">
+                    {language === 'ar' ? "مدارس أضواء الهداية العالمية" : (settings?.appName || "Adhwa'a Al-Hedaya International Schools")}
                   </span>
-                  {/* School Tri-Color Heritage Pill */}
-                  <span className="hidden xs:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white ring-1 ring-gray-200 text-gray-700 shadow-2xs shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-700" title="Crimson Red" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#1e3a8a]" title="Navy Blue" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" title="Green" />
-                    <span className="text-[9px] font-extrabold text-gray-600">AHS</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 hidden sm:inline" dir={language === 'ar' ? 'ltr' : 'rtl'}>
+                    {language === 'ar' ? "Adhwa'a Al-Hedaya International Schools" : "مدارس أضواء الهداية العالمية"}
+                  </span>
+                  <span className="text-slate-300 hidden sm:inline">·</span>
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                    {isAdmin ? (isViewingStudentSide ? 'Admin (Student Mode)' : t('adminConsole', language)) : isTeacher ? t('teacherConsole', language) : t('scholarPortal', language)}
+                  </span>
+                  <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200/80">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-[9px] font-black text-slate-700">AHIS</span>
                   </span>
                 </div>
               </div>
             </button>
           </div>
 
-          {/* Center: COMPLETELY FREE OF TABS (Navigation is consolidated in the Left-Side list) */}
           <div className="flex-1" />
 
-          {/* Right Controls: Actions, Track indicator, Cloud Sync, Streak, Profile & Sign Out */}
+          {/* Right Controls: Actions, Language Switcher, Track Switcher, Streak, Profile */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
-            {/* Go Back to Main Menu button (for student view when an exam is loaded) */}
+            
+            {/* Language Switcher Dropdown */}
+            {onToggleLanguage && (
+              <div className="relative" ref={langMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setLangMenuOpen(!langMenuOpen)}
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-indigo-300 rounded-xl text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
+                  title="Switch Platform Language / تبديل لغة المنصة"
+                >
+                  <Globe className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="hidden xs:inline">{language === 'ar' ? 'العربية 🇸🇦' : 'English 🇺🇸'}</span>
+                  <span className="xs:hidden">{language === 'ar' ? 'عربي' : 'EN'}</span>
+                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${langMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {langMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-40 dropdown-panel p-1.5 z-50 animate-viewFadeIn space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onToggleLanguage('en');
+                        setLangMenuOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
+                        language === 'en'
+                          ? 'bg-indigo-50 text-indigo-700 font-black'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>🇺🇸</span>
+                        <span>English</span>
+                      </div>
+                      {language === 'en' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onToggleLanguage('ar');
+                        setLangMenuOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-xs font-bold rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
+                        language === 'ar'
+                          ? 'bg-indigo-50 text-indigo-700 font-black'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>🇸🇦</span>
+                        <span dir="rtl">العربية</span>
+                      </div>
+                      {language === 'ar' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Go Back to Main Menu button */}
             {onGoBackToSelect && (user?.role === 'Student' || isViewingStudentSide) && currentScreen !== 'studentSelect' && (
               <button
                 onClick={onGoBackToSelect}
-                title="Return to Main Menu to switch to a different track (GAT, SAT, NAFS)"
-                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-slate-800 bg-white hover:bg-slate-50 rounded-xl border border-slate-300 shadow-xs hover:border-[#1e3a8a] hover:text-[#1e3a8a] hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer shrink-0"
+                title="Return to Main Menu to switch to a different track (SAT, GAT, NAFS)"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 hover:text-indigo-600 rounded-xl border border-slate-200 shadow-2xs hover:border-indigo-300 transition-all cursor-pointer shrink-0"
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-[#1e3a8a]" />
-                <span>Main Menu</span>
+                <ArrowLeft className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{t('switchTrack', language)}</span>
+              </button>
+            )}
+
+            {/* Live Blooket-Style Game Arena Actions */}
+            {onOpenJoinModal && (
+              <button
+                type="button"
+                onClick={onOpenJoinModal}
+                title="Join a live classroom game with 6-digit PIN or QR code"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-black text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <Gamepad2 className="w-3.5 h-3.5 text-yellow-300 animate-bounce" />
+                <span>{t('joinGame', language)}</span>
+              </button>
+            )}
+
+            {(isAdmin || isTeacher) && onHostGame && (
+              <button
+                type="button"
+                onClick={onHostGame}
+                title="Host a Blooket-style live classroom game with question bank pool"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>{t('hostGame', language)}</span>
               </button>
             )}
 
@@ -141,11 +272,11 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={onSyncAllToCloud}
                 disabled={cloudSyncStatus === 'syncing'}
-                title="Save all changes (accounts, questions, settings) to Cloud Firestore database"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black rounded-xl border transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 active:translate-y-0 ${
+                title="Save all changes to Cloud Firestore"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
                   cloudSyncStatus === 'syncing'
                     ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
-                    : 'bg-[#1e3a8a] hover:bg-[#162c68] text-white border-[#1e3a8a]'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700'
                 }`}
               >
                 {cloudSyncStatus === 'syncing' ? (
@@ -154,7 +285,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <Cloud className="w-3.5 h-3.5" />
                 )}
                 <span className="hidden sm:inline">
-                  {cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Save to Cloud'}
+                  {cloudSyncStatus === 'syncing' ? t('syncing', language) : t('saveCloud', language)}
                 </span>
                 <span className="sm:hidden">Sync</span>
               </button>
@@ -164,31 +295,37 @@ export const Header: React.FC<HeaderProps> = ({
             {(isAdmin || isTeacher) && (
               <div
                 title={`Cloud Protection: Connected & Synchronized (${lastCloudSyncTime})`}
-                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0"
+                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[10px] font-bold rounded-lg border border-emerald-200 shadow-2xs cursor-default shrink-0"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Cloud Protected</span>
+                <span>{t('cloudSynced', language)}</span>
               </div>
             )}
 
-            {/* Track Indicator: Locked in Student View (Must return to Main Menu to switch) */}
+            {/* Track Indicator / Switcher */}
             {currentScreen !== 'studentSelect' && (
               (user?.role === 'Student' || isViewingStudentSide) ? (
                 <div
                   title={`Current track: ${activeExam}. To switch track, return to Main Menu.`}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-xl border border-slate-300/80 shadow-2xs shrink-0"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50/80 rounded-xl border border-slate-200/90 shadow-2xs shrink-0"
                 >
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Track:</span>
-                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-black text-white shadow-2xs ${
-                    activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
-                  }`}>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('track', language)}</span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-black text-white shadow-xs ${
+                      activeExam === 'SAT'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                        : activeExam === 'GAT'
+                        ? 'bg-gradient-to-r from-rose-600 to-red-600'
+                        : 'bg-gradient-to-r from-emerald-600 to-teal-600'
+                    }`}
+                  >
                     {activeExam}
-                    {user?.role === 'Student' && user?.studentLevel ? ` (${user.studentLevel})` : ''}
+                    {user?.role === 'Student' && user?.studentLevel ? ` · ${user.studentLevel}` : ''}
                   </span>
                 </div>
               ) : (
-                /* Admin/Teacher console track switcher: respects teacher's assigned pathways e.g. both GAT & SAT */
-                <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-200/80 rounded-xl border border-slate-300/80 shadow-[inset_0_2px_3px_rgba(0,0,0,0.06)] shrink-0">
+                /* Admin/Teacher track switcher */
+                <div className="inline-flex items-center p-0.5 sm:p-1 bg-slate-100 rounded-xl border border-slate-200/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] shrink-0">
                   {(() => {
                     const tracksToRender: ExamType[] = isTeacher
                       ? (user?.assignedPathways && user.assignedPathways.length > 0
@@ -202,10 +339,14 @@ export const Header: React.FC<HeaderProps> = ({
                         <button
                           key={exam}
                           onClick={() => onSelectExam(exam)}
-                          className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] font-black rounded-lg transition-all duration-150 ease-out cursor-pointer ${
+                          className={`px-2 sm:px-2.5 py-1 text-xs font-bold rounded-lg transition-all duration-150 cursor-pointer ${
                             isActive
-                              ? 'bg-white text-gray-900 shadow-[0_2px_0_0_#94a3b8,0_2px_4px_rgba(0,0,0,0.08)] -translate-y-0.5'
-                              : 'text-slate-600 hover:text-gray-900 hover:bg-white/50'
+                              ? exam === 'SAT'
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : exam === 'GAT'
+                                ? 'bg-rose-600 text-white shadow-xs'
+                                : 'bg-emerald-600 text-white shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                           }`}
                         >
                           {exam}
@@ -221,73 +362,73 @@ export const Header: React.FC<HeaderProps> = ({
             {!isAdmin && !isTeacher && currentScreen !== 'studentSelect' && (
               <div
                 title="Active Study Streak"
-                className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-gray-800 px-2 py-1 bg-white rounded-lg ring-1 ring-gray-200 shadow-2xs hover:ring-amber-300 transition-all shrink-0"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-amber-950 px-2.5 py-1 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-xl shadow-2xs hover:border-amber-300 transition-all shrink-0"
               >
-                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                <span>{streak}d</span>
+                <Flame className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
+                <span className="tabular-nums font-black">{streak}d</span>
               </div>
             )}
 
-            {/* Gamification Level & XP Badge for Students */}
+            {/* Gamification Level & XP Badge */}
             {!isAdmin && !isTeacher && currentScreen !== 'studentSelect' && (
               <div
                 title={`Tier Level ${level || 1} Scholar · ${xp || 0} Total XP Earned`}
-                className="hidden md:inline-flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg ring-1 ring-amber-200 text-[11px] font-bold text-amber-900 shadow-2xs cursor-default shrink-0"
+                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-200/70 rounded-xl text-xs font-bold text-indigo-900 shadow-2xs cursor-default shrink-0"
               >
-                <span className="w-3.5 h-3.5 bg-amber-400 text-slate-900 rounded flex items-center justify-center text-[9px] font-black">
-                  L{level || 1}
+                <span className="w-4 h-4 bg-indigo-600 text-white rounded-md flex items-center justify-center text-[10px] font-black">
+                  {level || 1}
                 </span>
-                <span className="tabular-nums">{xp || 0} XP</span>
+                <span className="tabular-nums font-bold text-indigo-700">{xp || 0} XP</span>
               </div>
             )}
 
-            {/* Role Display / Switcher */}
+            {/* Role indicator / Admin Switcher */}
             {isAdmin ? (
               <button
                 onClick={onSwitchRole}
-                title="Switch between Admin Management and Student Experience"
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-gray-900 bg-white hover:bg-gray-50 rounded-lg ring-1 ring-red-300 shadow-xs hover:ring-red-400 hover:scale-[1.02] active:scale-95 transition-all duration-150 cursor-pointer shrink-0 whitespace-nowrap"
+                title="Switch between Admin Console and Student Experience"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100/80 rounded-xl border border-rose-200 shadow-2xs hover:border-rose-300 transition-all duration-150 cursor-pointer shrink-0"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-red-700" />
-                <span>Admin (Switch)</span>
+                <ShieldCheck className="w-4 h-4 text-rose-600" />
+                <span>Admin View</span>
               </button>
             ) : isTeacher ? (
               <div
-                title="Teacher Account · Teacher View Only"
-                className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-[#1e3a8a] bg-blue-50/90 rounded-lg ring-1 ring-blue-200 shadow-2xs cursor-default shrink-0 whitespace-nowrap"
+                title="Teacher Account · Verified Staff"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-800 bg-indigo-50 rounded-xl border border-indigo-200 shadow-2xs cursor-default shrink-0"
               >
-                <GraduationCap className="w-3.5 h-3.5 text-[#1e3a8a]" />
-                <span>Teacher View</span>
+                <GraduationCap className="w-4 h-4 text-indigo-600" />
+                <span>Teacher</span>
               </div>
             ) : (
               <div
                 title={`Student Account · ${user?.studentLevel || 'Student'}${user?.studentClass ? ` (Class ${user.studentClass})` : ''}`}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50/90 rounded-lg ring-1 ring-emerald-200 shadow-2xs cursor-default shrink-0 whitespace-nowrap"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 rounded-xl border border-emerald-200 shadow-2xs cursor-default shrink-0"
               >
-                <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
+                <GraduationCap className="w-4 h-4 text-emerald-600" />
                 <span>{user?.studentLevel || 'Student'}</span>
                 {user?.studentClass && (
-                  <span className="px-1.5 py-0.2 bg-white rounded text-[10px] font-black text-slate-700 border border-slate-200">
+                  <span className="px-1.5 py-0.5 bg-white rounded-md text-[10px] font-black text-slate-700 border border-slate-200">
                     {user.studentClass}
                   </span>
                 )}
               </div>
             )}
 
-            {/* User Profile & Sign Out */}
+            {/* User Profile Avatar & Sign Out */}
             {user && (
-              <div className="flex items-center gap-1.5 pl-1.5 border-l border-gray-200 shrink-0">
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200 shrink-0">
                 <div
                   title={`Signed in as @${user.username} (${user.role})`}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#1e3a8a] text-white font-extrabold text-xs flex items-center justify-center shadow-xs ring-1 ring-blue-900/40 shrink-0"
+                  className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-700 to-blue-500 text-white font-extrabold text-xs flex items-center justify-center shadow-xs border border-white/60 shrink-0"
                 >
                   {user.name.charAt(0).toUpperCase()}
                 </div>
 
                 <button
                   onClick={onSignOut}
-                  title="Sign out of account"
-                  className="p-1 sm:p-1.5 rounded-lg text-slate-500 hover:text-red-700 hover:bg-red-50 active:scale-95 transition-all duration-150 cursor-pointer shrink-0"
+                  title={t('signOut', language)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition-all duration-150 cursor-pointer shrink-0"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

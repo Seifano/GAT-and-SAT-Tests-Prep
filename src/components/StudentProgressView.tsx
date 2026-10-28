@@ -308,7 +308,7 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
               <select
                 value={classFilter}
                 onChange={e => setClassFilter(e.target.value)}
-                className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-800"
+                className="select-modern text-xs font-bold"
               >
                 <option value="All">All Classes ({availableClasses.length})</option>
                 {availableClasses.map(c => (

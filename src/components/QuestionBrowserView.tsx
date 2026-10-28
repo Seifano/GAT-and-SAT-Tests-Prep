@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Question, ExamType, UserAccount, TestAttempt } from '../types';
+import { Question, ExamType, UserAccount, TestAttempt, DifficultyLevel } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
+import { getQuestionDifficulty, getDifficultyBadgeColor } from '../utils/difficulty';
 import {
   Search,
   Filter,
@@ -48,6 +49,7 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
   onGoBackToMainMenu
 }) => {
   const [skillFilter, setSkillFilter] = useState('All');
+  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyLevel | 'All'>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [revealedSolutions, setRevealedSolutions] = useState<Record<string, boolean>>({});
   const [openPassageId, setOpenPassageId] = useState<string | null>(null);
@@ -117,11 +119,12 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
 
   const filtered = questions.filter(q => {
     const matchSkill = skillFilter === 'All' || q.skill === skillFilter;
+    const matchDifficulty = difficultyFilter === 'All' || getQuestionDifficulty(q) === difficultyFilter;
     const term = searchTerm.trim().toLowerCase();
     const matchSearch =
       !term ||
       (q.prompt + ' ' + (q.passage || '') + ' ' + q.options.join(' ')).toLowerCase().includes(term);
-    return matchSkill && matchSearch;
+    return matchSkill && matchDifficulty && matchSearch;
   });
 
   const answeredFilteredCount = filtered.filter(q => userAnswers[q.id] !== undefined).length;
@@ -240,15 +243,15 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b-2 border-[#201e1d]/30">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="min-w-0">
-          <div className="text-xs font-black uppercase tracking-wider text-[#1f3d7a] mb-1">
+          <div className="text-xs font-black uppercase tracking-wider text-indigo-700 mb-1">
             Question Bank Library &amp; Interactive Trainer
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#201e1d] tracking-tight break-words">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight break-words">
             Browse &amp; Study {activeExam} Questions
           </h1>
-          <p className="text-sm text-slate-600 max-w-xl mt-2 leading-relaxed break-words">
+          <p className="text-sm text-slate-600 max-w-xl mt-1.5 leading-relaxed break-words">
             Click any option for instant True/False feedback, solution rationale, and sound effects. Complete all questions to record your mastery in the cloud database!
           </p>
         </div>
@@ -257,7 +260,7 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
         {isActualStudent ? (
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             {allowedExams.length > 1 ? (
-              <div className="inline-flex border border-[#201e1d]/30 bg-white rounded-xl overflow-hidden shadow-2xs">
+              <div className="inline-flex border border-slate-200 bg-white rounded-2xl overflow-hidden shadow-2xs p-1">
                 {allowedExams.map(e => (
                   <button
                     key={e}
@@ -265,8 +268,8 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
                       onSelectExam?.(e);
                       setSkillFilter('All');
                     }}
-                    className={`px-3 py-1.5 text-xs font-black transition-all cursor-pointer ${
-                      activeExam === e ? 'bg-[#1f3d7a] text-white' : 'text-[#201e1d] hover:bg-slate-100'
+                    className={`px-3.5 py-1.5 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                      activeExam === e ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
                     {e} ({bank[e]?.length || 0})
@@ -274,11 +277,11 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-slate-300 shadow-2xs">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Track:</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Track:</span>
                 <span
-                  className={`px-2 py-0.5 rounded-md text-xs font-black text-white shadow-2xs ${
-                    activeExam === 'NAFS' ? 'bg-emerald-700' : activeExam === 'GAT' ? 'bg-red-700' : 'bg-[#1e3a8a]'
+                  className={`px-2.5 py-0.5 rounded-lg text-xs font-black text-white shadow-2xs ${
+                    activeExam === 'NAFS' ? 'bg-emerald-600' : activeExam === 'GAT' ? 'bg-rose-600' : 'bg-indigo-600'
                   }`}
                 >
                   {activeExam} {studentLevel ? `(${studentLevel})` : ''} · {questions.length} Qs
@@ -289,16 +292,16 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
             {onGoBackToMainMenu && (
               <button
                 onClick={onGoBackToMainMenu}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-[#1e3a8a] text-xs font-black rounded-xl border border-slate-300 shadow-2xs hover:border-[#1e3a8a] transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-indigo-700 text-xs font-bold rounded-2xl border border-slate-200 shadow-2xs hover:border-indigo-300 transition-all cursor-pointer"
                 title="Return to Main Menu to select a different track"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Main Menu</span>
+                <span>Switch Track</span>
               </button>
             )}
           </div>
         ) : (
-          <div className="inline-flex border border-[#201e1d]/30 bg-transparent shrink-0">
+          <div className="inline-flex border border-slate-200 bg-white p-1 rounded-2xl shadow-2xs shrink-0">
             {(['NAFS', 'GAT', 'SAT'] as ExamType[]).map(e => (
               <button
                 key={e}
@@ -306,8 +309,8 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
                   onSelectExam?.(e);
                   setSkillFilter('All');
                 }}
-                className={`px-3 sm:px-4 py-1.5 text-xs font-black transition-all cursor-pointer ${
-                  activeExam === e ? 'bg-[#1f3d7a] text-white' : 'text-[#201e1d] hover:bg-slate-200/60'
+                className={`px-3.5 py-1.5 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                  activeExam === e ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 {e} ({bank[e]?.length || 0})
@@ -318,18 +321,18 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
       </div>
 
       {/* Interactive Progress & Gamification Stats Strip */}
-      <div className="bg-white border-2 border-[#201e1d]/30 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-300 flex items-center justify-center shrink-0">
-            <Trophy className="w-5 h-5 text-amber-600" />
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 shadow-2xs">
+            <Trophy className="w-6 h-6 text-amber-500" />
           </div>
           <div>
-            <div className="text-xs font-black text-[#201e1d] flex items-center gap-2">
-              <span>Interactive Practice Progress:</span>
-              <span className="text-[#1f3d7a]">{answeredFilteredCount} / {filtered.length} answered</span>
+            <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+              <span>Interactive Progress:</span>
+              <span className="text-indigo-700 font-black">{answeredFilteredCount} / {filtered.length} answered</span>
             </div>
-            <div className="text-[11px] text-slate-500 font-medium">
-              Accuracy: <strong className={currentAccuracy >= 80 ? 'text-emerald-700' : 'text-slate-700'}>{currentAccuracy}%</strong>
+            <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Accuracy: <strong className={currentAccuracy >= 80 ? 'text-emerald-700 font-black' : 'text-slate-700 font-bold'}>{currentAccuracy}%</strong>
               {answeredFilteredCount > 0 && ` (${correctFilteredCount} correct)`}
             </div>
           </div>
@@ -337,9 +340,9 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
 
         {/* Progress Bar */}
         <div className="w-full md:w-64 flex-1 max-w-xs">
-          <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#1f3d7a] transition-all duration-300"
+              className="h-full bg-indigo-600 rounded-full transition-all duration-300"
               style={{ width: `${filtered.length > 0 ? (answeredFilteredCount / filtered.length) * 100 : 0}%` }}
             />
           </div>
@@ -350,14 +353,14 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
           <button
             type="button"
             onClick={handleToggleSound}
-            className={`p-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
               soundOn
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
-                : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
             }`}
             title={soundOn ? 'Sound Effects Enabled (Click to Mute)' : 'Sound Effects Muted (Click to Enable)'}
           >
-            {soundOn ? <Volume2 className="w-4 h-4 text-emerald-700" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+            {soundOn ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
             <span className="hidden sm:inline">{soundOn ? 'Sound On' : 'Muted'}</span>
           </button>
 
@@ -365,7 +368,7 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
             <button
               type="button"
               onClick={handleResetMastery}
-              className="px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 cursor-pointer flex items-center gap-1.5 shadow-2xs transition-all"
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer flex items-center gap-1.5 shadow-2xs transition-all"
               title="Clear answers and practice this question set again"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -376,13 +379,13 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
           <button
             type="button"
             onClick={() => setShowCalculator(true)}
-            className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 rounded-xl text-xs font-black text-emerald-950 cursor-pointer shadow-2xs transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl text-xs font-black text-emerald-950 cursor-pointer shadow-2xs transition-colors flex items-center gap-1.5"
             title="Open Calculator"
           >
-            <div className="w-3.5 h-3.5 rounded bg-[#135a39] text-white text-[9px] font-black flex items-center justify-center">
+            <div className="w-3.5 h-3.5 rounded bg-emerald-700 text-white text-[9px] font-black flex items-center justify-center">
               D
             </div>
-            <span>{activeExam === 'SAT' ? 'SAT Calculator' : 'Calculator'}</span>
+            <span>{activeExam === 'SAT' ? 'Desmos Graphing' : 'Calculator'}</span>
           </button>
         </div>
       </div>
@@ -420,7 +423,7 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
       )}
 
       {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center">
+      <div className="flex flex-col md:flex-row gap-3 items-center">
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -428,16 +431,26 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search questions by topic, words, or passage..."
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 rounded-lg text-xs text-[#201e1d] focus:outline-none focus:border-[#1f3d7a]"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-[#201e1d] focus:outline-none focus:border-indigo-600 shadow-2xs"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-500" />
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <select
+            value={difficultyFilter}
+            onChange={e => setDifficultyFilter(e.target.value as DifficultyLevel | 'All')}
+            className="select-modern text-xs font-bold w-full sm:w-auto shrink-0"
+          >
+            <option value="All">All Difficulties ({questions.length})</option>
+            <option value="Easy">Easy Mode (Green)</option>
+            <option value="Medium">Medium Mode (Navy)</option>
+            <option value="Hard">Hard Mode (Crimson)</option>
+          </select>
+
           <select
             value={skillFilter}
             onChange={e => setSkillFilter(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-xs text-[#201e1d] font-bold focus:outline-none focus:border-[#1f3d7a] w-full sm:w-auto"
+            className="select-modern text-xs font-bold w-full sm:w-auto shrink-0"
           >
             <option value="All">All skills ({questions.length})</option>
             {allSkills.map(s => (
@@ -513,6 +526,16 @@ export const QuestionBrowserView: React.FC<QuestionBrowserViewProps> = ({
                         {q.section}
                       </span>
                       <span className="text-slate-600">· {q.skill}</span>
+                      {(() => {
+                        const qDiff = getQuestionDifficulty(q);
+                        const b = getDifficultyBadgeColor(qDiff);
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border ${b.badge}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${b.dot}`} />
+                            <span>{qDiff}</span>
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex items-center gap-3">

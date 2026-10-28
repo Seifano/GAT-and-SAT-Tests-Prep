@@ -163,15 +163,15 @@ export const INITIAL_HISTORY: Record<ExamType, Array<{ score: number; date: stri
 };
 
 export const DEFAULT_APP_SETTINGS: import('../types').AppSettings = {
-  appName: 'AHS Exams Prepline',
+  appName: "Adhwa'a Al-Hedaya International Schools",
   logoUrl: '',
-  loginTitle: 'AHS Exams Prepline',
-  loginHeadline: 'NAFS, GAT, and SAT practice, in one place.',
-  loginDescription: 'Timed mock exams, an authentic question bank built from recent test reports, and targeted feedback on the skills that move your score.',
+  loginTitle: "Adhwa'a Al-Hedaya International Schools",
+  loginHeadline: "Digital SAT, GAT (Qudurat), and NAFS Excellence.",
+  loginDescription: "Official examination preparation and diagnostics portal for Adhwa'a Al-Hedaya International Schools (مدارس أضواء الهداية العالمية) scholars in Riyadh.",
   loginFootnotes: [
-    { title: 'NAFS', subtitle: 'G6 & G9 Reading' },
-    { title: 'GAT', subtitle: 'Verbal · Quant' },
-    { title: 'SAT', subtitle: 'R&W · Math' }
+    { title: 'Digital SAT', subtitle: 'Math & Reading/Writing' },
+    { title: 'GAT (Qudurat)', subtitle: 'Verbal & Quantitative' },
+    { title: 'NAFS Assessment', subtitle: 'Grade 6 & Grade 9' }
   ]
 };
 

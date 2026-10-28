@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Question, ExamType } from '../types';
+import { Question, ExamType, DifficultyLevel } from '../types';
 import { EXAM_CONFIGS } from '../data/mockData';
 import { Plus, Search, Filter, Trash2, Edit3, X, UploadCloud, Cloud, RefreshCw, ChevronDown } from 'lucide-react';
+import { getQuestionDifficulty, getDifficultyBadgeColor } from '../utils/difficulty';
 
 interface AdminQuestionsViewProps {
   bank: Record<ExamType, Question[]>;
@@ -27,6 +28,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
 }) => {
   const [activeExam, setActiveExam] = useState<ExamType>('GAT');
   const [skillFilter, setSkillFilter] = useState('All');
+  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyLevel | 'All'>('All');
   const [showCoverageGrid, setShowCoverageGrid] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
 
   const [formExam, setFormExam] = useState<ExamType>('GAT');
   const [formSkill, setFormSkill] = useState('');
+  const [formDifficulty, setFormDifficulty] = useState<DifficultyLevel>('Medium');
   const [formPassage, setFormPassage] = useState('');
   const [formPrompt, setFormPrompt] = useState('');
   const [formOptions, setFormOptions] = useState<string[]>(['', '', '', '']);
@@ -49,16 +52,18 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
 
   const filtered = currentBank.filter(q => {
     const matchSkill = skillFilter === 'All' || q.skill === skillFilter;
+    const matchDifficulty = difficultyFilter === 'All' || getQuestionDifficulty(q) === difficultyFilter;
     const term = searchTerm.trim().toLowerCase();
     const matchSearch =
       !term ||
       (q.prompt + ' ' + (q.passage || '') + ' ' + q.options.join(' ') + ' ' + (q.explain || '')).toLowerCase().includes(term);
-    return matchSkill && matchSearch;
+    return matchSkill && matchDifficulty && matchSearch;
   });
 
   const openAddModal = () => {
     setFormExam(activeExam);
     setFormSkill(allSkills[0]);
+    setFormDifficulty('Medium');
     setFormPassage('');
     setFormPrompt('');
     setFormOptions(['', '', '', '']);
@@ -72,6 +77,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
     setEditingQuestion(q);
     setFormExam(q.exam);
     setFormSkill(q.skill);
+    setFormDifficulty(getQuestionDifficulty(q));
     setFormPassage(q.passage || '');
     setFormPrompt(q.prompt);
     setFormOptions([...q.options]);
@@ -101,6 +107,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
       exam: formExam,
       section,
       skill: formSkill,
+      difficulty: formDifficulty,
       prompt: formPrompt.trim(),
       options: formOptions.map(o => o.trim()),
       answer: formAnswer,
@@ -261,14 +268,25 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search question text or options..."
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 text-xs text-[#201e1d] focus:outline-none focus:border-[#1f3d7a]"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-[#201e1d] focus:outline-none focus:border-indigo-600 shadow-2xs"
           />
         </div>
 
         <select
+          value={difficultyFilter}
+          onChange={e => setDifficultyFilter(e.target.value as DifficultyLevel | 'All')}
+          className="select-modern text-xs font-bold w-full sm:w-auto"
+        >
+          <option value="All">All Difficulties</option>
+          <option value="Easy">Easy Mode (Green)</option>
+          <option value="Medium">Medium Mode (Navy)</option>
+          <option value="Hard">Hard Mode (Crimson)</option>
+        </select>
+
+        <select
           value={skillFilter}
           onChange={e => setSkillFilter(e.target.value)}
-          className="px-3 py-2.5 bg-white border border-slate-300 text-xs text-[#201e1d] font-bold focus:outline-none focus:border-[#1f3d7a] w-full sm:w-auto"
+          className="select-modern text-xs font-bold w-full sm:w-auto"
         >
           <option value="All">All skills</option>
           {allSkills.map(s => (
@@ -286,7 +304,8 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
             <tr className="border-b-2 border-[#201e1d]/30 text-slate-500 uppercase tracking-wider">
               <th className="py-2.5 px-2 w-10">#</th>
               <th className="py-2.5 px-3">Question</th>
-              <th className="py-2.5 px-3 w-40">Skill</th>
+              <th className="py-2.5 px-3 w-36">Skill</th>
+              <th className="py-2.5 px-3 w-24">Tier</th>
               <th className="py-2.5 px-3 w-16">Key</th>
               <th className="py-2.5 px-3">Explanation</th>
               <th className="py-2.5 px-3 w-28 text-right"></th>
@@ -295,7 +314,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
           <tbody className="divide-y divide-slate-300">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-6 text-center text-slate-500">
+                <td colSpan={7} className="py-6 text-center text-slate-500">
                   No questions match these filters.
                 </td>
               </tr>
@@ -303,6 +322,8 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
               filtered.map((q, idx) => {
                 const keyLetter = ['A', 'B', 'C', 'D'][q.answer] || '—';
                 const isConfirming = confirmDeleteId === q.id;
+                const diff = getQuestionDifficulty(q);
+                const badge = getDifficultyBadgeColor(diff);
 
                 return (
                   <tr key={q.id} className="hover:bg-slate-100/50">
@@ -314,6 +335,12 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                       </div>
                     </td>
                     <td className="py-3 px-3 text-[#201e1d] font-semibold">{q.skill}</td>
+                    <td className="py-3 px-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border ${badge.badge}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                        <span>{diff}</span>
+                      </span>
+                    </td>
                     <td className="py-3 px-3 font-extrabold text-[#1f3d7a] text-sm">{keyLetter}</td>
                     <td className="py-3 px-3 text-slate-600 text-xs truncate max-w-xs" title={q.explain}>{q.explain || '—'}</td>
                     <td className="py-3 px-3 text-right">
@@ -380,7 +407,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Exam</label>
                   <select
@@ -390,7 +417,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                       setFormExam(ex);
                       setFormSkill(EXAM_CONFIGS[ex].sections[0].skills[0]);
                     }}
-                    className="w-full p-2.5 bg-white border border-slate-300 font-bold"
+                    className="select-modern w-full font-bold text-xs"
                   >
                     <option value="NAFS">NAFS (Grade 6 & Grade 9)</option>
                     <option value="GAT">GAT</option>
@@ -402,7 +429,7 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                   <select
                     value={formSkill}
                     onChange={e => setFormSkill(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-slate-300 font-bold"
+                    className="select-modern w-full font-bold text-xs"
                   >
                     {EXAM_CONFIGS[formExam].sections.flatMap(sec =>
                       sec.skills.map(sk => (
@@ -411,6 +438,18 @@ export const AdminQuestionsView: React.FC<AdminQuestionsViewProps> = ({
                         </option>
                       ))
                     )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Difficulty Tier</label>
+                  <select
+                    value={formDifficulty}
+                    onChange={e => setFormDifficulty(e.target.value as DifficultyLevel)}
+                    className="select-modern w-full font-bold text-xs"
+                  >
+                    <option value="Easy">Easy (Green)</option>
+                    <option value="Medium">Medium (Navy)</option>
+                    <option value="Hard">Hard (Crimson)</option>
                   </select>
                 </div>
               </div>

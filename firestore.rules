@@ -70,6 +70,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Live Game Sessions collection for teacher hosting & student Blooket-style practice
+    match /gameSessions/{pin} {
+      allow read, write: if true;
+    }
+
     // Test connectivity document
     match /test/{docId} {
       allow read, write: if true;

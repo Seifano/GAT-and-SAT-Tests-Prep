@@ -1408,7 +1408,7 @@ export const AdminAccountsView: React.FC<AdminAccountsViewProps> = ({
                     <select
                       value={classFilter}
                       onChange={e => setClassFilter(e.target.value)}
-                      className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-800"
+                      className="select-modern py-1 text-[11px] font-bold text-slate-800"
                     >
                       <option value="All">All Classes</option>
                       {availableClasses.map(c => (
