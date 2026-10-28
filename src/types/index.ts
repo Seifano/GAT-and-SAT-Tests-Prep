@@ -153,7 +153,7 @@ export interface StudentGamification {
 // ----------------------------------------------------
 // BLOOKET-STYLE LIVE GAME HOSTING & ARENA TYPES
 // ----------------------------------------------------
-export type GameMode = 'gold_quest' | 'speed_sprint' | 'mastery_paced';
+export type GameMode = 'point_heist' | 'gold_quest' | 'speed_sprint' | 'mastery_paced';
 
 export interface GameRuleSettings {
   timeLimitSeconds: number; // 0 = self-paced untimed; or 20, 30, 45, 60s per question
@@ -163,6 +163,7 @@ export interface GameRuleSettings {
   streakMultipliers: boolean; // x1.5, x2, x3 for consecutive correct answers
   powerChestRewards: boolean; // mystery gold chest rewards after correct answers (Blooket-style)
   maxPlayers: number; // maximum joined students, strictly 25 limit
+  stealPointsEnabled?: boolean; // allow students to steal points from classmates (Blooket style)
 }
 
 export interface GamePlayer {
@@ -179,6 +180,24 @@ export interface GamePlayer {
   answers: Record<number, number>; // index of question -> chosen option index
   finished: boolean;
   lastUpdated: number;
+  shields?: number; // active energy shields protecting against incoming steals
+  stealsCount?: number; // total successful steals performed
+  pointsStolen?: number; // total points stolen from others
+}
+
+export interface GameLiveEvent {
+  id: string;
+  timestamp: number;
+  type: 'steal' | 'shield_block' | 'jackpot' | 'chest' | 'swap';
+  actorId: string;
+  actorName: string;
+  actorAvatar?: string;
+  targetId?: string;
+  targetName?: string;
+  targetAvatar?: string;
+  amount?: number;
+  text: string;
+  textAr?: string;
 }
 
 export interface LiveGameSession {
@@ -199,4 +218,5 @@ export interface LiveGameSession {
   startedAt?: number;
   completedAt?: number;
   players: Record<string, GamePlayer>;
+  recentEvents?: GameLiveEvent[]; // real-time feed of point steals, shield blocks, and achievements
 }

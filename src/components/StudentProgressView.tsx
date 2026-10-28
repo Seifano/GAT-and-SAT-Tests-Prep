@@ -7,19 +7,22 @@ import {
   Target,
   X,
   BookOpen,
-  ShieldCheck
+  ShieldCheck,
+  Gamepad2
 } from 'lucide-react';
 
 interface StudentProgressViewProps {
   students: UserAccount[];
   attempts: TestAttempt[];
   currentUser: UserAccount;
+  onHostGame?: () => void;
 }
 
 export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
   students,
   attempts,
-  currentUser
+  currentUser,
+  onHostGame
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [examFilter, setExamFilter] = useState<'All' | 'NAFS' | 'GAT' | 'SAT'>('All');
@@ -164,6 +167,17 @@ export const StudentProgressView: React.FC<StudentProgressViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+          {onHostGame && (
+            <button
+              type="button"
+              onClick={onHostGame}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-700 hover:from-purple-700 hover:to-indigo-800 text-white font-black text-xs rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer shrink-0"
+              title="Host a live classroom game with PIN & QR Code"
+            >
+              <Gamepad2 className="w-4 h-4 text-yellow-300 animate-bounce" />
+              <span>Host Live Game (استضافة مسابقة صفية)</span>
+            </button>
+          )}
           <div className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-[#201e1d] shrink-0">
             {studentAccounts.length} Students in Scope
           </div>

@@ -1575,6 +1575,7 @@ export default function App() {
             students={accounts}
             attempts={attempts}
             currentUser={user || accounts[0]}
+            onHostGame={() => setCurrentScreen('hostGame')}
           />
         )}
 

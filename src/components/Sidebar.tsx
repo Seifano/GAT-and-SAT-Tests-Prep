@@ -280,19 +280,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const navContent = (
-    <div className="flex flex-col h-full bg-white select-none">
+    <div className="flex flex-col h-full select-none navy-gloss-sidebar text-slate-100">
       {/* Sidebar Header / Context Card */}
-      <div className="p-3.5 border-b border-slate-200/80 bg-slate-50/60">
+      <div className="p-3.5 border-b border-blue-400/20 bg-gradient-to-b from-blue-950/90 to-slate-950/60 backdrop-blur-md">
         {!isCollapsedDesktop ? (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                {t('navigation', language)}
+              <span className="text-[10px] font-black uppercase tracking-wider text-blue-300/80 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                <span>{t('navigation', language)}</span>
               </span>
-              {/* Active Track indicator badge */}
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-[11px] font-black text-slate-800 shadow-2xs">
+              {/* Active Track indicator badge with polished shiny look */}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-900/60 border border-blue-400/30 text-[11px] font-black text-blue-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <span className={`w-2 h-2 rounded-full ${
-                  activeExam === 'SAT' ? 'bg-indigo-600' : activeExam === 'GAT' ? 'bg-rose-600' : 'bg-emerald-600'
+                  activeExam === 'SAT' ? 'bg-blue-400 shadow-[0_0_8px_#60a5fa]' : activeExam === 'GAT' ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
                 }`} />
                 <span>{activeExam} {t('track', language)}</span>
               </div>
@@ -301,13 +302,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Quick search input */}
             {currentCategories.reduce((acc, cat) => acc + cat.items.length, 0) > 4 && (
               <div className="relative">
-                <Search className={`w-3.5 h-3.5 text-slate-400 absolute top-2.5 ${isRtl ? 'right-2.5' : 'left-2.5'}`} />
+                <Search className={`w-3.5 h-3.5 text-blue-300/60 absolute top-2.5 ${isRtl ? 'right-2.5' : 'left-2.5'}`} />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder={t('filterTabs', language)}
-                  className={`w-full py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-2xs ${
+                  className={`w-full py-1.5 bg-blue-950/70 border border-blue-400/30 rounded-xl text-xs text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ${
                     isRtl ? 'pr-7 pl-6' : 'pl-7 pr-6'
                   }`}
                 />
@@ -315,7 +316,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className={`absolute top-2 text-slate-400 hover:text-slate-600 cursor-pointer ${isRtl ? 'left-2' : 'right-2'}`}
+                    className={`absolute top-2 text-blue-300/60 hover:text-white cursor-pointer ${isRtl ? 'left-2' : 'right-2'}`}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -326,8 +327,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <div className="flex flex-col items-center justify-center py-1">
             <span
-              className={`w-3 h-3 rounded-full ${
-                activeExam === 'SAT' ? 'bg-indigo-600' : activeExam === 'GAT' ? 'bg-rose-600' : 'bg-emerald-600'
+              className={`w-3.5 h-3.5 rounded-full ${
+                activeExam === 'SAT' ? 'bg-blue-400 shadow-[0_0_8px_#60a5fa]' : activeExam === 'GAT' ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
               }`}
               title={`${activeExam} Track`}
             />
@@ -338,15 +339,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Vertical Navigation Items List */}
       <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4">
         {filteredCategories.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-400">
+          <div className="py-8 text-center text-xs text-blue-300/60">
             {language === 'ar' ? `لم يتم العثور على نتائج لـ "${searchTerm}"` : `No tabs found for "${searchTerm}"`}
           </div>
         ) : (
           filteredCategories.map(cat => (
             <div key={cat.title} className="space-y-1">
               {!isCollapsedDesktop && (
-                <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                  {cat.title}
+                <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-blue-300/70 flex items-center gap-1.5">
+                  <span className="w-1 h-1 rounded-full bg-blue-400/60" />
+                  <span>{cat.title}</span>
                 </div>
               )}
               <div className="space-y-1">
@@ -363,13 +365,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         title={`${item.label}${item.desc ? ` - ${item.desc}` : ''}`}
                         className={`w-full p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer relative group ${
                           isActive
-                            ? 'bg-indigo-600 text-white shadow-xs'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            ? 'navy-nav-item-active text-white'
+                            : 'text-blue-200 hover:bg-blue-900/50 hover:text-white'
                         }`}
                       >
                         <Icon className="w-4 h-4" />
                         {isActive && (
-                          <span className={`absolute top-1/2 -translate-y-1/2 w-1 h-5 bg-indigo-600 rounded-r-md ${isRtl ? 'right-0 -mr-2' : 'left-0 -ml-2'}`} />
+                          <span className={`absolute top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-400 rounded-r-md ${isRtl ? 'right-0 -mr-2' : 'left-0 -ml-2'}`} />
                         )}
                       </button>
                     );
@@ -380,30 +382,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       key={item.id}
                       type="button"
                       onClick={() => handleItemClick(item.id)}
-                      className={`w-full text-start px-3 py-2 rounded-xl flex items-center gap-3 transition-all duration-150 cursor-pointer group ${
+                      className={`w-full text-start px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-150 cursor-pointer group relative ${
                         isActive
-                          ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                          : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-950 font-medium'
+                          ? 'navy-nav-item-active shiny-sheen font-bold'
+                          : 'navy-nav-item-inactive font-medium'
                       }`}
                     >
-                      <div className={`p-1 rounded-lg shrink-0 transition-colors ${
+                      <div className={`p-1.5 rounded-lg shrink-0 transition-all ${
                         isActive
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 text-slate-600 group-hover:bg-white group-hover:text-indigo-600 shadow-2xs'
+                          ? 'bg-white/20 text-white shadow-inner'
+                          : 'bg-blue-950/70 border border-blue-400/20 text-blue-300 group-hover:bg-blue-800/60 group-hover:text-white group-hover:border-blue-400/40 group-hover:shadow-[0_0_10px_rgba(59,130,246,0.3)]'
                       }`}>
                         <Icon className="w-4 h-4" />
                       </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1.5">
-                          <span className="text-xs truncate block leading-snug">
+                          <span className="text-xs truncate block leading-snug font-bold">
                             {item.label}
                           </span>
                           {item.badge && (
-                            <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-black shrink-0 ${
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black shrink-0 ${
                               isActive
                                 ? 'bg-white/25 text-white'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-white'
+                                : item.badge === 'Live'
+                                ? 'bg-rose-500/30 text-rose-300 border border-rose-500/40 animate-pulse'
+                                : 'bg-blue-900/60 text-blue-200 border border-blue-400/30 group-hover:bg-blue-800'
                             }`}>
                               {item.badge}
                             </span>
@@ -411,7 +415,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                         {item.desc && (
                           <span className={`text-[10px] block truncate leading-tight mt-0.5 ${
-                            isActive ? 'text-indigo-100' : 'text-slate-400 group-hover:text-slate-500'
+                            isActive ? 'text-blue-100' : 'text-blue-300/60 group-hover:text-blue-200'
                           }`}>
                             {item.desc}
                           </span>
@@ -419,7 +423,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
 
                       {isActive && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-white shrink-0 ms-auto" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-300 shadow-[0_0_6px_#93c5fd] shrink-0 ms-auto" />
                       )}
                     </button>
                   );
@@ -431,12 +435,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Sidebar Footer: Switch Track button & Desktop Collapse toggle */}
-      <div className="p-3 border-t border-slate-200/80 bg-slate-50/70 space-y-2">
+      <div className="p-3 border-t border-blue-400/20 bg-blue-950/80 backdrop-blur-md space-y-2">
         {!isCollapsedDesktop && onGoBackToSelect && currentScreen !== 'studentSelect' && (
           <button
             type="button"
             onClick={onGoBackToSelect}
-            className="w-full px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 rounded-xl border border-indigo-200/80 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            className="w-full px-3 py-2 text-xs font-black text-blue-100 bg-gradient-to-r from-blue-900/60 to-indigo-900/60 hover:from-blue-800 hover:to-indigo-800 rounded-xl border border-blue-400/30 hover:border-blue-400 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95"
             title="Return to Main Menu to select another exam track"
           >
             <ArrowLeft className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
@@ -448,14 +452,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {onToggleCollapseDesktop && (
           <div className="hidden lg:flex items-center justify-between pt-1">
             {!isCollapsedDesktop && (
-              <span className="text-[10px] font-bold text-slate-400">
+              <span className="text-[10px] font-bold text-blue-300/60">
                 {language === 'ar' ? 'عرض القائمة' : 'Sidebar View'}
               </span>
             )}
             <button
               type="button"
               onClick={onToggleCollapseDesktop}
-              className={`p-1.5 text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition-colors cursor-pointer ${
+              className={`p-1.5 text-blue-300/70 hover:text-white hover:bg-blue-900/60 rounded-lg transition-colors cursor-pointer ${
                 isCollapsedDesktop ? 'mx-auto' : ''
               }`}
               title={isCollapsedDesktop ? (language === 'ar' ? 'توسيع القائمة' : 'Expand sidebar') : (language === 'ar' ? 'طي القائمة' : 'Collapse sidebar')}
@@ -463,7 +467,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {isCollapsedDesktop ? (
                 <ChevronRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
               ) : (
-                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-blue-300/80">
                   <span>{language === 'ar' ? 'طي' : 'Collapse'}</span>
                   <ChevronLeft className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
                 </div>
@@ -477,9 +481,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
+      {/* Desktop Persistent Sidebar with polished shiny navy blue appearance */}
       <aside
-        className={`hidden lg:block shrink-0 border-r border-slate-200/90 bg-white transition-all duration-200 ease-in-out z-20 ${
+        className={`hidden lg:block shrink-0 border-r border-blue-500/20 bg-[#09132b] transition-all duration-200 ease-in-out z-20 ${
           isCollapsedDesktop ? 'w-18' : 'w-64 xl:w-72'
         }`}
         aria-label="Sidebar navigation"
@@ -493,20 +497,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpenMobile && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-200"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200"
             onClick={onCloseMobile}
             aria-hidden="true"
           />
 
-          <div className="fixed inset-y-0 left-0 max-w-[85vw] w-72 bg-white shadow-2xl flex flex-col z-10 animate-viewFadeIn">
-            <div className="flex items-center justify-between p-3.5 border-b border-slate-200 bg-slate-50">
-              <span className="text-xs font-black uppercase tracking-wider text-indigo-700">
+          <div className="fixed inset-y-0 left-0 max-w-[85vw] w-72 bg-[#09132b] shadow-2xl flex flex-col z-10 animate-viewFadeIn border-r border-blue-500/30">
+            <div className="flex items-center justify-between p-3.5 border-b border-blue-400/20 bg-blue-950">
+              <span className="text-xs font-black uppercase tracking-wider text-blue-300">
                 Navigation Menu
               </span>
               <button
                 type="button"
                 onClick={onCloseMobile}
-                className="p-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-blue-300 hover:text-white hover:bg-blue-900 transition-colors cursor-pointer"
                 aria-label="Close navigation sidebar"
               >
                 <X className="w-4 h-4" />
@@ -521,3 +525,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
+

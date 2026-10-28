@@ -13,7 +13,7 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { UserAccount, Question, AppSettings, TestAttempt, ExamType, UserProfile, LiveGameSession, GamePlayer } from './types';
+import { UserAccount, Question, AppSettings, TestAttempt, ExamType, UserProfile, LiveGameSession, GamePlayer, GameLiveEvent } from './types';
 import { INITIAL_ACCOUNTS, DEFAULT_APP_SETTINGS } from './data/mockData';
 import { hashPassword, encryptCredential, decryptCredential } from './utils/security';
 
@@ -816,6 +816,98 @@ export async function updatePlayerProgressInDb(
     return true;
   } catch (err) {
     console.error(`Error updating player progress for ${player.name}:`, err);
+    return false;
+  }
+}
+
+/**
+ * Executes a balanced Blooket-style point steal or shield-blocked attack between two students in a live game.
+ */
+export async function executeStealPointsInDb(
+  pin: string,
+  thief: GamePlayer,
+  victim: GamePlayer,
+  stealAmount: number,
+  isShielded: boolean,
+  event: GameLiveEvent
+): Promise<boolean> {
+  try {
+    const cleanPin = pin.trim().replace(/\s+/g, '');
+    const docRef = doc(db, 'gameSessions', cleanPin);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return false;
+
+    const data = snap.data() as LiveGameSession;
+    const currentThief = data.players?.[thief.id] || thief;
+    const currentVictim = data.players?.[victim.id] || victim;
+
+    const updatedThief: GamePlayer = {
+      ...currentThief,
+      score: currentThief.score + (isShielded ? 0 : stealAmount),
+      gold: (currentThief.gold || 0) + (isShielded ? 0 : stealAmount),
+      stealsCount: (currentThief.stealsCount || 0) + (isShielded ? 0 : 1),
+      pointsStolen: (currentThief.pointsStolen || 0) + (isShielded ? 0 : stealAmount),
+      lastUpdated: Date.now()
+    };
+
+    const updatedVictim: GamePlayer = {
+      ...currentVictim,
+      score: isShielded ? currentVictim.score : Math.max(0, currentVictim.score - stealAmount),
+      gold: isShielded ? (currentVictim.gold || 0) : Math.max(0, (currentVictim.gold || 0) - stealAmount),
+      shields: isShielded ? Math.max(0, (currentVictim.shields || 1) - 1) : (currentVictim.shields || 0),
+      lastUpdated: Date.now()
+    };
+
+    const existingEvents = data.recentEvents || [];
+    const updatedEvents = [event, ...existingEvents].slice(0, 20);
+
+    await setDoc(
+      docRef,
+      sanitizeForFirestore({
+        players: {
+          [thief.id]: updatedThief,
+          [victim.id]: updatedVictim
+        },
+        recentEvents: updatedEvents
+      }),
+      { merge: true }
+    );
+
+    return true;
+  } catch (err) {
+    console.error(`Error executing point steal in session ${pin}:`, err);
+    return false;
+  }
+}
+
+/**
+ * Broadcasts a live game event (jackpot, shield acquisition, swap) to the live session feed.
+ */
+export async function broadcastGameEventInDb(
+  pin: string,
+  event: GameLiveEvent
+): Promise<boolean> {
+  try {
+    const cleanPin = pin.trim().replace(/\s+/g, '');
+    const docRef = doc(db, 'gameSessions', cleanPin);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return false;
+
+    const data = snap.data() as LiveGameSession;
+    const existingEvents = data.recentEvents || [];
+    const updatedEvents = [event, ...existingEvents].slice(0, 20);
+
+    await setDoc(
+      docRef,
+      sanitizeForFirestore({
+        recentEvents: updatedEvents
+      }),
+      { merge: true }
+    );
+
+    return true;
+  } catch (err) {
+    console.error(`Error broadcasting live event to session ${pin}:`, err);
     return false;
   }
 }

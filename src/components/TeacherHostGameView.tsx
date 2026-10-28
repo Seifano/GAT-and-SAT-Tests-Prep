@@ -70,7 +70,7 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
   const [selectedSkill, setSelectedSkill] = useState<string>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel | 'All'>('All');
   const [questionCount, setQuestionCount] = useState<number>(10);
-  const [mode, setMode] = useState<GameMode>('gold_quest');
+  const [mode, setMode] = useState<GameMode>('point_heist');
   const [timeLimit, setTimeLimit] = useState<number>(0); // 0 = self paced
   const [allowGuests, setAllowGuests] = useState<boolean>(true);
   const [showExplanations, setShowExplanations] = useState<boolean>(true);
@@ -166,7 +166,8 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
         showExplanations,
         basePoints: 100,
         streakMultipliers,
-        powerChestRewards: mode === 'gold_quest',
+        powerChestRewards: mode === 'gold_quest' || mode === 'point_heist',
+        stealPointsEnabled: mode === 'point_heist',
         maxPlayers: 25
       },
       questionIds: selected.map(q => q.id),
@@ -498,8 +499,36 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
                 </h2>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Mode 1: Gold Quest */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Mode 1: Point Heist (Blooket-Style Steal Points) */}
+                <button
+                  type="button"
+                  onClick={() => setMode('point_heist')}
+                  className={`p-4 rounded-2xl border-2 text-start transition-all cursor-pointer relative overflow-hidden ${
+                    mode === 'point_heist'
+                      ? 'border-purple-600 bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-100/60 shadow-md ring-2 ring-purple-500/30'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl animate-bounce">💎</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-200/80 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-purple-600" />
+                      <span>Blooket Steal Mode</span>
+                    </span>
+                  </div>
+                  <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <span>{language === 'ar' ? 'سرقة النقاط (Point Heist)' : 'Point Heist (Steal Mode)'}</span>
+                    <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-1.5 py-0.2 rounded">Fun ⚡</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                    {language === 'ar'
+                      ? 'إجابة صحيحة تفتح صناديق لسرقة النقاط من زملائك، جمع الدروع الواقية ومضاعفة الرصيد!'
+                      : 'Correct answers reveal mystery chests to steal points from classmates or shield yourself!'}
+                  </p>
+                </button>
+
+                {/* Mode 2: Gold Quest */}
                 <button
                   type="button"
                   onClick={() => setMode('gold_quest')}
@@ -525,7 +554,7 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
                   </p>
                 </button>
 
-                {/* Mode 2: Speed Sprint */}
+                {/* Mode 3: Speed Sprint */}
                 <button
                   type="button"
                   onClick={() => setMode('speed_sprint')}
@@ -551,7 +580,7 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
                   </p>
                 </button>
 
-                {/* Mode 3: Paced Mastery */}
+                {/* Mode 4: Paced Mastery */}
                 <button
                   type="button"
                   onClick={() => setMode('mastery_paced')}
@@ -1026,6 +1055,37 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
           </div>
         )}
 
+        {/* Live Arena Action Feed / Steal Ticker (Blooket Style) */}
+        {activeSession.recentEvents && activeSession.recentEvents.length > 0 && (
+          <div className="bg-slate-900 border border-purple-500/40 rounded-2xl p-3.5 shadow-xl flex items-center gap-3 overflow-hidden">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/30 text-purple-300 text-xs font-black shrink-0 border border-purple-400/40 animate-pulse">
+              <Sparkles className="w-4 h-4 text-yellow-300" />
+              <span>{language === 'ar' ? 'أحداث المعركة المباشرة' : 'Live Action Feed'}</span>
+            </div>
+            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-0.5 text-xs text-slate-200 font-medium">
+              {activeSession.recentEvents.slice(0, 8).map(ev => (
+                <div
+                  key={ev.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 shrink-0 animate-viewFadeIn shadow-sm"
+                >
+                  <span className="text-sm">
+                    {ev.type === 'steal'
+                      ? '⚡'
+                      : ev.type === 'shield_block'
+                      ? '🛡️'
+                      : ev.type === 'jackpot'
+                      ? '👑'
+                      : '🎁'}
+                  </span>
+                  <span className="font-bold text-white">
+                    {language === 'ar' && ev.textAr ? ev.textAr : ev.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Full Class Real-time Leaderboard Table */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between">
@@ -1049,6 +1109,12 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
                   <th className="py-3 px-4 font-black text-right">Score</th>
                   {activeSession.mode === 'gold_quest' && (
                     <th className="py-3 px-4 font-black text-right">Gold</th>
+                  )}
+                  {activeSession.mode === 'point_heist' && (
+                    <>
+                      <th className="py-3 px-4 font-black text-center">Shields</th>
+                      <th className="py-3 px-4 font-black text-center">Steals</th>
+                    </>
                   )}
                   <th className="py-3 px-4 font-black text-center">Progress</th>
                   <th className="py-3 px-4 font-black text-center">Accuracy</th>
@@ -1091,6 +1157,28 @@ export const TeacherHostGameView: React.FC<TeacherHostGameViewProps> = ({
                         <td className="py-3 px-4 font-black text-amber-600 text-right tabular-nums text-sm">
                           🪙 {(player.gold || 0).toLocaleString()}
                         </td>
+                      )}
+                      {activeSession.mode === 'point_heist' && (
+                        <>
+                          <td className="py-3 px-4 text-center font-bold">
+                            {(player.shields || 0) > 0 ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 font-black text-xs">
+                                🛡️ x{player.shields}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center font-black text-purple-700">
+                            {(player.stealsCount || 0) > 0 ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-purple-100 text-purple-800 font-black text-xs">
+                                ⚡ {player.stealsCount}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                        </>
                       )}
                       <td className="py-3 px-4 text-center">
                         <div className="inline-flex items-center gap-2">

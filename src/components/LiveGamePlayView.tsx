@@ -3,11 +3,14 @@ import {
   LiveGameSession,
   GamePlayer,
   Question,
-  UserAccount
+  UserAccount,
+  GameLiveEvent
 } from '../types';
 import {
   subscribeToGameSession,
-  updatePlayerProgressInDb
+  updatePlayerProgressInDb,
+  executeStealPointsInDb,
+  broadcastGameEventInDb
 } from '../firebase';
 import { Language, t } from '../utils/i18n';
 import {
@@ -33,7 +36,10 @@ import {
   ChevronRight,
   TrendingUp,
   HelpCircle,
-  LogOut
+  LogOut,
+  Zap,
+  Swords,
+  ShieldAlert
 } from 'lucide-react';
 
 interface LiveGamePlayViewProps {
@@ -44,13 +50,33 @@ interface LiveGamePlayViewProps {
   language?: Language;
 }
 
+export interface ChestRewardItem {
+  type: 'steal' | 'shield' | 'bonus' | 'jackpot';
+  label: string;
+  labelAr: string;
+  bonusScore: number;
+  gold: number;
+  icon: string;
+  color: string;
+}
+
 // Blooket Mystery Chest rewards
-const CHEST_REWARDS = [
-  { label: '+50 Gold', gold: 50, bonusScore: 50, icon: '🪙', color: 'from-amber-400 to-yellow-600' },
-  { label: '+100 Gold!', gold: 100, bonusScore: 100, icon: '💰', color: 'from-yellow-400 to-amber-600' },
-  { label: 'Diamond Bonus (+150)!', gold: 150, bonusScore: 200, icon: '💎', color: 'from-cyan-400 to-blue-600' },
-  { label: 'Golden Shield (+80)', gold: 80, bonusScore: 80, icon: '🛡️', color: 'from-indigo-400 to-purple-600' },
-  { label: 'Jackpot Chest (+250)!', gold: 250, bonusScore: 300, icon: '👑', color: 'from-amber-500 to-rose-600' }
+const CLASSIC_CHEST_REWARDS: ChestRewardItem[] = [
+  { type: 'bonus', label: '+50 Gold', labelAr: '+50 ذهب', gold: 50, bonusScore: 50, icon: '🪙', color: 'from-amber-400 to-yellow-600' },
+  { type: 'bonus', label: '+100 Gold!', labelAr: '+100 ذهب!', gold: 100, bonusScore: 100, icon: '💰', color: 'from-yellow-400 to-amber-600' },
+  { type: 'bonus', label: 'Diamond Bonus (+150)!', labelAr: 'مكافأة الماس (+150)!', gold: 150, bonusScore: 200, icon: '💎', color: 'from-cyan-400 to-blue-600' },
+  { type: 'shield', label: 'Energy Shield (+80)', labelAr: 'درع طاقة (+80)', gold: 80, bonusScore: 80, icon: '🛡️', color: 'from-indigo-400 to-purple-600' },
+  { type: 'jackpot', label: 'Jackpot Chest (+250)!', labelAr: 'كنز الجائزة الكبرى (+250)!', gold: 250, bonusScore: 300, icon: '👑', color: 'from-amber-500 to-rose-600' }
+];
+
+// Point Heist Steal Mode Chest Rewards (Blooket Style)
+const HEIST_CHEST_REWARDS: ChestRewardItem[] = [
+  { type: 'steal', label: 'Steal Points 🏴‍☠️!', labelAr: 'سرقة نقاط من منافس 🏴‍☠️!', bonusScore: 0, gold: 0, icon: '⚡', color: 'from-purple-600 to-indigo-800' },
+  { type: 'shield', label: 'Energy Shield 🛡️!', labelAr: 'درع حماية ضد السرقة 🛡️!', bonusScore: 50, gold: 50, icon: '🛡️', color: 'from-blue-500 to-indigo-700' },
+  { type: 'steal', label: 'Point Heist 💎 (Steal 15%)!', labelAr: 'سطو على النقاط 💎 (15%)!', bonusScore: 0, gold: 0, icon: '🏴‍☠️', color: 'from-rose-500 to-purple-700' },
+  { type: 'jackpot', label: 'Jackpot Chest (+250)!', labelAr: 'كنز مفاجئ (+250 نقطة)!', bonusScore: 250, gold: 150, icon: '👑', color: 'from-amber-400 to-yellow-600' },
+  { type: 'bonus', label: 'Golden Loot (+120)', labelAr: 'غنائم ذهبية (+120)!', bonusScore: 120, gold: 100, icon: '💰', color: 'from-yellow-400 to-amber-600' },
+  { type: 'shield', label: 'Reflective Shield 🛡️!', labelAr: 'درع دفاعي متين 🛡️!', bonusScore: 60, gold: 50, icon: '🛡️', color: 'from-teal-500 to-emerald-700' }
 ];
 
 export const LiveGamePlayView: React.FC<LiveGamePlayViewProps> = ({
@@ -70,29 +96,68 @@ export const LiveGamePlayView: React.FC<LiveGamePlayViewProps> = ({
   const [isCorrect, setIsCorrect] = useState(false);
   const [showChestModal, setShowChestModal] = useState(false);
   const [chestOpenedIndex, setChestOpenedIndex] = useState<number | null>(null);
-  const [revealedReward, setRevealedReward] = useState<typeof CHEST_REWARDS[0] | null>(null);
+  const [revealedReward, setRevealedReward] = useState<ChestRewardItem | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  // Point Stealing Modal & Status
+  const [showStealPicker, setShowStealPicker] = useState(false);
+  const [stealResult, setStealResult] = useState<{ message: string; messageAr: string; success: boolean } | null>(null);
+  const [isExecutingSteal, setIsExecutingSteal] = useState(false);
+  const [incomingAlert, setIncomingAlert] = useState<{ text: string; icon: string } | null>(null);
+  const lastProcessedEventId = useRef<string | null>(null);
 
   // Real-time Firestore subscription to the active game session
   useEffect(() => {
     const unsub = subscribeToGameSession(pin, updatedSession => {
       if (updatedSession) {
         setSession(updatedSession);
-        // Sync player status from Firestore if updated externally
+        // Sync player status from Firestore if updated externally (points stolen or shields consumed)
         if (updatedSession.players && updatedSession.players[player.id]) {
           const syncedPlayer = updatedSession.players[player.id];
           setPlayer(prev => ({
             ...prev,
             score: syncedPlayer.score,
-            gold: syncedPlayer.gold
+            gold: syncedPlayer.gold,
+            shields: syncedPlayer.shields,
+            stealsCount: syncedPlayer.stealsCount,
+            pointsStolen: syncedPlayer.pointsStolen
           }));
+        }
+
+        // Real-time notification if another student stole from this player or if shield deflected it
+        if (updatedSession.recentEvents && updatedSession.recentEvents.length > 0) {
+          const latestEvent = updatedSession.recentEvents[0];
+          if (latestEvent.id !== lastProcessedEventId.current) {
+            lastProcessedEventId.current = latestEvent.id;
+            if (latestEvent.targetId === player.id) {
+              if (latestEvent.type === 'steal') {
+                playIncorrectSound();
+                setIncomingAlert({
+                  text: language === 'ar'
+                    ? `⚠️ ${latestEvent.actorName} سرق منك ${latestEvent.amount} نقطة! أجب سريعاً لتعويضها!`
+                    : `⚠️ ${latestEvent.actorName} stole ${latestEvent.amount} points from you! Keep answering to get revenge!`,
+                  icon: '⚡'
+                });
+                setTimeout(() => setIncomingAlert(null), 5500);
+              } else if (latestEvent.type === 'shield_block') {
+                playCelebrationSound();
+                setIncomingAlert({
+                  text: language === 'ar'
+                    ? `🛡️ درع الحماية الخاص بك صد محاولة سرقة نقاط من ${latestEvent.actorName}!`
+                    : `🛡️ Your Energy Shield deflected a point steal from ${latestEvent.actorName}!`,
+                  icon: '🛡️'
+                });
+                setTimeout(() => setIncomingAlert(null), 5500);
+              }
+            }
+          }
         }
       }
     });
 
     return () => unsub();
-  }, [pin, player.id]);
+  }, [pin, player.id, language]);
 
   const questions: Question[] = session?.questions || [];
   const currentQuestion: Question | undefined = questions[currentQIndex];
@@ -180,12 +245,19 @@ export const LiveGamePlayView: React.FC<LiveGamePlayViewProps> = ({
       setPlayer(updatedPlayer);
       updatePlayerProgressInDb(pin, updatedPlayer).catch(console.error);
 
-      // Trigger Blooket mystery chest reward if in gold_quest mode
-      if (session?.mode === 'gold_quest') {
+      // Trigger Blooket mystery chest reward if in gold_quest or point_heist mode
+      const isChestMode =
+        session?.mode === 'gold_quest' ||
+        session?.mode === 'point_heist' ||
+        session?.ruleSettings?.powerChestRewards;
+
+      if (isChestMode) {
         setTimeout(() => {
           setShowChestModal(true);
           setChestOpenedIndex(null);
           setRevealedReward(null);
+          setShowStealPicker(false);
+          setStealResult(null);
         }, 500);
       }
     } else {
@@ -207,22 +279,135 @@ export const LiveGamePlayView: React.FC<LiveGamePlayViewProps> = ({
     if (chestOpenedIndex !== null) return;
     setChestOpenedIndex(chestIdx);
 
-    // Pick random reward
-    const reward = CHEST_REWARDS[Math.floor(Math.random() * CHEST_REWARDS.length)];
+    const isHeist = session?.mode === 'point_heist' || session?.ruleSettings?.stealPointsEnabled;
+    const pool = isHeist ? HEIST_CHEST_REWARDS : CLASSIC_CHEST_REWARDS;
+    const reward = pool[Math.floor(Math.random() * pool.length)];
     setRevealedReward(reward);
     playCelebrationSound();
 
+    if (reward.type === 'steal') {
+      // Prompt student to pick an opponent to steal points from!
+      setShowStealPicker(true);
+    } else if (reward.type === 'shield') {
+      // Award Energy Shield to defend against future incoming point thefts!
+      const updatedPlayer: GamePlayer = {
+        ...player,
+        shields: (player.shields || 0) + 1,
+        score: player.score + reward.bonusScore,
+        gold: (player.gold || 0) + reward.gold
+      };
+      setPlayer(updatedPlayer);
+      updatePlayerProgressInDb(pin, updatedPlayer).catch(console.error);
+
+      // Broadcast shield event
+      const event: GameLiveEvent = {
+        id: `shield_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: Date.now(),
+        type: 'chest',
+        actorId: player.id,
+        actorName: player.name,
+        actorAvatar: player.avatar,
+        text: `🛡️ ${player.name} obtained an Energy Shield!`,
+        textAr: `🛡️ حصل ${player.name} على درع حماية!`
+      };
+      broadcastGameEventInDb(pin, event).catch(console.error);
+    } else {
+      // Direct bonus score or jackpot
+      const updatedPlayer: GamePlayer = {
+        ...player,
+        score: player.score + reward.bonusScore,
+        gold: (player.gold || 0) + reward.gold
+      };
+      setPlayer(updatedPlayer);
+      updatePlayerProgressInDb(pin, updatedPlayer).catch(console.error);
+
+      if (reward.type === 'jackpot') {
+        const event: GameLiveEvent = {
+          id: `jackpot_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: Date.now(),
+          type: 'jackpot',
+          actorId: player.id,
+          actorName: player.name,
+          actorAvatar: player.avatar,
+          amount: reward.bonusScore,
+          text: `👑 ${player.name} discovered a Jackpot Chest (+${reward.bonusScore})!`,
+          textAr: `👑 عثر ${player.name} على صندوق الجائزة الكبرى (+${reward.bonusScore})!`
+        };
+        broadcastGameEventInDb(pin, event).catch(console.error);
+      }
+    }
+  };
+
+  // Balanced Point Steal Execution against an opponent
+  const handleExecuteSteal = async (target: GamePlayer) => {
+    if (isExecutingSteal || !session) return;
+    setIsExecutingSteal(true);
+
+    const isTargetShielded = (target.shields || 0) > 0;
+    // Balanced steal calculation: 15% of opponent's score, bounded between 50 and 250 points max
+    const calculatedSteal = Math.min(250, Math.max(50, Math.round((target.score || 100) * 0.15)));
+    const stealAmount = isTargetShielded ? 0 : calculatedSteal;
+
+    const event: GameLiveEvent = {
+      id: `steal_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: Date.now(),
+      type: isTargetShielded ? 'shield_block' : 'steal',
+      actorId: player.id,
+      actorName: player.name,
+      actorAvatar: player.avatar,
+      targetId: target.id,
+      targetName: target.name,
+      targetAvatar: target.avatar,
+      amount: stealAmount,
+      text: isTargetShielded
+        ? `🛡️ ${target.name}'s Energy Shield deflected a point steal from ${player.name}!`
+        : `⚡ ${player.name} stole ${stealAmount} points from ${target.name}!`,
+      textAr: isTargetShielded
+        ? `🛡️ صد درع ${target.name} محاولة سرقة نقاط من ${player.name}!`
+        : `⚡ سرق ${player.name} ${stealAmount} نقطة من ${target.name}!`
+    };
+
+    if (isTargetShielded) {
+      playIncorrectSound();
+      setStealResult({
+        success: false,
+        message: `🛡️ DEFLECTED! ${target.name} had an Energy Shield active. No points stolen!`,
+        messageAr: `🛡️ تم صد الهجوم! كان لدى ${target.name} درع حماية نشط، تم حماية نقاطه بنجاح.`
+      });
+    } else {
+      playCelebrationSound();
+      setStealResult({
+        success: true,
+        message: `⚡ HEIST SUCCESSFUL! You stole +${stealAmount} points from ${target.name}!`,
+        messageAr: `⚡ تم السطو بنجاح! سرقت +${stealAmount} نقطة من ${target.name}!`
+      });
+    }
+
+    await executeStealPointsInDb(pin, player, target, stealAmount, isTargetShielded, event);
+    setIsExecutingSteal(false);
+  };
+
+  // Solo testing loot cache fallback if playing alone
+  const handleSoloLoot = () => {
+    const soloBonus = 150;
     const updatedPlayer: GamePlayer = {
       ...player,
-      score: player.score + reward.bonusScore,
-      gold: (player.gold || 0) + reward.gold
+      score: player.score + soloBonus,
+      gold: (player.gold || 0) + 100
     };
     setPlayer(updatedPlayer);
     updatePlayerProgressInDb(pin, updatedPlayer).catch(console.error);
+    setStealResult({
+      success: true,
+      message: `Solo Arena Loot: +${soloBonus} bonus points added to your score!`,
+      messageAr: `غنائم الساحة الفردية: تم إضافة +${soloBonus} نقطة إلى رصيدك!`
+    });
   };
 
   const handleNextQuestion = () => {
     setShowChestModal(false);
+    setShowStealPicker(false);
+    setStealResult(null);
     setSelectedOption(null);
     setHasAnswered(false);
     setShowExplanation(false);
@@ -393,6 +578,25 @@ export const LiveGamePlayView: React.FC<LiveGamePlayViewProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 animate-viewFadeIn select-none">
+      {/* Real-time Incoming Attack / Shield Deflection Alert Banner */}
+      {incomingAlert && (
+        <div className="p-4 bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 border-2 border-purple-500/80 rounded-2xl text-white text-xs font-black shadow-2xl flex items-center justify-between gap-3 animate-bounce">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">{incomingAlert.icon}</span>
+            <span className="text-sm font-extrabold text-white leading-tight">
+              {incomingAlert.text}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIncomingAlert(null)}
+            className="text-slate-400 hover:text-white p-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Top HUD: Score, Streak, Progress Bar & Mascot */}
       <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-xl border border-slate-800">
         <div className="flex items-center justify-between gap-3 mb-3">
@@ -415,8 +619,24 @@ export const LiveGamePlayView: React.FC<LiveGamePlayViewProps> = ({
             </div>
           )}
 
-          {/* Streak & Gold / Score */}
-          <div className="flex items-center gap-3">
+          {/* Shields, Streak & Gold / Score */}
+          <div className="flex items-center gap-2.5">
+            {/* Active Shields Counter */}
+            {(player.shields || 0) > 0 && (
+              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-black shadow-inner animate-pulse">
+                <Shield className="w-3.5 h-3.5 text-blue-400" />
+                <span>x{player.shields}</span>
+              </div>
+            )}
+
+            {/* Steals Performed Counter */}
+            {(player.stealsCount || 0) > 0 && (
+              <div className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-black">
+                <Zap className="w-3.5 h-3.5 text-purple-400" />
+                <span>{player.stealsCount} steals</span>
+              </div>
+            )}
+
             {player.streak > 1 && (
               <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-black animate-pulse">
                 <Flame className="w-3.5 h-3.5 text-rose-400" />
@@ -581,72 +801,187 @@ export const LiveGamePlayView: React.FC<LiveGamePlayViewProps> = ({
         </div>
       )}
 
-      {/* Blooket Mystery Chest Reward Modal (Gold Quest mode) */}
+      {/* Blooket Mystery Chest & Point Heist Steal Modal */}
       {showChestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-viewFadeIn">
-          <div className="max-w-md w-full bg-slate-900 border-2 border-yellow-500/40 rounded-3xl p-6 sm:p-8 text-center text-white shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-viewFadeIn">
+          <div className="max-w-lg w-full bg-slate-900 border-2 border-yellow-500/40 rounded-3xl p-6 sm:p-8 text-center text-white shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-400/20 text-yellow-300 text-xs font-black mb-2">
               <Crown className="w-3.5 h-3.5" />
               <span>{t('pickChest', language)}</span>
             </div>
 
-            <h2 className="text-2xl font-black text-white">
-              {language === 'ar' ? 'اختر صندوق الكنز الذهبي!' : 'Pick a Mystery Chest!'}
-            </h2>
-            <p className="text-xs text-slate-300 mt-1 mb-6">
-              {language === 'ar' ? 'إجابتك صحيحة! اختر واحداً من الصناديق لمضاعفة أرباحك' : 'Correct answer streak! Choose a treasure chest to claim your prize.'}
-            </p>
+            {/* Steal Mode Interactive Target Picker */}
+            {revealedReward?.type === 'steal' && !stealResult ? (
+              <div className="space-y-4 animate-viewFadeIn">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-600/30 border border-purple-400/40 text-3xl shadow-inner mx-auto mb-1">
+                  ⚡
+                </div>
+                <h2 className="text-2xl font-black text-white">
+                  {language === 'ar' ? 'اختر منافساً لسرقة النقاط! 🏴‍☠️' : 'Point Heist: Pick a Target! 🏴‍☠️'}
+                </h2>
+                <p className="text-xs text-slate-300">
+                  {language === 'ar'
+                    ? 'اختر أحد زملائك في الغرفة لسرقة 15% من نقاطه! احذر من الدروع الواقية 🛡️'
+                    : 'Choose a classmate in the arena to steal 15% of their points! Watch out for Energy Shields!'}
+                </p>
 
-            {/* 3 Mystery Chests */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4 my-4">
-              {[0, 1, 2].map(cIdx => {
-                const isThisOpened = chestOpenedIndex === cIdx;
-                const anyOpened = chestOpenedIndex !== null;
+                {/* Opponents List */}
+                <div className="space-y-2 max-h-56 overflow-y-auto my-3 pr-1">
+                  {Object.values(session?.players || {})
+                    .filter(p => p.id !== player.id)
+                    .map(opp => {
+                      const oppMascot = MASCOTS.find(m => m.id === opp.avatar) || MASCOTS[0];
+                      const isShielded = (opp.shields || 0) > 0;
 
-                return (
+                      return (
+                        <button
+                          key={opp.id}
+                          type="button"
+                          disabled={isExecutingSteal}
+                          onClick={() => handleExecuteSteal(opp)}
+                          className="w-full p-3 rounded-2xl bg-slate-800 hover:bg-purple-900/40 border border-slate-700 hover:border-purple-400/60 flex items-center justify-between transition-all cursor-pointer group active:scale-98 shadow-sm text-start"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl group-hover:scale-110 transition-transform">
+                              {oppMascot.emoji}
+                            </span>
+                            <div>
+                              <span className="text-xs font-black text-white block">
+                                {opp.name} {opp.isGuest && '(Guest)'}
+                              </span>
+                              <span className="text-[11px] font-bold text-amber-300">
+                                {opp.score.toLocaleString()} pts
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {isShielded ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-400/40 text-[10px] font-black flex items-center gap-1">
+                                <Shield className="w-3 h-3 text-blue-400" />
+                                <span>{language === 'ar' ? 'محمي بدرع' : 'Shielded'}</span>
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 rounded-xl bg-purple-600 group-hover:bg-purple-500 text-white text-xs font-black shadow-xs flex items-center gap-1">
+                                <Zap className="w-3 h-3 text-yellow-300" />
+                                <span>{language === 'ar' ? 'سرقة 15%' : 'Steal 15%'}</span>
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                  {Object.values(session?.players || {}).filter(p => p.id !== player.id).length === 0 && (
+                    <div className="py-6 px-4 bg-slate-800/80 rounded-2xl border border-slate-700 text-center space-y-3">
+                      <p className="text-xs text-slate-300 font-bold">
+                        {language === 'ar' ? 'لا يوجد منافسين آخرين في الغرفة حالياً' : 'No other opponents in the room right now'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleSoloLoot}
+                        className="py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white text-xs font-black rounded-xl shadow-md cursor-pointer"
+                      >
+                        {language === 'ar' ? 'استلام غنائم الساحة (+150 نقطة) 🎁' : 'Claim Solo Loot Cache (+150 pts) 🎁'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : stealResult ? (
+              /* Steal Result Announcement */
+              <div className="space-y-4 animate-viewFadeIn py-2">
+                <div className={`w-16 h-16 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-lg ${
+                  stealResult.success ? 'bg-emerald-500/20 border border-emerald-400/30' : 'bg-blue-500/20 border border-blue-400/30'
+                }`}>
+                  {stealResult.success ? '⚡' : '🛡️'}
+                </div>
+
+                <h2 className="text-xl font-black text-white">
+                  {stealResult.success
+                    ? (language === 'ar' ? 'تمت العملية بنجاح! 🎉' : 'Heist Successful! 🎉')
+                    : (language === 'ar' ? 'تم صد الهجوم! 🛡️' : 'Deflected by Shield! 🛡️')}
+                </h2>
+
+                <p className="text-xs text-slate-200 leading-relaxed font-bold bg-slate-800/90 p-3.5 rounded-2xl border border-slate-700">
+                  {language === 'ar' ? stealResult.messageAr : stealResult.message}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleNextQuestion}
+                  className="w-full mt-3 py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-xs rounded-2xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>{language === 'ar' ? 'المتابعة للسؤال التالي ←' : 'Continue to Next Question →'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              /* Standard 3 Chests Picker */
+              <>
+                <h2 className="text-2xl font-black text-white">
+                  {session?.mode === 'point_heist'
+                    ? (language === 'ar' ? 'صناديق السطو والدروع الغامضة!' : 'Pick a Point Heist Chest!')
+                    : (language === 'ar' ? 'اختر صندوق الكنز الذهبي!' : 'Pick a Mystery Chest!')}
+                </h2>
+                <p className="text-xs text-slate-300 mt-1 mb-6">
+                  {session?.mode === 'point_heist'
+                    ? (language === 'ar' ? 'إجابتك صحيحة! قد تحصل على سرقة نقاط، درع حماية، أو كنز نقاط!' : 'Correct! You can uncover a Point Steal, Energy Shield, or Gold Cache!')
+                    : (language === 'ar' ? 'إجابتك صحيحة! اختر واحداً من الصناديق لمضاعفة أرباحك' : 'Correct answer streak! Choose a treasure chest to claim your prize.')}
+                </p>
+
+                {/* 3 Mystery Chests */}
+                <div className="grid grid-cols-3 gap-3 sm:gap-4 my-4">
+                  {[0, 1, 2].map(cIdx => {
+                    const isThisOpened = chestOpenedIndex === cIdx;
+                    const anyOpened = chestOpenedIndex !== null;
+
+                    return (
+                      <button
+                        key={cIdx}
+                        type="button"
+                        disabled={anyOpened}
+                        onClick={() => handlePickChest(cIdx)}
+                        className={`h-36 sm:h-40 rounded-2xl border-2 flex flex-col items-center justify-center p-2 transition-all cursor-pointer ${
+                          isThisOpened
+                            ? 'bg-gradient-to-b from-purple-600 via-indigo-600 to-slate-900 border-purple-400 shadow-2xl scale-105'
+                            : anyOpened
+                            ? 'bg-slate-800 border-slate-700 opacity-50'
+                            : 'bg-gradient-to-b from-slate-800 to-slate-900 border-amber-400/40 hover:border-yellow-400 hover:scale-105 shadow-lg'
+                        }`}
+                      >
+                        {isThisOpened && revealedReward ? (
+                          <div className="animate-viewFadeIn text-center">
+                            <span className="text-4xl block mb-1">{revealedReward.icon}</span>
+                            <span className="text-xs font-black text-white leading-tight block">
+                              {language === 'ar' ? revealedReward.labelAr : revealedReward.label}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center">
+                            <span className="text-4xl sm:text-5xl animate-bounce mb-2">🎁</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">
+                              Chest #{cIdx + 1}
+                            </span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Claim Non-Steal Reward Button */}
+                {chestOpenedIndex !== null && revealedReward?.type !== 'steal' && (
                   <button
-                    key={cIdx}
                     type="button"
-                    disabled={anyOpened}
-                    onClick={() => handlePickChest(cIdx)}
-                    className={`h-36 sm:h-40 rounded-2xl border-2 flex flex-col items-center justify-center p-2 transition-all cursor-pointer ${
-                      isThisOpened
-                        ? 'bg-gradient-to-b from-amber-500 to-yellow-600 border-yellow-300 shadow-2xl scale-105'
-                        : anyOpened
-                        ? 'bg-slate-800 border-slate-700 opacity-50'
-                        : 'bg-gradient-to-b from-slate-800 to-slate-900 border-amber-400/40 hover:border-yellow-400 hover:scale-105 shadow-lg'
-                    }`}
+                    onClick={handleNextQuestion}
+                    className="w-full mt-4 py-3.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs rounded-2xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 animate-pulse"
                   >
-                    {isThisOpened && revealedReward ? (
-                      <div className="animate-viewFadeIn text-center">
-                        <span className="text-4xl block mb-1">{revealedReward.icon}</span>
-                        <span className="text-xs font-black text-white leading-tight block">
-                          {revealedReward.label}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <span className="text-4xl sm:text-5xl animate-bounce mb-2">🎁</span>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">
-                          Chest #{cIdx + 1}
-                        </span>
-                      </div>
-                    )}
+                    <span>{language === 'ar' ? 'استلام المكافأة والمتابعة ←' : 'Claim Reward & Continue →'}</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
-                );
-              })}
-            </div>
-
-            {/* Claim Reward Button */}
-            {chestOpenedIndex !== null && (
-              <button
-                type="button"
-                onClick={handleNextQuestion}
-                className="w-full mt-4 py-3.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs rounded-2xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 animate-pulse"
-              >
-                <span>{language === 'ar' ? 'استلام المكافأة والمتابعة ←' : 'Claim Reward & Continue →'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -187,7 +187,7 @@
         },
         "mode": {
           "type": "string",
-          "enum": ["gold_quest", "speed_sprint", "mastery_paced"],
+          "enum": ["point_heist", "gold_quest", "speed_sprint", "mastery_paced"],
           "description": "Game mode"
         },
         "status": {

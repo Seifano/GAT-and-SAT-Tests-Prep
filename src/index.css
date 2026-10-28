@@ -136,6 +136,94 @@
   box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
 }
 
+/* Polished Shiny Navy Blue Dropdown Menu */
+.dropdown-panel-navy {
+  background: linear-gradient(165deg, rgba(13, 27, 62, 0.98) 0%, rgba(8, 17, 40, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 1rem;
+  box-shadow: 0 20px 40px -10px rgba(6, 13, 31, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* Polished Shiny Navy Blue Select Dropdown */
+.select-modern-navy {
+  appearance: none;
+  background-color: #0d1b3e;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 1.1rem;
+  padding: 0.625rem 2.5rem 0.625rem 1rem;
+  border-radius: 0.875rem;
+  border: 1.5px solid rgba(96, 165, 250, 0.35);
+  color: #f8fafc;
+  box-shadow: 0 4px 14px -2px rgba(13, 27, 62, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[dir="rtl"] .select-modern-navy {
+  background-position: left 0.85rem center;
+  padding: 0.625rem 1rem 0.625rem 2.5rem;
+}
+.select-modern-navy:hover {
+  border-color: #60a5fa;
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.select-modern-navy:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
+}
+
+/* Polished Shiny Navy Sidebar & Nav Items */
+.navy-gloss-sidebar {
+  background: linear-gradient(180deg, #09132b 0%, #0d1c3e 45%, #070e22 100%);
+  border-right: 1px solid rgba(59, 130, 246, 0.22);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.06), 8px 0 32px rgba(8, 15, 36, 0.45);
+}
+
+.navy-nav-item-active {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 60%, #172554 100%);
+  border: 1px solid rgba(147, 197, 253, 0.45);
+  box-shadow: 0 4px 14px -2px rgba(29, 78, 216, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.navy-nav-item-inactive {
+  color: rgba(224, 231, 255, 0.82);
+  border: 1px solid transparent;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.navy-nav-item-inactive:hover {
+  background: linear-gradient(90deg, rgba(30, 58, 138, 0.45) 0%, rgba(37, 99, 235, 0.22) 100%);
+  border-color: rgba(96, 165, 250, 0.25);
+  color: #ffffff;
+}
+
+/* Shiny Metallic Reflection Sheen */
+.shiny-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.shiny-sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  transform: skewX(-20deg);
+  animation: shineSheen 7s infinite;
+  pointer-events: none;
+}
+@keyframes shineSheen {
+  0% { left: -100%; }
+  18% { left: 220%; }
+  100% { left: 220%; }
+}
+
 /* School Heritage Ribbon (Crimson Red, Navy Blue, Emerald Green) */
 .school-ribbon {
   background: linear-gradient(90deg, #dc2626 0%, #b91c1c 25%, #1e3a8a 50%, #172554 75%, #059669 100%);
